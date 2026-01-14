@@ -1,0 +1,31 @@
+version: '3.7'
+
+services:
+  simp-php:
+    image: "${DOCKER_IMAGE_TAG}"
+    labels:
+      - "br.com.cesan.app=${$CI_PROJECT_NAME}" 
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ../html:/var/www/html
+      # - /nfs/swarm/api-edocs-php/historico:/var/www/html/uploads
+    networks:
+      - cntlm
+    ports:
+      - 9460:80
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4192M
+
+networks:
+  cntlm:
+    name: backing-services_cntlm
+    external: true
