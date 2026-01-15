@@ -1,8 +1,8 @@
 <?php
 /**
- * SIMP - Buscar dados horários de um ponto em um dia específico
- * Retorna média horária (soma/60) e valores min/max por hora
- * Para tipo 6 (Nível Reservatório): retorna max e soma de NR_EXTRAVASOU
+ * SIMP - Buscar dados horÃ¡rios de um ponto em um dia especÃ­fico
+ * Retorna mÃ©dia horÃ¡ria (soma/60) e valores min/max por hora
+ * Para tipo 6 (NÃ­vel ReservatÃ³rio): retorna max e soma de NR_EXTRAVASOU
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -15,21 +15,21 @@ try {
     $tipoMedidor = isset($_GET['tipoMedidor']) ? (int)$_GET['tipoMedidor'] : 1;
 
     if ($cdPonto <= 0 || empty($data)) {
-        throw new Exception('Parâmetros inválidos');
+        throw new Exception('ParÃ¢metros invÃ¡lidos');
     }
 
     // Validar formato da data
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $data)) {
-        throw new Exception('Formato de data inválido');
+        throw new Exception('Formato de data invÃ¡lido');
     }
 
     // Definir coluna baseado no tipo de medidor
     $colunasPorTipo = [
         1 => 'VL_VAZAO_EFETIVA',  // Macromedidor
-        2 => 'VL_VAZAO_EFETIVA',  // Estação Pitométrica
-        4 => 'VL_PRESSAO',        // Medidor Pressão
-        6 => 'VL_RESERVATORIO',   // Nível Reservatório
-        8 => 'VL_VAZAO_EFETIVA'   // Hidrômetro
+        2 => 'VL_VAZAO_EFETIVA',  // EstaÃ§Ã£o PitomÃ©trica
+        4 => 'VL_PRESSAO',        // Medidor PressÃ£o
+        6 => 'VL_RESERVATORIO',   // NÃ­vel ReservatÃ³rio
+        8 => 'VL_VAZAO_EFETIVA'   // HidrÃ´metro
     ];
 
     $unidadesPorTipo = [
@@ -43,9 +43,9 @@ try {
     $coluna = $colunasPorTipo[$tipoMedidor] ?? 'VL_VAZAO_EFETIVA';
     $unidade = $unidadesPorTipo[$tipoMedidor] ?? 'L/s';
 
-    // Query diferente para tipo 6 (Nível Reservatório)
+    // Query diferente para tipo 6 (NÃ­vel ReservatÃ³rio)
     if ($tipoMedidor == 6) {
-        // Para nível de reservatório: max, min e soma de NR_EXTRAVASOU
+        // Para nÃ­vel de reservatÃ³rio: max, min e soma de NR_EXTRAVASOU
         $sql = "SELECT 
                     DATEPART(HOUR, DT_LEITURA) AS HORA,
                     MIN(CASE WHEN ID_SITUACAO = 1 THEN {$coluna} END) AS VALOR_MIN,
@@ -69,7 +69,8 @@ try {
                     MAX(CASE WHEN ID_SITUACAO = 1 THEN {$coluna} END) AS VALOR_MAX,
                     COUNT(CASE WHEN ID_SITUACAO = 1 THEN 1 END) AS QTD_REGISTROS,
                     COUNT(CASE WHEN ID_SITUACAO = 2 THEN 1 END) AS QTD_INATIVOS,
-                    COUNT(CASE WHEN ID_SITUACAO = 1 AND ID_TIPO_REGISTRO = 2 AND ID_TIPO_MEDICAO = 2 THEN 1 END) AS QTD_TRATADOS
+                    COUNT(CASE WHEN ID_SITUACAO = 1 AND ID_TIPO_REGISTRO = 2 AND ID_TIPO_MEDICAO = 2 THEN 1 END) AS QTD_TRATADOS,
+                    SUM(CASE WHEN ID_SITUACAO = 2 THEN {$coluna} ELSE 0 END) / NULLIF(COUNT(CASE WHEN ID_SITUACAO = 2 THEN 1 END), 0) AS MEDIA_INATIVOS
                 FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO
                 WHERE CD_PONTO_MEDICAO = :cdPonto
                   AND CAST(DT_LEITURA AS DATE) = :data
@@ -100,15 +101,17 @@ try {
             // Para nível: não tem média, mas tem soma de extravasou
             $dados['media'] = null;
             $dados['soma_extravasou'] = (int)$row['SOMA_EXTRAVASOU'];
+            $dados['media_inativos'] = null;
         } else {
             // Para outros: tem média
             $dados['media'] = $row['MEDIA'] !== null ? round(floatval($row['MEDIA']), 2) : null;
+            $dados['media_inativos'] = isset($row['MEDIA_INATIVOS']) && $row['MEDIA_INATIVOS'] !== null ? round(floatval($row['MEDIA_INATIVOS']), 2) : null;
         }
 
         $dadosHorarios[] = $dados;
     }
 
-    // Buscar informações do ponto
+    // Buscar informaÃ§Ãµes do ponto
     $sqlPonto = "SELECT PM.DS_NOME, PM.ID_TIPO_MEDIDOR, L.CD_LOCALIDADE, L.CD_UNIDADE
                  FROM SIMP.dbo.PONTO_MEDICAO PM
                  LEFT JOIN SIMP.dbo.LOCALIDADE L ON PM.CD_LOCALIDADE = L.CD_CHAVE
@@ -117,7 +120,7 @@ try {
     $stmtPonto->execute([':cdPonto' => $cdPonto]);
     $ponto = $stmtPonto->fetch(PDO::FETCH_ASSOC);
 
-    // Gerar código do ponto
+    // Gerar cÃ³digo do ponto
     $letrasTipo = [1 => 'M', 2 => 'E', 4 => 'P', 6 => 'R', 8 => 'H'];
     $letraTipo = $letrasTipo[$tipoMedidor] ?? 'X';
     $codigoPonto = ($ponto['CD_LOCALIDADE'] ?? '000') . '-' . 
