@@ -1,25 +1,25 @@
-# simp-php
+# simp20-php
 ## Build / Deploy
 
 PARA PUBLICAR EM LOCALHOST (VDESK)
 
 é necessário preencher corretamente o arquivo "docker/.env"
 ```
-sudo mkdir -p /nfs/swarm/simp-php/uploads
+sudo mkdir -p /nfs/swarm/simp20-php/uploads
 
 SUBIR AS VARIÁVEIS DE AMBIENTE 
 source docker/.env
 
-docker build -f docker/Dockerfile -t registry.cesan.com.br/cesan/simp-php:0.0.1 .
+docker build -f docker/Dockerfile -t registry.cesan.com.br/cesan/simp20-php:0.0.1 .
 
-docker push registry.cesan.com.br/cesan/simp-php:0.0.1
+docker push registry.cesan.com.br/cesan/simp20-php:0.0.1
 
 
 SE FOR PRECISO CRIAR A NETWORK
 docker network create --driver overlay --attachable backing-services_cntlm
 
 SE FOR PRECISO EXCLUIR 
-docker stack rm simp-php
+docker stack rm simp20-php
 
 SUBIR O CONTAINER
 docker stack deploy --with-registry-auth -c docker/stackdev.yml $CI_PROJECT_NAME
@@ -69,6 +69,6 @@ https://portainer-swarm.sistemas.cesan.com.br/#!/7/docker/stacks
 ```
 ACESSAR A PASTA ONDE SALVO OS ARQUIVOS JSON
 ```
-https://nfs.cesan.com.br/simp-php/files/uploads/
+https://nfs.cesan.com.br/simp20-php/files/uploads/
 usuário: cesan
 senha: a6BLRCPJ2yefub

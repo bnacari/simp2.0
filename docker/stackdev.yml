@@ -1,7 +1,7 @@
 version: '3.7'
 
 services:
-  simp-php:
+  simp20-php:
     image: "${DOCKER_IMAGE_TAG}"
     labels:
       - "br.com.cesan.app=${$CI_PROJECT_NAME}" 
@@ -18,7 +18,7 @@ services:
     networks:
       - cntlm
     ports:
-      - 9460:80
+      - 9461:80
     deploy:
       resources:
         limits:

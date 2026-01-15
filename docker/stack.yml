@@ -1,5 +1,5 @@
 services:
-  simp-php:
+  simp20-php:
     image: "${DOCKER_IMAGE_TAG}"
     labels:
       - "br.com.cesan.app=${CI_PROJECT_NAME}"
@@ -14,7 +14,7 @@ services:
       - HTTP_PROXY=http://cntlm:3128/
       - HTTPS_PROXY=http://cntlm:3128/
     ports:
-      - 9460:80
+      - 9461:80
     volumes:
       - /etc/localtime:/etc/localtime:ro
     networks:
@@ -36,7 +36,7 @@ services:
   #     - /etc/localtime:/etc/localtime:ro
   #   networks:
   #     - frontend
-    # command: "http://simp-php/api.php"
+    # command: "http://simp20-php/api.php"
     # deploy:
     #   mode: replicated
     #   replicas: 0
