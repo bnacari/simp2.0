@@ -3857,6 +3857,14 @@ $letrasTipoMedidor = [
       * 
       * @version 2.1 - Adicionado suporte a registros descartados (ID_SITUACAO)
       */
+   /**
+     * Constrói contexto completo com dados do banco para a IA
+     * 
+     * @param {Object} dados - Dados retornados pelo consultarDadosIA.php
+     * @returns {string} - Contexto formatado para enviar à IA
+     * 
+     * @version 2.1 - Adicionado suporte a registros descartados (ID_SITUACAO)
+     */
     function construirContextoCompletoChat(dados) {
         let contexto = '=== DADOS DO SISTEMA DE ABASTECIMENTO DE ÁGUA ===\n\n';
 
@@ -3965,12 +3973,12 @@ $letrasTipoMedidor = [
             dados.dia_atual.forEach(h => {
                 const hora = String(h.HORA).padStart(2, '0') + ':00';
                 const mediaVazao = parseFloat(h.MEDIA_VAZAO) || 0;
-
+                
                 // Suporte a novo formato com válidos/descartados
                 const qtdValidos = parseInt(h.QTD_VALIDOS) || parseInt(h.QTD_REGISTROS) || 0;
                 const qtdDescartados = parseInt(h.QTD_DESCARTADOS) || 0;
                 const qtdTotal = parseInt(h.QTD_REGISTROS_TOTAL) || (qtdValidos + qtdDescartados);
-
+                
                 const somaHora = parseFloat(h.SOMA_VAZAO) || (mediaVazao * 60);
                 const minVazao = formatNum(h.MIN_VAZAO);
                 const maxVazao = formatNum(h.MAX_VAZAO);
