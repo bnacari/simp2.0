@@ -8,9 +8,22 @@ include_once 'includes/header.inc.php';
 include_once 'includes/menu.inc.php';
 include_once 'bd/conexao.php';
 
+// ========== INÍCIO - Parâmetros GET para navegação externa ==========
+$cdPontoGet = isset($_GET['cdPonto']) ? $_GET['cdPonto'] : '';
+$dataInicioGet = isset($_GET['data_inicio']) ? $_GET['data_inicio'] : '';
+$dataFimGet = isset($_GET['data_fim']) ? $_GET['data_fim'] : '';
+$dataGet = isset($_GET['data']) ? $_GET['data'] : '';
+if (!empty($dataGet) && empty($dataInicioGet) && empty($dataFimGet)) {
+    $dataInicioGet = $dataGet;
+    $dataFimGet = $dataGet;
+}
+// ========== FIM - Parâmetros GET ==========
+
 header('Content-Type: text/html; charset=UTF-8');
 // Verifica permissão
 exigePermissaoTela('Registro de Vazão e Pressão', ACESSO_LEITURA);
+
+
 
 // Permissão do usuário para este módulo
 $podeEditar = podeEditarTela('Registro de Vazão e Pressão');
@@ -359,19 +372,50 @@ $descartes = [
     // Instâncias do Choices.js
     let choicesUnidade, choicesLocalidade;
 
+    // ========== INÍCIO - Parâmetros GET ==========
+    const paramCdPonto = '<?= $cdPontoGet ?>';
+    const paramDataInicio = '<?= $dataInicioGet ?>';
+    const paramDataFim = '<?= $dataFimGet ?>';
+    // ========== FIM - Parâmetros GET ==========
+
     // ============================================
     // Inicialização
     // ============================================
     document.addEventListener('DOMContentLoaded', function () {
         initChoices();
 
-        // Definir data padrão (últimos 30 dias)
-        const hoje = new Date();
-        const inicio = new Date();
-        inicio.setDate(hoje.getDate() - 30);
+        // Verificar se recebeu parâmetros via GET (navegação do Dashboard)
+        if (paramCdPonto || paramDataInicio || paramDataFim) {
+            // Preencher datas dos parâmetros
+            if (paramDataInicio) {
+                document.getElementById('filtroDataInicio').value = paramDataInicio;
+            } else {
+                const ref = paramDataFim ? new Date(paramDataFim + 'T12:00:00') : new Date();
+                const inicio = new Date(ref);
+                inicio.setDate(inicio.getDate() - 7);
+                document.getElementById('filtroDataInicio').value = formatDateInput(inicio);
+            }
 
-        document.getElementById('filtroDataFim').value = formatDateInput(hoje);
-        document.getElementById('filtroDataInicio').value = formatDateInput(inicio);
+            if (paramDataFim) {
+                document.getElementById('filtroDataFim').value = paramDataFim;
+            } else {
+                document.getElementById('filtroDataFim').value = formatDateInput(new Date());
+            }
+
+            // Se tem ponto, preencher o autocomplete e buscar
+            if (paramCdPonto) {
+                setTimeout(() => {
+                    preencherPontoMedicaoViaGet(paramCdPonto);
+                }, 300);
+            }
+        } else {
+            // Comportamento padrão: últimos 30 dias
+            const hoje = new Date();
+            const inicio = new Date();
+            inicio.setDate(hoje.getDate() - 30);
+            document.getElementById('filtroDataFim').value = formatDateInput(hoje);
+            document.getElementById('filtroDataInicio').value = formatDateInput(inicio);
+        }
     });
 
     function formatDateInput(date) {
@@ -558,6 +602,54 @@ $descartes = [
             .catch(error => {
                 console.error('Erro ao buscar pontos:', error);
                 dropdown.innerHTML = '<div class="autocomplete-empty">Erro ao buscar</div>';
+            });
+    }
+
+    /**
+         * Preencher ponto de medição via parâmetro GET (navegação do Dashboard)
+         */
+    /**
+     * Preencher ponto de medição via parâmetro GET (navegação do Dashboard)
+     */
+    function preencherPontoMedicaoViaGet(cdPonto) {
+
+        const input = document.getElementById('filtroPontoMedicaoInput');
+        const hidden = document.getElementById('filtroPontoMedicao');
+        const btnLimpar = document.getElementById('btnLimparPonto');
+
+        fetch(`bd/registroVazaoPressao/getPontoMedicaoInfo.php?cd_ponto=${cdPonto}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.ponto) {
+                    const ponto = data.ponto;
+                    const letrasTipo = { 1: 'M', 2: 'E', 4: 'P', 6: 'R', 8: 'H' };
+                    const letraTipo = letrasTipo[ponto.ID_TIPO_MEDIDOR] || 'X';
+
+                    const codigoPonto = (ponto.CD_LOCALIDADE || '000') + '-' +
+                        String(ponto.CD_PONTO_MEDICAO).padStart(6, '0') + '-' +
+                        letraTipo + '-' +
+                        (ponto.CD_UNIDADE || '00');
+
+                    const label = `${codigoPonto} - ${ponto.DS_NOME || ''}`;
+
+                    input.value = label;
+                    hidden.value = cdPonto;
+                    if (btnLimpar) btnLimpar.style.display = 'flex';
+
+                    setTimeout(() => buscarRegistros(), 200);
+                } else {
+                    input.value = `Ponto ${cdPonto}`;
+                    hidden.value = cdPonto;
+                    if (btnLimpar) btnLimpar.style.display = 'flex';
+                    setTimeout(() => buscarRegistros(), 200);
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao buscar ponto:', error);
+                input.value = `Ponto ${cdPonto}`;
+                hidden.value = cdPonto;
+                if (btnLimpar) btnLimpar.style.display = 'flex';
+                setTimeout(() => buscarRegistros(), 200);
             });
     }
 
@@ -4127,6 +4219,7 @@ $descartes = [
             fecharModalImportacao();
         }
     });
+
 </script>
 
 <?php include_once 'includes/footer.inc.php'; ?>

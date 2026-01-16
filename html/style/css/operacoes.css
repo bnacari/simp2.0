@@ -1774,8 +1774,9 @@ input[type="date"].form-control {
     display: flex;
     flex-direction: column;
     padding: 16px;
-    overflow: hidden;
     box-sizing: border-box;
+    min-height: 0;
+    overflow: visible; /* Mudou de hidden para visible */
 }
 
 .validacao-coluna-ia .ia-chat-titulo {
@@ -1787,20 +1788,10 @@ input[type="date"].form-control {
     color: #475569;
     margin-bottom: 12px;
     flex-shrink: 0;
-    order: 1;
-}
-
-.validacao-coluna-ia .ia-chat-titulo ion-icon {
-    color: #8b5cf6;
 }
 
 .validacao-coluna-ia .ia-chat-sugestoes {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 12px;
     flex-shrink: 0;
-    order: 2;
 }
 
 .validacao-coluna-ia .ia-chat-mensagens {
@@ -2497,12 +2488,15 @@ input[type="date"].form-control {
     font-size: 13px;
     line-height: 1.4;
     word-wrap: break-word;
-    overflow-wrap: break-word;
+    overflow-wrap: anywhere;
+    word-break: break-word;
     max-width: 100%;
+    min-width: 0;
     flex: 1;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
+    white-space: pre-wrap; /* ADICIONAR: preserva quebras de linha */
 }
 
 .ia-chat-msg.user .ia-chat-bubble {

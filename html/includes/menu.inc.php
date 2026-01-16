@@ -868,7 +868,30 @@ if (isset($_SESSION['msg'])) {
                 <li class="sidebar-item">
                     <a href="operacoes.php" class="sidebar-link <?= $paginaAtual === 'operacoes' ? 'active' : '' ?>" data-title="Operações">
                         <ion-icon name="apps-outline"></ion-icon>
-                        <span class="sidebar-link-text">Operações</span>
+                        <span class="sidebar-link-text">Validações</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- Seção: Administração -->
+    <div class="sidebar-section">
+        <div class="sidebar-section-title" onclick="toggleSection(this)" data-section="monitoramento">
+            <span class="section-icon">
+                <ion-icon name="shield-checkmark-outline"></ion-icon>
+                <span>Monitoramento</span>
+            </span>
+            <ion-icon name="chevron-down-outline" class="toggle-icon"></ion-icon>
+        </div>
+        <div class="sidebar-section-content" id="section-monitoramento">
+            <ul class="sidebar-nav">
+                <li class="sidebar-item">
+                    <a href="dashboardSaude.php" class="sidebar-link <?= $paginaAtual === 'dashboardSaude' ? 'active' : '' ?>" data-title="Dashboard">
+                        <ion-icon name="shield-checkmark-outline"></ion-icon>
+                        <span class="sidebar-link-text">Dashboard</span>
                     </a>
                 </li>
             </ul>
@@ -889,9 +912,9 @@ if (isset($_SESSION['msg'])) {
         <div class="sidebar-section-content" id="section-administracao">
             <ul class="sidebar-nav">
                 <li class="sidebar-item">
-                    <a href="cadastrosAdministrativos.php" class="sidebar-link <?= $paginaAtual === 'cadastrosAdministrativos' ? 'active' : '' ?>" data-title="Cadastros Administrativos">
+                    <a href="cadastrosAdministrativos.php" class="sidebar-link <?= $paginaAtual === 'cadastrosAdministrativos' ? 'active' : '' ?>" data-title="Permissões e Usuários">
                         <ion-icon name="shield-checkmark-outline"></ion-icon>
-                        <span class="sidebar-link-text">Cadastros Administrativos</span>
+                        <span class="sidebar-link-text">Permissões e Usuários</span>
                     </a>
                 </li>
             </ul>

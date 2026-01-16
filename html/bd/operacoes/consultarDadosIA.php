@@ -294,7 +294,7 @@ function obterHistorico($pdo, $cdPonto, $dataBase, $dias) {
         $dataInicio = date('Y-m-d', strtotime("-{$dias} days", strtotime($dataBase)));
         
         $sql = "SELECT 
-                    CAST(DT_LEITURA AS DATE) as DATA, 
+                    CAST(DT_LEITURA AS DATE) as DATA,
                     COUNT(*) as QTD_REGISTROS,
                     SUM(CASE WHEN ID_SITUACAO = 1 THEN 1 ELSE 0 END) as QTD_VALIDOS,
                     SUM(CASE WHEN ID_SITUACAO = 2 THEN 1 ELSE 0 END) as QTD_DESCARTADOS,
@@ -329,7 +329,7 @@ function obterHistorico($pdo, $cdPonto, $dataBase, $dias) {
         
         return $dados;
     } catch (Exception $e) {
-        return []; 
+        return [];
     }
 }
 
@@ -453,6 +453,7 @@ function obterEstatisticasMes($pdo, $cdPonto, $dataBase) {
 
 /**
  * Detecta anomalias nos dados
+ * NOTA: Descartados NÃO são anomalias - são dados já tratados pelo operador
  */
 function detectarAnomalias($dados) {
     $alertas = [];
@@ -460,6 +461,7 @@ function detectarAnomalias($dados) {
     if (!empty($dados['dia_atual'])) {
         $horasComDados = count($dados['dia_atual']);
         
+        // Anomalia: Dia incompleto (menos de 24 horas)
         if ($horasComDados < 24) {
             $alertas[] = [
                 'tipo' => 'dados_incompletos',
@@ -468,33 +470,50 @@ function detectarAnomalias($dados) {
             ];
         }
         
+        $horasVazaoZero = [];
+        $horasIncompletas = [];
+        
         foreach ($dados['dia_atual'] as $hora) {
-            // Alerta para horas com poucos registros válidos
+            $horaNum = $hora['HORA'];
             $qtdValidos = isset($hora['QTD_VALIDOS']) ? $hora['QTD_VALIDOS'] : $hora['QTD_REGISTROS'];
-            if ($qtdValidos < 30) {
-                $alertas[] = [
-                    'tipo' => 'registros_insuficientes',
-                    'mensagem' => "Hora {$hora['HORA']}:00 com apenas {$qtdValidos} registros válidos",
-                    'severidade' => 'baixa'
-                ];
+            $mediaVazao = isset($hora['MEDIA_VAZAO']) ? floatval($hora['MEDIA_VAZAO']) : 0;
+            
+            // Anomalia: Horas com poucos registros válidos
+            if ($qtdValidos > 0 && $qtdValidos < 30) {
+                $horasIncompletas[] = str_pad($horaNum, 2, '0', STR_PAD_LEFT) . ':00';
             }
             
-            // Alerta para horas com descarte
-            if (isset($hora['QTD_DESCARTADOS']) && $hora['QTD_DESCARTADOS'] > 0) {
-                $alertas[] = [
-                    'tipo' => 'dados_descartados',
-                    'mensagem' => "Hora {$hora['HORA']}:00 com {$hora['QTD_DESCARTADOS']} registros descartados/corrigidos",
-                    'severidade' => 'info'
-                ];
+            // Anomalia: Vazão zerada (tem registros mas vazão = 0)
+            if ($qtdValidos >= 30 && $mediaVazao == 0) {
+                $horasVazaoZero[] = str_pad($horaNum, 2, '0', STR_PAD_LEFT) . ':00';
             }
             
+            // Anomalia: Extravasamento (para reservatórios)
             if (isset($hora['MINUTOS_EXTRAVASOU']) && $hora['MINUTOS_EXTRAVASOU'] > 0) {
                 $alertas[] = [
                     'tipo' => 'extravasamento',
-                    'mensagem' => "Hora {$hora['HORA']}:00 com {$hora['MINUTOS_EXTRAVASOU']} minutos de extravasamento",
+                    'mensagem' => "Hora {$horaNum}:00 com {$hora['MINUTOS_EXTRAVASOU']} minutos de extravasamento",
                     'severidade' => 'alta'
                 ];
             }
+        }
+        
+        // Agrupar alertas de horas incompletas
+        if (!empty($horasIncompletas)) {
+            $alertas[] = [
+                'tipo' => 'registros_insuficientes',
+                'mensagem' => "Horas com poucos registros (<30): " . implode(', ', $horasIncompletas),
+                'severidade' => 'baixa'
+            ];
+        }
+        
+        // Agrupar alertas de vazão zerada
+        if (!empty($horasVazaoZero)) {
+            $alertas[] = [
+                'tipo' => 'vazao_zerada',
+                'mensagem' => "Vazão zerada nas horas: " . implode(', ', $horasVazaoZero),
+                'severidade' => 'media'
+            ];
         }
     }
     

@@ -61,7 +61,9 @@ Aguarde a atualização.
 Se usuário pedir detalhes/cálculos, usar formato completo:
 
 === HISTÓRICO (hora HH:00) ===
-Sem1: X.XX L/s ✓ | Sem2: X.XX L/s ✓ | Sem3: X.XX L/s ✗
+Sem1: X.XX L/s ✓ 
+Sem2: X.XX L/s ✓
+Sem3: X.XX L/s ✗
 >>> Média histórica: XX.XX L/s <<<
 
 === TENDÊNCIA ===
@@ -77,14 +79,19 @@ XX.XX × Y.YY = **ZZ.ZZ L/s**
 - Conversões: L/s → m³/h = ×3.6 | L/s → m³/dia = ×86.4
 
 📌 SITUAÇÃO DOS REGISTROS (ID_SITUACAO):
-- ID_SITUACAO = 1: Registro VÁLIDO/Original (usado nos cálculos)
-- ID_SITUACAO = 2: Registro DESCARTADO/Corrigido/Invalidado (NÃO entra nos cálculos)
+- ID_SITUACAO = 1: Válido | ID_SITUACAO = 2: Descartado/Corrigido
+- Informar sobre descartados SOMENTE se o usuário perguntar explicitamente
 
-Quando usuário perguntar sobre 'descartados', 'corrigidos', 'invalidados' ou 'revisados':
-1. Procure no contexto: 'total_descartados' ou 'QTD_DESCARTADOS'
-2. Se houver 'horas_com_descarte', liste as horas afetadas
-3. Responda: 'Houve X registros descartados nas horas: HH:00, HH:00...'
-4. Os cálculos de média usam APENAS registros válidos (ID_SITUACAO=1)
+🔍 DETECÇÃO DE ANOMALIAS (quando perguntarem):
+Analise e reporte APENAS problemas operacionais:
+- Vazão ZERADA por período prolongado (pode indicar falha)
+- Variação BRUSCA (>50% em 1 hora) comparado ao histórico
+- Horas INCOMPLETAS (<50 registros) ou VAZIAS (sem dados)
+- Valores MUITO acima/abaixo da média histórica (>30%)
+- Pressão fora da faixa normal (<10 ou >60 mca)
+- Nível reservatório em 100% prolongado (risco extravasamento)
+
+NÃO mencione descartados na análise de anomalias - isso é correção já feita
 
 ---
 
