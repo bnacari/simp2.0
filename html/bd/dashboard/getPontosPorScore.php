@@ -87,21 +87,30 @@ try {
         }
     }
     
-    // Filtro de problema
+    // Filtro de problema (suporta múltiplos separados por vírgula)
     // IMPORTANTE: Manter consistente com getResumoGeral.php
     if (!empty($problema)) {
-        $problema = strtoupper($problema);
-        if ($problema === 'COMUNICACAO') {
-            $having[] = "SUM(CASE WHEN MRD.FL_SEM_COMUNICACAO = 1 THEN 1 ELSE 0 END) > 0";
-        } elseif ($problema === 'MEDIDOR') {
-            // Inclui FL_VALOR_CONSTANTE e FL_PERFIL_ANOMALO (igual ao dashboard)
-            $having[] = "SUM(CASE WHEN MRD.FL_VALOR_CONSTANTE = 1 OR MRD.FL_PERFIL_ANOMALO = 1 THEN 1 ELSE 0 END) > 0";
-        } elseif ($problema === 'HIDRAULICO') {
-            $having[] = "(SUM(CASE WHEN MRD.FL_VALOR_NEGATIVO = 1 THEN 1 ELSE 0 END) > 0 OR SUM(CASE WHEN MRD.FL_FORA_FAIXA = 1 THEN 1 ELSE 0 END) > 0 OR SUM(CASE WHEN MRD.FL_SPIKE = 1 THEN 1 ELSE 0 END) > 0)";
-        } elseif ($problema === 'VERIFICAR') {
-            $having[] = "SUM(CASE WHEN MRD.FL_ZEROS_SUSPEITOS = 1 THEN 1 ELSE 0 END) > 0";
-        } elseif ($problema === 'TRATAMENTO') {
-            $having[] = "SUM(ISNULL(MRD.QTD_TRATAMENTOS, 0)) > 3";
+        $problemas = array_map('trim', explode(',', strtoupper($problema)));
+        $problemaConditions = [];
+        
+        foreach ($problemas as $prob) {
+            if ($prob === 'COMUNICACAO') {
+                $problemaConditions[] = "SUM(CASE WHEN MRD.FL_SEM_COMUNICACAO = 1 THEN 1 ELSE 0 END) > 0";
+            } elseif ($prob === 'MEDIDOR') {
+                // Inclui FL_VALOR_CONSTANTE e FL_PERFIL_ANOMALO (igual ao dashboard)
+                $problemaConditions[] = "SUM(CASE WHEN MRD.FL_VALOR_CONSTANTE = 1 OR MRD.FL_PERFIL_ANOMALO = 1 THEN 1 ELSE 0 END) > 0";
+            } elseif ($prob === 'HIDRAULICO') {
+                $problemaConditions[] = "(SUM(CASE WHEN MRD.FL_VALOR_NEGATIVO = 1 THEN 1 ELSE 0 END) > 0 OR SUM(CASE WHEN MRD.FL_FORA_FAIXA = 1 THEN 1 ELSE 0 END) > 0 OR SUM(CASE WHEN MRD.FL_SPIKE = 1 THEN 1 ELSE 0 END) > 0)";
+            } elseif ($prob === 'VERIFICAR') {
+                $problemaConditions[] = "SUM(CASE WHEN MRD.FL_ZEROS_SUSPEITOS = 1 THEN 1 ELSE 0 END) > 0";
+            } elseif ($prob === 'TRATAMENTO') {
+                $problemaConditions[] = "SUM(ISNULL(MRD.QTD_TRATAMENTOS, 0)) > 3";
+            }
+        }
+        
+        if (!empty($problemaConditions)) {
+            // Usar OR para permitir qualquer um dos problemas selecionados
+            $having[] = '(' . implode(' OR ', $problemaConditions) . ')';
         }
     }
     

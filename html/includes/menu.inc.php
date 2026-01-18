@@ -478,7 +478,7 @@ if (isset($_SESSION['msg'])) {
         padding: 14px 16px;
         background: #ffffff;
         border-radius: 10px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0,0,0,0.05);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05);
         min-width: 300px;
         max-width: 380px;
         pointer-events: auto;
@@ -486,10 +486,21 @@ if (isset($_SESSION['msg'])) {
         border-left: 4px solid #3b82f6;
     }
 
-    .toast.sucesso { border-left-color: #22c55e; }
-    .toast.erro { border-left-color: #ef4444; }
-    .toast.alerta { border-left-color: #f59e0b; }
-    .toast.info { border-left-color: #3b82f6; }
+    .toast.sucesso {
+        border-left-color: #22c55e;
+    }
+
+    .toast.erro {
+        border-left-color: #ef4444;
+    }
+
+    .toast.alerta {
+        border-left-color: #f59e0b;
+    }
+
+    .toast.info {
+        border-left-color: #3b82f6;
+    }
 
     .toast-icon {
         width: 24px;
@@ -502,12 +513,29 @@ if (isset($_SESSION['msg'])) {
         font-size: 14px;
     }
 
-    .toast.sucesso .toast-icon { background: #dcfce7; color: #15803d; }
-    .toast.erro .toast-icon { background: #fee2e2; color: #b91c1c; }
-    .toast.alerta .toast-icon { background: #fef3c7; color: #b45309; }
-    .toast.info .toast-icon { background: #dbeafe; color: #1d4ed8; }
+    .toast.sucesso .toast-icon {
+        background: #dcfce7;
+        color: #15803d;
+    }
 
-    .toast-content { flex: 1; }
+    .toast.erro .toast-icon {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .toast.alerta .toast-icon {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    .toast.info .toast-icon {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .toast-content {
+        flex: 1;
+    }
 
     .toast-message {
         font-size: 13px;
@@ -532,8 +560,15 @@ if (isset($_SESSION['msg'])) {
     }
 
     @keyframes toastSlideIn {
-        from { opacity: 0; transform: translateX(100px); }
-        to { opacity: 1; transform: translateX(0); }
+        from {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
     }
 
     .toast.hiding {
@@ -541,8 +576,15 @@ if (isset($_SESSION['msg'])) {
     }
 
     @keyframes toastSlideOut {
-        from { opacity: 1; transform: translateX(0); }
-        to { opacity: 0; transform: translateX(100px); }
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        to {
+            opacity: 0;
+            transform: translateX(100px);
+        }
     }
 
     /* ============================================
@@ -712,7 +754,10 @@ if (isset($_SESSION['msg'])) {
     }
 
     /* Esconder elementos antigos */
-    .header2, .sidebar2, .content2, #check {
+    .header2,
+    .sidebar2,
+    .content2,
+    #check {
         display: none !important;
     }
 </style>
@@ -726,13 +771,14 @@ if (isset($_SESSION['msg'])) {
         <button class="btn-toggle-menu" onclick="toggleSidebar()" title="Menu">
             <ion-icon name="menu-outline"></ion-icon>
         </button>
-        
+
         <a href="index.php">
             <img src="imagens/logo_icon.png" class="modern-header-logo" alt="Logo SIMP">
             <div class="modern-header-title">
                 <span class="brand-name">
                     SIMP
-                    <span class="ambiente-badge <?= $ambiente === 'PRODUÇÃO' ? 'producao' : '' ?>"><?= $ambiente ?></span>
+                    <span
+                        class="ambiente-badge <?= $ambiente === 'PRODUÇÃO' ? 'producao' : '' ?>"><?= $ambiente ?></span>
                 </span>
                 <span class="system-fullname">Sistema Integrado de Macromedição e Pitometria</span>
             </div>
@@ -760,7 +806,7 @@ if (isset($_SESSION['msg'])) {
 
 <!-- Sidebar Moderna -->
 <aside class="modern-sidebar" id="modernSidebar">
-    
+
     <!-- Seção: Cadastros Básicos -->
     <div class="sidebar-section">
         <div class="sidebar-section-title" onclick="toggleSection(this)" data-section="cadastros-basicos">
@@ -773,7 +819,9 @@ if (isset($_SESSION['msg'])) {
         <div class="sidebar-section-content" id="section-cadastros-basicos">
             <ul class="sidebar-nav">
                 <li class="sidebar-item">
-                    <a href="cadastrosAuxiliares.php" class="sidebar-link <?= $paginaAtual === 'cadastrosAuxiliares' ? 'active' : '' ?>" data-title="Cadastros Auxiliares">
+                    <a href="cadastrosAuxiliares.php"
+                        class="sidebar-link <?= $paginaAtual === 'cadastrosAuxiliares' ? 'active' : '' ?>"
+                        data-title="Cadastros Auxiliares">
                         <ion-icon name="list-outline"></ion-icon>
                         <span class="sidebar-link-text">Cadastros Auxiliares</span>
                     </a>
@@ -796,13 +844,17 @@ if (isset($_SESSION['msg'])) {
         <div class="sidebar-section-content" id="section-manutencao">
             <ul class="sidebar-nav">
                 <li class="sidebar-item">
-                    <a href="programacaoManutencao.php" class="sidebar-link <?= in_array($paginaAtual, ['programacaoManutencao', 'programacaoManutencaoForm', 'programacaoManutencaoView']) ? 'active' : '' ?>" data-title="Programação">
+                    <a href="programacaoManutencao.php"
+                        class="sidebar-link <?= in_array($paginaAtual, ['programacaoManutencao', 'programacaoManutencaoForm', 'programacaoManutencaoView']) ? 'active' : '' ?>"
+                        data-title="Programação">
                         <ion-icon name="calendar-outline"></ion-icon>
                         <span class="sidebar-link-text">Programação</span>
                     </a>
                 </li>
                 <li class="sidebar-item">
-                    <a href="registroManutencao.php" class="sidebar-link <?= in_array($paginaAtual, ['registroManutencao', 'registroManutencaoForm', 'registroManutencaoView']) ? 'active' : '' ?>" data-title="Registro">
+                    <a href="registroManutencao.php"
+                        class="sidebar-link <?= in_array($paginaAtual, ['registroManutencao', 'registroManutencaoForm', 'registroManutencaoView']) ? 'active' : '' ?>"
+                        data-title="Registro">
                         <ion-icon name="clipboard-outline"></ion-icon>
                         <span class="sidebar-link-text">Registro</span>
                     </a>
@@ -825,25 +877,31 @@ if (isset($_SESSION['msg'])) {
         <div class="sidebar-section-content" id="section-cadastros">
             <ul class="sidebar-nav">
                 <li class="sidebar-item">
-                    <a href="pontoMedicao.php" class="sidebar-link <?= $paginaAtual === 'pontoMedicao' ? 'active' : '' ?>" data-title="Ponto de Medição">
+                    <a href="pontoMedicao.php"
+                        class="sidebar-link <?= $paginaAtual === 'pontoMedicao' ? 'active' : '' ?>"
+                        data-title="Ponto de Medição">
                         <ion-icon name="pin-outline"></ion-icon>
                         <span class="sidebar-link-text">Ponto de Medição</span>
                     </a>
                 </li>
                 <li class="sidebar-item">
-                    <a href="motorBomba.php" class="sidebar-link <?= $paginaAtual === 'motorBomba' ? 'active' : '' ?>" data-title="Motor-Bomba">
+                    <a href="motorBomba.php" class="sidebar-link <?= $paginaAtual === 'motorBomba' ? 'active' : '' ?>"
+                        data-title="Motor-Bomba">
                         <ion-icon name="cog-outline"></ion-icon>
                         <span class="sidebar-link-text">Motor-Bomba</span>
                     </a>
                 </li>
                 <li class="sidebar-item">
-                    <a href="registroVazaoPressao.php" class="sidebar-link <?= $paginaAtual === 'registroVazaoPressao' ? 'active' : '' ?>" data-title="Registro Vazão/Pressão">
+                    <a href="registroVazaoPressao.php"
+                        class="sidebar-link <?= $paginaAtual === 'registroVazaoPressao' ? 'active' : '' ?>"
+                        data-title="Registro Vazão/Pressão">
                         <ion-icon name="pulse-outline"></ion-icon>
                         <span class="sidebar-link-text">Registro Vazão/Pressão</span>
                     </a>
                 </li>
                 <li class="sidebar-item">
-                    <a href="entidade.php" class="sidebar-link <?= $paginaAtual === 'entidade' ? 'active' : '' ?>" data-title="Entidade">
+                    <a href="entidade.php" class="sidebar-link <?= $paginaAtual === 'entidade' ? 'active' : '' ?>"
+                        data-title="Entidade">
                         <ion-icon name="business-outline"></ion-icon>
                         <span class="sidebar-link-text">Entidade</span>
                     </a>
@@ -866,7 +924,8 @@ if (isset($_SESSION['msg'])) {
         <div class="sidebar-section-content" id="section-operacao">
             <ul class="sidebar-nav">
                 <li class="sidebar-item">
-                    <a href="operacoes.php" class="sidebar-link <?= $paginaAtual === 'operacoes' ? 'active' : '' ?>" data-title="Operações">
+                    <a href="operacoes.php" class="sidebar-link <?= $paginaAtual === 'operacoes' ? 'active' : '' ?>"
+                        data-title="Operações">
                         <ion-icon name="apps-outline"></ion-icon>
                         <span class="sidebar-link-text">Validações</span>
                     </a>
@@ -889,7 +948,9 @@ if (isset($_SESSION['msg'])) {
         <div class="sidebar-section-content" id="section-monitoramento">
             <ul class="sidebar-nav">
                 <li class="sidebar-item">
-                    <a href="dashboardSaude.php" class="sidebar-link <?= $paginaAtual === 'dashboardSaude' ? 'active' : '' ?>" data-title="Dashboard">
+                    <a href="dashboardSaude.php"
+                        class="sidebar-link <?= $paginaAtual === 'dashboardSaude' ? 'active' : '' ?>"
+                        data-title="Dashboard">
                         <ion-icon name="shield-checkmark-outline"></ion-icon>
                         <span class="sidebar-link-text">Dashboard</span>
                     </a>
@@ -900,6 +961,7 @@ if (isset($_SESSION['msg'])) {
 
     <div class="sidebar-divider"></div>
 
+    <!-- Seção: Administração -->
     <!-- Seção: Administração -->
     <div class="sidebar-section">
         <div class="sidebar-section-title" onclick="toggleSection(this)" data-section="administracao">
@@ -912,39 +974,27 @@ if (isset($_SESSION['msg'])) {
         <div class="sidebar-section-content" id="section-administracao">
             <ul class="sidebar-nav">
                 <li class="sidebar-item">
-                    <a href="cadastrosAdministrativos.php" class="sidebar-link <?= $paginaAtual === 'cadastrosAdministrativos' ? 'active' : '' ?>" data-title="Permissões e Usuários">
+                    <a href="cadastrosAdministrativos.php"
+                        class="sidebar-link <?= $paginaAtual === 'cadastrosAdministrativos' ? 'active' : '' ?>"
+                        data-title="Cadastros Administrativos">
                         <ion-icon name="shield-checkmark-outline"></ion-icon>
-                        <span class="sidebar-link-text">Permissões e Usuários</span>
+                        <span class="sidebar-link-text">Cadastros Administrativos</span>
+                    </a>
+                </li>
+                <li class="sidebar-item">
+                    <a href="iaRegras.php" class="sidebar-link <?= $paginaAtual === 'iaRegras' ? 'active' : '' ?>"
+                        data-title="Treinamento IA">
+                        <ion-icon name="sparkles-outline"></ion-icon>
+                        <span class="sidebar-link-text">Treinamento IA</span>
                     </a>
                 </li>
             </ul>
         </div>
     </div>
+    </div>
 
-    <?php if (($_SESSION['externo'] ?? '') == 'externo') { ?>
-        <div class="sidebar-divider"></div>
 
-        <!-- Seção: Minha Conta -->
-        <div class="sidebar-section">
-            <div class="sidebar-section-title" onclick="toggleSection(this)" data-section="conta">
-                <span class="section-icon">
-                    <ion-icon name="person-outline"></ion-icon>
-                    <span>Minha Conta</span>
-                </span>
-                <ion-icon name="chevron-down-outline" class="toggle-icon"></ion-icon>
-            </div>
-            <div class="sidebar-section-content" id="section-conta">
-                <ul class="sidebar-nav">
-                    <li class="sidebar-item">
-                        <a href="trocaSenhaUsuario.php" class="sidebar-link <?= $paginaAtual === 'trocaSenhaUsuario' ? 'active' : '' ?>" data-title="Trocar Senha">
-                            <ion-icon name="key-outline"></ion-icon>
-                            <span class="sidebar-link-text">Trocar Senha</span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    <?php } ?>
+
 </aside>
 
 <!-- Toast Container -->
@@ -962,14 +1012,14 @@ if (isset($_SESSION['msg'])) {
         const sidebar = document.getElementById('modernSidebar');
         const body = document.body;
         const overlay = document.getElementById('sidebarOverlay');
-        
+
         // Mobile behavior
         if (window.innerWidth <= 768) {
             sidebar.classList.toggle('mobile-open');
             overlay.classList.toggle('active');
             return;
         }
-        
+
         // Desktop behavior
         sidebar.classList.toggle('collapsed');
         body.classList.toggle('sidebar-collapsed');
@@ -992,13 +1042,13 @@ if (isset($_SESSION['msg'])) {
         if (sidebar.classList.contains('collapsed') && window.innerWidth > 768) {
             return;
         }
-        
+
         const sectionId = element.getAttribute('data-section');
         const content = document.getElementById('section-' + sectionId);
-        
+
         element.classList.toggle('collapsed');
         content.classList.toggle('collapsed');
-        
+
         // Salvar estado
         const states = JSON.parse(localStorage.getItem('sidebarSections') || '{}');
         states[sectionId] = content.classList.contains('collapsed');
@@ -1008,7 +1058,7 @@ if (isset($_SESSION['msg'])) {
     // ============================================
     // Restore States on Load
     // ============================================
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         // Restore sidebar state (desktop only)
         if (window.innerWidth > 768) {
             const sidebarState = localStorage.getItem('sidebarCollapsed');
@@ -1017,7 +1067,7 @@ if (isset($_SESSION['msg'])) {
                 document.body.classList.add('sidebar-collapsed');
             }
         }
-        
+
         // Restore section states
         const sectionStates = JSON.parse(localStorage.getItem('sidebarSections') || '{}');
         for (const [section, isCollapsed] of Object.entries(sectionStates)) {
@@ -1035,10 +1085,10 @@ if (isset($_SESSION['msg'])) {
     // ============================================
     // Handle Resize
     // ============================================
-    window.addEventListener('resize', function() {
+    window.addEventListener('resize', function () {
         const sidebar = document.getElementById('modernSidebar');
         const overlay = document.getElementById('sidebarOverlay');
-        
+
         if (window.innerWidth > 768) {
             sidebar.classList.remove('mobile-open');
             overlay.classList.remove('active');
@@ -1050,7 +1100,7 @@ if (isset($_SESSION['msg'])) {
     // ============================================
     function showToast(message, type = 'info', duration = 5000) {
         const container = document.getElementById('toastContainer');
-        
+
         const icons = {
             sucesso: 'checkmark-circle',
             erro: 'close-circle',
@@ -1089,9 +1139,9 @@ if (isset($_SESSION['msg'])) {
 </script>
 
 <?php if (!empty($msgSistema)): ?>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        showToast(<?= json_encode($msgSistema) ?>, 'info');
-    });
-</script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            showToast(<?= json_encode($msgSistema) ?>, 'info');
+        });
+    </script>
 <?php endif; ?>

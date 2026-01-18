@@ -1776,7 +1776,8 @@ input[type="date"].form-control {
     padding: 16px;
     box-sizing: border-box;
     min-height: 0;
-    overflow: visible; /* Mudou de hidden para visible */
+    overflow: visible;
+    /* Mudou de hidden para visible */
 }
 
 .validacao-coluna-ia .ia-chat-titulo {
@@ -1902,6 +1903,10 @@ input[type="date"].form-control {
 
 .grafico-controle-item .controle-cor.excluidos {
     background: repeating-linear-gradient(90deg, #f97316, #f97316 3px, transparent 3px, transparent 6px);
+}
+
+.controle-cor.mediadiaria {
+    background: #8b5cf6;
 }
 
 .grafico-controle-item .controle-label {
@@ -2496,7 +2501,8 @@ input[type="date"].form-control {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    white-space: pre-wrap; /* ADICIONAR: preserva quebras de linha */
+    white-space: pre-wrap;
+    /* ADICIONAR: preserva quebras de linha */
 }
 
 .ia-chat-msg.user .ia-chat-bubble {

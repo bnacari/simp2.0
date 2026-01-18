@@ -2,7 +2,11 @@
 /**
  * SIMP - Chat com IA
  * 
- * Suporta Groq e Gemini com histórico de conversa
+ * Suporta DeepSeek, Groq e Gemini com histórico de conversa
+ * Agora busca regras do banco de dados (tabela IA_REGRAS)
+ * 
+ * @author Bruno
+ * @version 2.0 - Regras dinâmicas via banco de dados
  */
 
 // Iniciar buffer para capturar qualquer output
@@ -11,7 +15,9 @@ ob_start();
 error_reporting(0);
 ini_set('display_errors', 0);
 
-// Função para retornar JSON limpo
+/**
+ * Retorna JSON limpo e encerra execução
+ */
 function retornarJSONIA($data) {
     ob_end_clean();
     header('Content-Type: application/json; charset=utf-8');
@@ -33,6 +39,9 @@ register_shutdown_function(function() {
 });
 
 try {
+    // ========================================
+    // Carregar configuração da IA
+    // ========================================
     $configFile = __DIR__ . '/../config/ia_config.php';
     if (!file_exists($configFile)) {
         retornarJSONIA(['success' => false, 'error' => 'Arquivo de configuração não encontrado']);
@@ -41,14 +50,41 @@ try {
     $config = require $configFile;
     $provider = $config['provider'] ?? 'groq';
     
-    // Carregar regras da IA (se existir)
-    $regrasFile = __DIR__ . '/../config/ia_regras.php';
+    // ========================================
+    // Carregar regras da IA do BANCO DE DADOS
+    // Com fallback para arquivo ia_regras.php
+    // ========================================
     $regrasIA = '';
-    if (file_exists($regrasFile)) {
-        $regrasIA = require $regrasFile;
+    
+    // Incluir função de busca de regras
+    $buscarRegrasFile = __DIR__ . '/../ia/buscarRegrasIA.php';
+    if (file_exists($buscarRegrasFile)) {
+        include_once $buscarRegrasFile;
+        
+        // Tentar buscar regras do banco
+        try {
+            include_once __DIR__ . '/../conexao.php';
+            if (isset($pdoSIMP)) {
+                // Usar função que busca do banco
+                $regrasIA = obterRegrasIA($pdoSIMP);
+            }
+        } catch (Exception $e) {
+            // Log do erro mas continua
+            error_log('Erro ao buscar regras IA do banco: ' . $e->getMessage());
+        }
+    }
+    
+    // Fallback: se não conseguiu do banco, tentar arquivo
+    if (empty($regrasIA)) {
+        $regrasFile = __DIR__ . '/../config/ia_regras.php';
+        if (file_exists($regrasFile)) {
+            $regrasIA = require $regrasFile;
+        }
     }
 
-    // Receber dados JSON
+    // ========================================
+    // Receber dados da requisição
+    // ========================================
     $rawInput = file_get_contents('php://input');
     $dados = null;
     $contexto = '';
@@ -92,13 +128,17 @@ try {
         retornarJSONIA(['success' => false, 'error' => 'Extensão cURL não está instalada']);
     }
 
-    // Chamar API baseado no provider
-    // Adicionar regras ao contexto (se existirem)
+    // ========================================
+    // Montar contexto completo com regras
+    // ========================================
     $contextoCompleto = $contexto;
     if (!empty($regrasIA)) {
         $contextoCompleto .= "\n\n" . $regrasIA;
     }
     
+    // ========================================
+    // Chamar API baseado no provider
+    // ========================================
     if ($provider === 'deepseek') {
         $resposta = chamarDeepSeekComHistorico($contextoCompleto, $historico, $config);
     } elseif ($provider === 'groq') {
@@ -113,7 +153,8 @@ try {
         'provider' => $provider,
         'modelo' => $provider === 'deepseek' ? $config['deepseek']['model'] : ($provider === 'groq' ? $config['groq']['model'] : $config['gemini']['model']),
         'mensagens_no_historico' => count($historico),
-        'contexto_tamanho' => strlen($contexto)
+        'contexto_tamanho' => strlen($contexto),
+        'regras_fonte' => !empty($regrasIA) ? 'banco' : 'nenhuma' // Indica se regras vieram do banco
     ]);
 
 } catch (Exception $e) {
@@ -125,6 +166,11 @@ try {
 
 /**
  * Chama a API do DeepSeek com histórico (formato OpenAI)
+ * 
+ * @param string $contexto Contexto/instruções do sistema
+ * @param array $historico Histórico de mensagens
+ * @param array $config Configurações
+ * @return string Resposta da IA
  */
 function chamarDeepSeekComHistorico($contexto, $historico, $config) {
     $deepseekConfig = $config['deepseek'];
@@ -166,7 +212,7 @@ function chamarDeepSeekComHistorico($contexto, $historico, $config) {
             'Authorization: Bearer ' . $deepseekConfig['api_key']
         ],
         CURLOPT_POSTFIELDS => json_encode($payload),
-        CURLOPT_TIMEOUT => 120, // DeepSeek pode demorar um pouco mais
+        CURLOPT_TIMEOUT => 120,
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_SSL_VERIFYHOST => 0
     ]);
@@ -193,6 +239,11 @@ function chamarDeepSeekComHistorico($contexto, $historico, $config) {
 
 /**
  * Chama a API do Groq com histórico (formato OpenAI)
+ * 
+ * @param string $contexto Contexto/instruções do sistema
+ * @param array $historico Histórico de mensagens
+ * @param array $config Configurações
+ * @return string Resposta da IA
  */
 function chamarGroqComHistorico($contexto, $historico, $config) {
     $groqConfig = $config['groq'];
@@ -260,6 +311,11 @@ function chamarGroqComHistorico($contexto, $historico, $config) {
 
 /**
  * Chama a API do Gemini com histórico
+ * 
+ * @param string $contexto Contexto/instruções do sistema
+ * @param array $historico Histórico de mensagens
+ * @param array $config Configurações
+ * @return string Resposta da IA
  */
 function chamarGeminiComHistorico($contexto, $historico, $config) {
     $geminiConfig = $config['gemini'];

@@ -5,7 +5,7 @@ mantenha toda a lógica existente, altere somente o necessário.
 tome cuidado com a acentuação e caracteres especiais. 
 Todas as telas devem ser responsivas. 
 Considere os arquivos e premissas.md e relacional.md.
-sempre documente muito bem o código gerado.
+sempre documente/comente muito bem o código gerado.
 
 TO DO:
 * Guia Cálculos

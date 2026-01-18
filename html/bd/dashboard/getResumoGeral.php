@@ -16,7 +16,11 @@ try {
     $dias = isset($_GET['dias']) ? (int)$_GET['dias'] : 7;
     $dias = max(1, min(90, $dias)); // Limitar entre 1 e 90 dias
     
-    // Verificar se a view existe
+    // Verificar se a tabela de cache existe (mais rápida que view)
+    $checkCache = $pdoSIMP->query("SELECT OBJECT_ID('TB_DASHBOARD_RESUMO_CACHE', 'U') AS CacheExists");
+    $cacheExists = $checkCache->fetch(PDO::FETCH_ASSOC)['CacheExists'];
+    
+    // Verificar se a view existe (fallback)
     $checkView = $pdoSIMP->query("SELECT OBJECT_ID('VW_DASHBOARD_RESUMO_GERAL', 'V') AS ViewExists");
     $viewExists = $checkView->fetch(PDO::FETCH_ASSOC)['ViewExists'];
     
@@ -36,25 +40,30 @@ try {
         // Tabela não existe, usar datas padrão
     }
     
-    if ($viewExists) {
-        // ATENÇÃO: A view pode estar desatualizada!
-        // Vamos ignorar a view e usar a query dinâmica que está corrigida
-        // Para usar a view, execute o script: corrigir_view_resumo_geral.sql
-        $viewExists = false; // Forçar uso da query corrigida
+    if ($cacheExists) {
+        // MELHOR OPÇÃO: Usar tabela de cache (instantâneo!)
+        $sql = "SELECT TOP 1 * FROM TB_DASHBOARD_RESUMO_CACHE ORDER BY DT_ATUALIZACAO DESC";
+        $stmt = $pdoSIMP->query($sql);
+        $dados = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$dados) {
+            // Cache vazio, forçar fallback
+            $cacheExists = false;
+        }
     }
     
-    if ($viewExists) {
-        // Usar a view existente (código mantido para referência futura)
+    if (!$cacheExists && $viewExists) {
+        // FALLBACK: Usar view (pode ser lenta)
         $sql = "SELECT * FROM VW_DASHBOARD_RESUMO_GERAL";
         $stmt = $pdoSIMP->query($sql);
         $dados = $stmt->fetch(PDO::FETCH_ASSOC);
         
         // Adicionar datas se não estiverem na view
-        if (!isset($dados['DATA_INICIO'])) {
+        if ($dados && !isset($dados['DATA_INICIO'])) {
             $dados['DATA_INICIO'] = $dataInicio;
             $dados['DATA_FIM'] = $dataFim;
         }
-    } else {
+    } elseif (!$cacheExists) {
         // Fallback: calcular diretamente das tabelas de resumo
         $dataInicio = date('Y-m-d', strtotime("-{$dias} days"));
         $dataFim = date('Y-m-d');

@@ -242,6 +242,112 @@ $filtroBuscaGet = isset($_GET['busca']) ? htmlspecialchars($_GET['busca']) : '';
     background: #e2e8f0;
 }
 
+/* Filtros de Tipo de Problema (Checkboxes) */
+.filtros-problema-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-top: 16px;
+    margin-top: 16px;
+    border-top: 1px solid #e2e8f0;
+    flex-wrap: wrap;
+}
+
+.filtros-problema-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.checkbox-item:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.checkbox-item:has(input:checked) {
+    background: #eff6ff;
+    border-color: #3b82f6;
+}
+
+.checkbox-item input[type="checkbox"] {
+    display: none;
+}
+
+.checkbox-custom {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #cbd5e1;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.checkbox-item:has(input:checked) .checkbox-custom {
+    background: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.checkbox-custom::after {
+    content: '';
+    width: 5px;
+    height: 9px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) scale(0);
+    transition: transform 0.15s ease;
+}
+
+.checkbox-item:has(input:checked) .checkbox-custom::after {
+    transform: rotate(45deg) scale(1);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #475569;
+}
+
+.checkbox-label ion-icon {
+    font-size: 16px;
+    color: #64748b;
+}
+
+.checkbox-item:has(input:checked) .checkbox-label {
+    color: #1e40af;
+}
+
+.checkbox-item:has(input:checked) .checkbox-label ion-icon {
+    color: #3b82f6;
+}
+
 /* Status Tabs */
 .status-tabs {
     display: flex;
@@ -958,6 +1064,9 @@ $filtroBuscaGet = isset($_GET['busca']) ? htmlspecialchars($_GET['busca']) : '';
     .header-stats { justify-content: center; }
     .filtros-row { flex-direction: column; }
     .filtro-group { min-width: 100%; }
+    .filtros-problema-row { flex-direction: column; align-items: flex-start; }
+    .checkbox-group { width: 100%; }
+    .checkbox-item { flex: 1; min-width: calc(50% - 4px); justify-content: flex-start; }
     .pontos-grid { grid-template-columns: 1fr; }
     .modal-stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
@@ -1022,17 +1131,6 @@ $filtroBuscaGet = isset($_GET['busca']) ? htmlspecialchars($_GET['busca']) : '';
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="filtro-group">
-                <label>Tipo de Problema</label>
-                <select id="filtroProblema">
-                    <option value="">Todos</option>
-                    <option value="COMUNICACAO" <?= $filtroProblemaGet == 'COMUNICACAO' ? 'selected' : '' ?>>Comunicação</option>
-                    <option value="MEDIDOR" <?= $filtroProblemaGet == 'MEDIDOR' ? 'selected' : '' ?>>Medidor</option>
-                    <option value="HIDRAULICO" <?= $filtroProblemaGet == 'HIDRAULICO' ? 'selected' : '' ?>>Hidráulico</option>
-                    <option value="VERIFICAR" <?= $filtroProblemaGet == 'VERIFICAR' ? 'selected' : '' ?>>A Verificar</option>
-                    <option value="TRATAMENTO" <?= $filtroProblemaGet == 'TRATAMENTO' ? 'selected' : '' ?>>Tratamento Recorrente</option>
-                </select>
-            </div>
             <div class="filtros-actions">
                 <button class="btn-filtrar" onclick="carregarPontosComFiltros()">
                     <ion-icon name="search-outline"></ion-icon>
@@ -1042,6 +1140,38 @@ $filtroBuscaGet = isset($_GET['busca']) ? htmlspecialchars($_GET['busca']) : '';
                     <ion-icon name="close-outline"></ion-icon>
                     Limpar
                 </button>
+            </div>
+        </div>
+        
+        <!-- Filtros de Tipo de Problema (Checkboxes) -->
+        <div class="filtros-problema-row">
+            <label class="filtros-problema-label">Tipo de Problema:</label>
+            <div class="checkbox-group">
+                <label class="checkbox-item">
+                    <input type="checkbox" id="chkComunicacao" value="COMUNICACAO" <?= strpos($filtroProblemaGet, 'COMUNICACAO') !== false ? 'checked' : '' ?>>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-label"><ion-icon name="wifi-outline"></ion-icon> Comunicação</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="chkMedidor" value="MEDIDOR" <?= strpos($filtroProblemaGet, 'MEDIDOR') !== false ? 'checked' : '' ?>>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-label"><ion-icon name="speedometer-outline"></ion-icon> Medidor</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="chkHidraulico" value="HIDRAULICO" <?= strpos($filtroProblemaGet, 'HIDRAULICO') !== false ? 'checked' : '' ?>>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-label"><ion-icon name="water-outline"></ion-icon> Hidráulico</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="chkVerificar" value="VERIFICAR" <?= strpos($filtroProblemaGet, 'VERIFICAR') !== false ? 'checked' : '' ?>>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-label"><ion-icon name="help-circle-outline"></ion-icon> A Verificar</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="chkTratamento" value="TRATAMENTO" <?= strpos($filtroProblemaGet, 'TRATAMENTO') !== false ? 'checked' : '' ?>>
+                    <span class="checkbox-custom"></span>
+                    <span class="checkbox-label"><ion-icon name="repeat-outline"></ion-icon> Tratamento Recorrente</span>
+                </label>
             </div>
         </div>
     </div>
@@ -1140,8 +1270,8 @@ $filtroBuscaGet = isset($_GET['busca']) ? htmlspecialchars($_GET['busca']) : '';
             <!-- Gráfico de Evolução -->
             <div class="modal-section">
                 <h3 class="modal-section-title">
-                    <ion-icon name="trending-up-outline"></ion-icon>
-                    Evolução do Score (Últimos 7 dias)
+                    <ion-icon name="analytics-outline"></ion-icon>
+                    Média Diária (Últimos 7 dias)
                 </h3>
                 <div class="modal-chart-container">
                     <canvas id="modalChart"></canvas>
@@ -1231,7 +1361,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Listeners para selects - busca automática ao mudar
     document.getElementById('filtroTipo').addEventListener('change', carregarPontosComFiltros);
     document.getElementById('filtroUnidade').addEventListener('change', carregarPontosComFiltros);
-    document.getElementById('filtroProblema').addEventListener('change', carregarPontosComFiltros);
+    
+    // Listeners para checkboxes de problema
+    document.querySelectorAll('.checkbox-group input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', carregarPontosComFiltros);
+    });
     
     // Debounce para campo de busca (digitar)
     let debounceTimer;
@@ -1303,6 +1437,12 @@ async function carregarPontos() {
     }
 }
 
+// Obter tipos de problema selecionados (checkboxes)
+function getProblemasSelecionados() {
+    const checkboxes = document.querySelectorAll('.checkbox-group input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map(cb => cb.value).join(',');
+}
+
 // Carregar pontos com filtros via AJAX
 async function carregarPontosComFiltros() {
     mostrarLoading(true);
@@ -1310,7 +1450,7 @@ async function carregarPontosComFiltros() {
     const busca = document.getElementById('filtroBusca').value.trim();
     const tipo = document.getElementById('filtroTipo').value;
     const unidade = document.getElementById('filtroUnidade').value;
-    const problema = document.getElementById('filtroProblema').value;
+    const problema = getProblemasSelecionados();
     
     // Construir URL com parâmetros
     const params = new URLSearchParams();
@@ -1407,7 +1547,7 @@ function aplicarFiltros() {
     const busca = document.getElementById('filtroBusca').value.toLowerCase();
     const tipo = document.getElementById('filtroTipo').value;
     const unidade = document.getElementById('filtroUnidade').value;
-    const problema = document.getElementById('filtroProblema').value;
+    const problemasSelecionados = getProblemasSelecionados().split(',').filter(p => p);
     
     pontosFiltrados = todosPontos.filter(ponto => {
         // Filtro de busca
@@ -1431,13 +1571,19 @@ function aplicarFiltros() {
             return false;
         }
         
-        // Filtro de problema (verificar flags)
-        if (problema) {
-            if (problema === 'COMUNICACAO' && ponto.DIAS_SEM_COMUNICACAO == 0) return false;
-            if (problema === 'MEDIDOR' && (ponto.DIAS_PROBLEMA_MEDIDOR || ponto.DIAS_VALOR_CONSTANTE || 0) == 0) return false;
-            if (problema === 'HIDRAULICO' && ponto.DIAS_VALOR_NEGATIVO == 0 && ponto.DIAS_FORA_FAIXA == 0 && ponto.DIAS_COM_SPIKE == 0) return false;
-            if (problema === 'VERIFICAR' && ponto.DIAS_ZEROS_SUSPEITOS == 0) return false;
-            if (problema === 'TRATAMENTO' && (ponto.QTD_TRATAMENTOS || 0) <= 3) return false;
+        // Filtro de problemas (múltiplos - OR entre eles)
+        if (problemasSelecionados.length > 0) {
+            let temAlgumProblema = false;
+            
+            for (const problema of problemasSelecionados) {
+                if (problema === 'COMUNICACAO' && ponto.DIAS_SEM_COMUNICACAO > 0) temAlgumProblema = true;
+                if (problema === 'MEDIDOR' && (ponto.DIAS_PROBLEMA_MEDIDOR || ponto.DIAS_VALOR_CONSTANTE || 0) > 0) temAlgumProblema = true;
+                if (problema === 'HIDRAULICO' && (ponto.DIAS_VALOR_NEGATIVO > 0 || ponto.DIAS_FORA_FAIXA > 0 || ponto.DIAS_COM_SPIKE > 0)) temAlgumProblema = true;
+                if (problema === 'VERIFICAR' && ponto.DIAS_ZEROS_SUSPEITOS > 0) temAlgumProblema = true;
+                if (problema === 'TRATAMENTO' && (ponto.QTD_TRATAMENTOS || 0) > 3) temAlgumProblema = true;
+            }
+            
+            if (!temAlgumProblema) return false;
         }
         
         return true;
@@ -1452,7 +1598,12 @@ function limparFiltros() {
     document.getElementById('filtroBusca').value = '';
     document.getElementById('filtroTipo').value = '';
     document.getElementById('filtroUnidade').value = '';
-    document.getElementById('filtroProblema').value = '';
+    
+    // Desmarcar todos os checkboxes de problema
+    document.querySelectorAll('.checkbox-group input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+    });
+    
     statusFiltro = '';
     
     // Resetar tabs
@@ -1763,45 +1914,72 @@ async function carregarGraficoModal(cdPonto) {
         }
         
         let labels = [];
-        let scores = [];
+        let valores = [];
         
         if (result.success && result.data && result.data.length > 0) {
             labels = result.data.map(d => formatarData(d.DT_MEDICAO, true));
-            scores = result.data.map(d => parseFloat(d.VL_SCORE_SAUDE || 0));
+            valores = result.data.map(d => parseFloat(d.VL_MEDIA_DIARIA || 0));
         } else {
-            // Dados simulados se não houver endpoint
+            // Dados simulados se não houver dados
             labels = ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1', 'Hoje'];
-            const scoreMedio = parseFloat(pontoAtual.SCORE_MEDIO || 7);
-            scores = labels.map(() => Math.max(0, Math.min(10, scoreMedio + (Math.random() - 0.5) * 2)));
+            const mediaPeriodo = parseFloat(pontoAtual.MEDIA_PERIODO || 0);
+            valores = labels.map(() => Math.max(0, mediaPeriodo + (Math.random() - 0.5) * mediaPeriodo * 0.2));
         }
+        
+        // Calcular min/max para escala dinâmica
+        const minVal = Math.min(...valores);
+        const maxVal = Math.max(...valores);
+        const range = maxVal - minVal;
+        const yMin = Math.max(0, minVal - range * 0.1);
+        const yMax = maxVal + range * 0.1;
+        
+        // Determinar unidade baseada no tipo de medidor
+        const tipoMedidor = pontoAtual.ID_TIPO_MEDIDOR;
+        let unidade = 'L/s'; // Padrão para vazão
+        if (tipoMedidor == 4) unidade = 'mca'; // Pressão
+        else if (tipoMedidor == 6) unidade = 'm'; // Nível reservatório
         
         modalChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Score',
-                    data: scores,
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    label: `Média Diária (${unidade})`,
+                    data: valores,
+                    borderColor: '#0d9488',
+                    backgroundColor: 'rgba(13, 148, 136, 0.1)',
                     borderWidth: 2,
                     fill: true,
                     tension: 0.4,
-                    pointRadius: 4,
-                    pointBackgroundColor: '#3b82f6'
+                    pointRadius: 5,
+                    pointBackgroundColor: '#0d9488',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false }
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.parsed.y.toFixed(2)} ${unidade}`;
+                            }
+                        }
+                    }
                 },
                 scales: {
                     y: {
-                        min: 0,
-                        max: 10,
-                        grid: { color: 'rgba(0,0,0,0.05)' }
+                        min: yMin,
+                        max: yMax,
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: {
+                            callback: function(value) {
+                                return value.toFixed(1);
+                            }
+                        }
                     },
                     x: {
                         grid: { display: false }
@@ -1906,7 +2084,15 @@ function formatarValor(valor) {
 
 function formatarData(dataStr, curto = false) {
     if (!dataStr) return '-';
-    const data = new Date(dataStr);
+    
+    // Evitar problema de timezone: adicionar T12:00:00 para datas sem hora
+    // Isso evita que '2025-11-21' seja interpretado como UTC e "volte" 1 dia
+    let dataAjustada = dataStr;
+    if (dataStr.length === 10) {
+        dataAjustada = dataStr + 'T12:00:00';
+    }
+    
+    const data = new Date(dataAjustada);
     if (curto) {
         return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
     }

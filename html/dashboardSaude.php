@@ -251,7 +251,7 @@ exigePermissaoTela('Dashboard Saúde', ACESSO_LEITURA);
 }
 
 /* ============================================
-   Score Gauge
+   Score Gauge (SVG)
    ============================================ */
 .score-card {
     background: white;
@@ -262,59 +262,41 @@ exigePermissaoTela('Dashboard Saúde', ACESSO_LEITURA);
     text-align: center;
 }
 
-.score-gauge {
-    position: relative;
-    width: 160px;
-    height: 80px;
-    margin: 0 auto 16px;
+.score-gauge-container {
+    width: 180px;
+    height: 90px;
+    margin: 0 auto;
 }
 
-.score-gauge-bg {
-    position: absolute;
-    width: 160px;
-    height: 80px;
-    border-radius: 80px 80px 0 0;
-    background: #e2e8f0;
-    overflow: hidden;
+.score-gauge-svg {
+    width: 100%;
+    height: 100%;
 }
 
-.score-gauge-fill {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 160px;
-    height: 80px;
-    border-radius: 80px 80px 0 0;
-    background: linear-gradient(90deg, #dc2626 0%, #f59e0b 50%, #22c55e 100%);
-    transform-origin: bottom center;
-    transform: rotate(calc((1 - var(--score, 0.7)) * -180deg));
-    transition: transform 1s ease-out;
+.score-value-display {
+    margin: 8px 0 12px;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 4px;
 }
 
-.score-gauge-cover {
-    position: absolute;
-    bottom: 0;
-    left: 20px;
-    width: 120px;
-    height: 60px;
-    border-radius: 60px 60px 0 0;
-    background: white;
-}
-
-.score-gauge-value {
-    position: absolute;
-    bottom: 5px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 28px;
+.score-number {
+    font-size: 36px;
     font-weight: 700;
     color: #0f172a;
+}
+
+.score-max {
+    font-size: 16px;
+    color: #94a3b8;
+    font-weight: 500;
 }
 
 .score-label {
     font-size: 14px;
     color: #64748b;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
 }
 
 .score-status {
@@ -886,11 +868,29 @@ exigePermissaoTela('Dashboard Saúde', ACESSO_LEITURA);
             <!-- Score Médio -->
             <div class="score-card">
                 <div class="score-label">Score Médio de Saúde</div>
-                <div class="score-gauge">
-                    <div class="score-gauge-bg"></div>
-                    <div class="score-gauge-fill" id="scoreFill" style="--score: 0.7;"></div>
-                    <div class="score-gauge-cover"></div>
-                    <div class="score-gauge-value" id="scoreValue">-</div>
+                <div class="score-gauge-container">
+                    <svg class="score-gauge-svg" viewBox="0 0 200 100">
+                        <defs>
+                            <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#ef4444"/>
+                                <stop offset="50%" style="stop-color:#f59e0b"/>
+                                <stop offset="100%" style="stop-color:#22c55e"/>
+                            </linearGradient>
+                        </defs>
+                        <!-- Arco de fundo com gradiente -->
+                        <path d="M 20 90 A 80 80 0 0 1 180 90" 
+                              fill="none" stroke="url(#gaugeGradient)" stroke-width="12" stroke-linecap="round"/>
+                        <!-- Ponteiro (triângulo) -->
+                        <g id="scoreNeedleGroup" transform="rotate(-90, 100, 90)">
+                            <polygon points="100,25 95,45 105,45" fill="#1e293b"/>
+                        </g>
+                        <!-- Centro do ponteiro -->
+                        <circle cx="100" cy="90" r="5" fill="#1e293b"/>
+                    </svg>
+                </div>
+                <div class="score-value-display">
+                    <span class="score-number" id="scoreValue">-</span>
+                    <span class="score-max">/ 10</span>
                 </div>
                 <div class="score-status saudavel" id="scoreStatus">
                     <ion-icon name="checkmark-circle"></ion-icon>
@@ -1142,15 +1142,13 @@ function easeOutQuart(x) {
     return 1 - Math.pow(1 - x, 4);
 }
 
-// Atualizar gauge do score
+// Atualizar gauge do score usando SVG
 function atualizarScoreGauge(score) {
-    const fillElement = document.getElementById('scoreFill');
     const valueElement = document.getElementById('scoreValue');
     const statusElement = document.getElementById('scoreStatus');
+    const needleGroup = document.getElementById('scoreNeedleGroup');
     
-    // Normalizar score para 0-1
-    const scoreNormalizado = Math.max(0, Math.min(10, score)) / 10;
-    fillElement.style.setProperty('--score', scoreNormalizado);
+    if (!needleGroup || !valueElement) return;
     
     // Valor
     valueElement.textContent = score.toFixed(1);
@@ -1173,6 +1171,14 @@ function atualizarScoreGauge(score) {
     
     statusElement.className = `score-status ${classe}`;
     statusElement.innerHTML = `<ion-icon name="${icone}"></ion-icon><span>${status}</span>`;
+    
+    // Calcular rotação do ponteiro
+    // Score 0 = -90° (esquerda), Score 10 = +90° (direita)
+    const scoreNormalizado = Math.max(0, Math.min(10, score)) / 10;
+    const rotacao = -90 + (scoreNormalizado * 180); // -90 a +90
+    
+    // Aplicar rotação ao ponteiro (centro em 100, 90)
+    needleGroup.setAttribute('transform', `rotate(${rotacao}, 100, 90)`);
 }
 
 // Carregar pontos por score
@@ -1528,7 +1534,15 @@ function exportarRelatorio() {
 // Funções auxiliares
 function formatarData(dataStr, curto = false) {
     if (!dataStr) return '-';
-    const data = new Date(dataStr);
+    
+    // Evitar problema de timezone: adicionar T12:00:00 para datas sem hora
+    // Isso evita que '2025-11-21' seja interpretado como UTC e "volte" 1 dia
+    let dataAjustada = dataStr;
+    if (dataStr.length === 10) {
+        dataAjustada = dataStr + 'T12:00:00';
+    }
+    
+    const data = new Date(dataAjustada);
     if (curto) {
         return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
     }

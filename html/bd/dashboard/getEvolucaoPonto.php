@@ -77,11 +77,12 @@ try {
         
     } else {
         // Fallback: calcular da tabela REGISTRO_VAZAO_PRESSAO
+        // IMPORTANTE: Média diária = SUM(valores válidos) / 1440 (minutos no dia)
         $sql = "
             SELECT 
                 CAST(DT_LEITURA AS DATE) AS DT_MEDICAO,
                 COUNT(*) AS QTD_REGISTROS,
-                AVG(VL_VAZAO_EFETIVA) AS VL_MEDIA_DIARIA,
+                CAST(SUM(VL_VAZAO_EFETIVA) AS DECIMAL(18,4)) / 1440.0 AS VL_MEDIA_DIARIA,
                 CASE 
                     WHEN COUNT(*) < 720 THEN 3
                     WHEN COUNT(DISTINCT VL_VAZAO_EFETIVA) <= 5 THEN 5

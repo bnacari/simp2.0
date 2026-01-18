@@ -423,6 +423,11 @@ $letrasTipoMedidor = [
                         <span class="controle-cor excluidos"></span>
                         <span class="controle-label">Excluídos</span>
                     </label>
+                    <label class="grafico-controle-item" id="controleMediaDiaria">
+                        <input type="checkbox" id="chkMediaDiaria" checked onchange="toggleLinhaGrafico('mediadiaria')">
+                        <span class="controle-cor mediadiaria"></span>
+                        <span class="controle-label">Média Diária</span>
+                    </label>
                 </div>
 
                 <!-- Gráfico Error Bar Chart -->
@@ -649,11 +654,14 @@ $letrasTipoMedidor = [
     let validacaoUnidadeAtual = null;
 
     // Controles de visibilidade do gráfico de validação
+    // Controles de visibilidade do gráfico de validação
     let graficoControlesEstado = {
         principal: true,
         errorbars: true,
         sugeridos: true,
-        excluidos: true
+        excluidos: true,
+        mediadiaria: true  // Controle para linha de média diária
+
     };
     let errorBarsPluginAtivo = true;
 
@@ -2613,49 +2621,80 @@ $letrasTipoMedidor = [
         }
     }
 
+    /**
+     * Renderiza o gráfico de validação com dados horários
+     * Inclui: linha principal (média/máximo), error bars (min/max), 
+     * valores sugeridos, valores excluídos e média diária
+     * @param {Array} dados - Array com dados horários
+     * @param {string} unidade - Unidade de medida (l/s, mca, %)
+     */
     function renderizarGraficoValidacao(dados, unidade) {
         const ctx = document.getElementById('validacaoGrafico').getContext('2d');
         const isTipoNivel = validacaoTipoMedidorAtual === 6;
 
+        // Destruir gráfico existente se houver
         if (validacaoGrafico) {
             validacaoGrafico.destroy();
         }
 
-        // Preparar dados para todas as 24 horas
+        // Arrays para armazenar dados do gráfico
         const labels = [];
         const valoresPrincipais = []; // Média ou Máximo dependendo do tipo
         const valoresMin = [];
         const valoresMax = [];
         const coresPontos = [];
         const tratados = [];
-        const valoresSugeridos = []; // Array para valores sugeridos
+        const valoresSugeridos = []; // Array para valores sugeridos (histórico)
         const valoresInativos = []; // Array para dados inativos (id_situacao = 2)
 
+        // Mapear dados por hora para acesso rápido
         const horasMap = {};
         dados.forEach(d => {
             horasMap[d.hora] = d;
         });
 
-        // Calcular valores sugeridos se houver histórico disponível
+        // Verificar se há valores sugeridos disponíveis
         let temValoresSugeridos = false;
         if (dadosCompletosIA && dadosCompletosIA.historico_por_hora) {
             temValoresSugeridos = true;
         }
 
-        // Verificar se há dados inativos
+        // Verificar se há dados inativos (excluídos)
         let temValoresInativos = false;
 
+        // =====================================================
+        // Calcular média diária ponderada pelos registros
+        // Fórmula: SUM(media * qtd_registros) / SUM(qtd_registros)
+        // =====================================================
+        let somaValoresPonderados = 0;
+        let totalRegistros = 0;
+        for (let h = 0; h < 24; h++) {
+            const d = horasMap[h];
+            if (d && d.qtd_registros > 0) {
+                // Para tipo nível (6), usar máximo; para outros, usar média
+                const valorHora = isTipoNivel ? d.max : d.media;
+                somaValoresPonderados += (valorHora * d.qtd_registros);
+                totalRegistros += d.qtd_registros;
+            }
+        }
+        // Média diária: soma ponderada dividida pelo total de registros
+        const mediaDiaria = totalRegistros > 0 ? somaValoresPonderados / totalRegistros : null;
+        const temMediaDiaria = mediaDiaria !== null;
+
+        // Preencher arrays para todas as 24 horas
         for (let h = 0; h < 24; h++) {
             labels.push(String(h).padStart(2, '0') + 'h');
             const d = horasMap[h];
+
             if (d && d.qtd_registros > 0) {
-                // Para tipo 6, usar máximo como valor principal
+                // Hora com dados válidos
                 valoresPrincipais.push(isTipoNivel ? d.max : d.media);
                 valoresMin.push(d.min);
                 valoresMax.push(d.max);
                 tratados.push(d.tratado || false);
                 coresPontos.push(d.tratado ? '#3b82f6' : '#dc2626');
             } else {
+                // Hora sem dados
                 valoresPrincipais.push(null);
                 valoresMin.push(null);
                 valoresMax.push(null);
@@ -2663,7 +2702,7 @@ $letrasTipoMedidor = [
                 coresPontos.push('#dc2626');
             }
 
-            // Valores inativos (excluídos)
+            // Valores inativos (excluídos/descartados)
             if (d && d.media_inativos !== null && d.media_inativos !== undefined) {
                 valoresInativos.push(d.media_inativos);
                 temValoresInativos = true;
@@ -2671,7 +2710,7 @@ $letrasTipoMedidor = [
                 valoresInativos.push(null);
             }
 
-            // Calcular valor sugerido para essa hora
+            // Valores sugeridos baseados no histórico
             if (temValoresSugeridos) {
                 const dadosHora = dadosCompletosIA.historico_por_hora.horas[h];
                 if (dadosHora && dadosHora.valor_sugerido) {
@@ -2682,7 +2721,12 @@ $letrasTipoMedidor = [
             }
         }
 
-        // Plugin para error bars
+        // Array da média diária (linha horizontal em todas as horas)
+        const valoresMediaDiaria = temMediaDiaria ? Array(24).fill(mediaDiaria) : [];
+
+        // =====================================================
+        // Plugin customizado para desenhar error bars (min/max)
+        // =====================================================
         const errorBarsPlugin = {
             id: 'errorBarsValidacao',
             afterDatasetsDraw: function (chart) {
@@ -2698,6 +2742,7 @@ $letrasTipoMedidor = [
                 meta.data.forEach((point, index) => {
                     if (valoresMin[index] === null || valoresMax[index] === null) return;
 
+                    // Cor diferente para dados tratados
                     ctx.strokeStyle = tratados[index] ? '#1d4ed8' : '#1e3a5f';
 
                     const x = point.x;
@@ -2705,16 +2750,19 @@ $letrasTipoMedidor = [
                     const yMax = chart.scales.y.getPixelForValue(valoresMax[index]);
                     const capWidth = 4;
 
+                    // Linha vertical (min até max)
                     ctx.beginPath();
                     ctx.moveTo(x, yMin);
                     ctx.lineTo(x, yMax);
                     ctx.stroke();
 
+                    // Cap superior (max)
                     ctx.beginPath();
                     ctx.moveTo(x - capWidth, yMax);
                     ctx.lineTo(x + capWidth, yMax);
                     ctx.stroke();
 
+                    // Cap inferior (min)
                     ctx.beginPath();
                     ctx.moveTo(x - capWidth, yMin);
                     ctx.lineTo(x + capWidth, yMin);
@@ -2725,64 +2773,85 @@ $letrasTipoMedidor = [
             }
         };
 
+        // =====================================================
+        // Criar gráfico Chart.js
+        // =====================================================
         validacaoGrafico = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
-                datasets: [{
-                    label: isTipoNivel ? 'Máximo' : 'Média',
-                    data: valoresPrincipais,
-                    borderColor: '#dc2626',
-                    backgroundColor: '#dc2626',
-                    borderWidth: 2,
-                    tension: 0,
-                    pointRadius: 5,
-                    pointBackgroundColor: coresPontos,
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    spanGaps: false,
-                    fill: false,
-                    segment: {
-                        borderColor: function (ctx) {
-                            const prev = ctx.p0DataIndex;
-                            const curr = ctx.p1DataIndex;
-                            if (tratados[prev] && tratados[curr]) {
-                                return '#3b82f6';
+                datasets: [
+                    // Dataset 0: Linha principal (Média ou Máximo)
+                    {
+                        label: isTipoNivel ? 'Máximo' : 'Média',
+                        data: valoresPrincipais,
+                        borderColor: '#dc2626',
+                        backgroundColor: '#dc2626',
+                        borderWidth: 2,
+                        tension: 0,
+                        pointRadius: 5,
+                        pointBackgroundColor: coresPontos,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        spanGaps: false,
+                        fill: false,
+                        // Cor do segmento muda se ambos pontos são tratados
+                        segment: {
+                            borderColor: function (ctx) {
+                                const prev = ctx.p0DataIndex;
+                                const curr = ctx.p1DataIndex;
+                                if (tratados[prev] && tratados[curr]) {
+                                    return '#3b82f6';
+                                }
+                                return '#dc2626';
                             }
-                            return '#dc2626';
                         }
-                    }
-                },
-                ...(temValoresSugeridos ? [{
-                    label: 'Valores Sugeridos',
-                    data: valoresSugeridos,
-                    borderColor: '#16a34a',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    pointRadius: 4,
-                    pointBackgroundColor: '#16a34a',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 1,
-                    tension: 0.3,
-                    spanGaps: true,
-                    fill: false
-                }] : []),
-                ...(temValoresInativos ? [{
-                    label: 'Excluídos',
-                    data: valoresInativos,
-                    borderColor: '#f97316',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    borderDash: [3, 3],
-                    pointRadius: 4,
-                    pointBackgroundColor: '#f97316',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 1,
-                    tension: 0,
-                    spanGaps: true,
-                    fill: false
-                }] : [])
+                    },
+                    // Dataset condicional: Valores Sugeridos (histórico)
+                    ...(temValoresSugeridos ? [{
+                        label: 'Valores Sugeridos',
+                        data: valoresSugeridos,
+                        borderColor: '#16a34a',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 4,
+                        pointBackgroundColor: '#16a34a',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 1,
+                        tension: 0.3,
+                        spanGaps: true,
+                        fill: false
+                    }] : []),
+                    // Dataset condicional: Valores Excluídos (inativos)
+                    ...(temValoresInativos ? [{
+                        label: 'Excluídos',
+                        data: valoresInativos,
+                        borderColor: '#f97316',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [3, 3],
+                        pointRadius: 4,
+                        pointBackgroundColor: '#f97316',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 1,
+                        tension: 0,
+                        spanGaps: true,
+                        fill: false
+                    }] : []),
+                    // Dataset condicional: Média Diária (linha horizontal)
+                    ...(temMediaDiaria ? [{
+                        label: 'Média Diária',
+                        data: valoresMediaDiaria,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [8, 4],
+                        pointRadius: 0,  // Sem pontos, apenas linha
+                        tension: 0,
+                        spanGaps: true,
+                        fill: false
+                    }] : [])
                 ]
             },
             options: {
@@ -2813,20 +2882,34 @@ $letrasTipoMedidor = [
                             label: function (context) {
                                 const idx = context.dataIndex;
                                 let lines = [];
+
+                                // Identificar qual dataset está sendo exibido
+                                const datasetLabel = context.dataset.label;
+
                                 if (context.raw !== null) {
-                                    lines.push((isTipoNivel ? 'Máx: ' : 'Média: ') + formatarNumero(context.raw) + ' ' + unidade);
-                                }
-                                if (!isTipoNivel && valoresMin[idx] !== null) {
-                                    lines.push('Mín: ' + formatarNumero(valoresMin[idx]) + ' ' + unidade);
-                                }
-                                if (!isTipoNivel && valoresMax[idx] !== null) {
-                                    lines.push('Máx: ' + formatarNumero(valoresMax[idx]) + ' ' + unidade);
-                                }
-                                if (isTipoNivel && valoresMin[idx] !== null) {
-                                    lines.push('Mín: ' + formatarNumero(valoresMin[idx]) + ' ' + unidade);
-                                }
-                                if (tratados[idx]) {
-                                    lines.push('✓ Dados validados');
+                                    if (datasetLabel === 'Média Diária') {
+                                        // Tooltip especial para média diária
+                                        lines.push('Média Diária: ' + formatarNumero(context.raw) + ' ' + unidade);
+                                    } else if (datasetLabel === 'Valores Sugeridos') {
+                                        lines.push('Sugerido: ' + formatarNumero(context.raw) + ' ' + unidade);
+                                    } else if (datasetLabel === 'Excluídos') {
+                                        lines.push('Excluído: ' + formatarNumero(context.raw) + ' ' + unidade);
+                                    } else {
+                                        // Dataset principal (Média ou Máximo)
+                                        lines.push((isTipoNivel ? 'Máx: ' : 'Média: ') + formatarNumero(context.raw) + ' ' + unidade);
+                                        if (!isTipoNivel && valoresMin[idx] !== null) {
+                                            lines.push('Mín: ' + formatarNumero(valoresMin[idx]) + ' ' + unidade);
+                                        }
+                                        if (!isTipoNivel && valoresMax[idx] !== null) {
+                                            lines.push('Máx: ' + formatarNumero(valoresMax[idx]) + ' ' + unidade);
+                                        }
+                                        if (isTipoNivel && valoresMin[idx] !== null) {
+                                            lines.push('Mín: ' + formatarNumero(valoresMin[idx]) + ' ' + unidade);
+                                        }
+                                        if (tratados[idx]) {
+                                            lines.push('✓ Dados validados');
+                                        }
+                                    }
                                 }
                                 return lines;
                             }
@@ -2853,7 +2936,11 @@ $letrasTipoMedidor = [
             plugins: [errorBarsPlugin]
         });
 
-        // Atualizar label do checkbox principal baseado no tipo
+        // =====================================================
+        // Atualizar controles da interface
+        // =====================================================
+
+        // Atualizar label do checkbox principal baseado no tipo de medidor
         const lblPrincipal = document.getElementById('lblLinhaPrincipal');
         if (lblPrincipal) {
             lblPrincipal.textContent = isTipoNivel ? 'Máximo' : 'Média';
@@ -2871,42 +2958,68 @@ $letrasTipoMedidor = [
             controleValoresExcluidos.style.display = temValoresInativos ? 'flex' : 'none';
         }
 
+        // Mostrar/ocultar checkbox de média diária (sempre visível se houver dados)
+        const controleMediaDiaria = document.getElementById('controleMediaDiaria');
+        if (controleMediaDiaria) {
+            controleMediaDiaria.style.display = temMediaDiaria ? 'flex' : 'none';
+        }
+
         // Resetar checkboxes para estado checked
         const chkPrincipal = document.getElementById('chkLinhaPrincipal');
         const chkErrorBars = document.getElementById('chkErrorBars');
         const chkSugeridos = document.getElementById('chkValoresSugeridos');
         const chkExcluidos = document.getElementById('chkValoresExcluidos');
+        const chkMediaDiaria = document.getElementById('chkMediaDiaria');
+
         if (chkPrincipal) chkPrincipal.checked = true;
         if (chkErrorBars) chkErrorBars.checked = true;
         if (chkSugeridos) chkSugeridos.checked = true;
         if (chkExcluidos) chkExcluidos.checked = true;
+        if (chkMediaDiaria) chkMediaDiaria.checked = true;
 
         // Resetar estado dos controles
-        graficoControlesEstado = { principal: true, errorbars: true, sugeridos: true, excluidos: true };
+        graficoControlesEstado = {
+            principal: true,
+            errorbars: true,
+            sugeridos: true,
+            excluidos: true,
+            mediadiaria: true
+        };
         errorBarsPluginAtivo = true;
     }
 
     // Função para alternar visibilidade das linhas do gráfico
+    /**
+    * Alterna a visibilidade das linhas do gráfico de validação
+    * @param {string} tipo - Tipo do controle: 'principal', 'errorbars', 'sugeridos', 'excluidos', 'mediadiaria'
+    */
     function toggleLinhaGrafico(tipo) {
         if (!validacaoGrafico) return;
 
+        // Inverter estado do controle
         graficoControlesEstado[tipo] = !graficoControlesEstado[tipo];
 
         if (tipo === 'principal') {
             // Mostrar/ocultar linha principal (dataset 0)
             validacaoGrafico.data.datasets[0].hidden = !graficoControlesEstado.principal;
         } else if (tipo === 'errorbars') {
-            // Controlar error bars
+            // Controlar error bars via plugin
             errorBarsPluginAtivo = graficoControlesEstado.errorbars;
-        } else if (tipo === 'sugeridos' || tipo === 'excluidos') {
+        } else if (tipo === 'sugeridos' || tipo === 'excluidos' || tipo === 'mediadiaria') {
             // Encontrar dataset pelo label
-            const labelBusca = tipo === 'sugeridos' ? 'Valores Sugeridos' : 'Excluídos';
+            const labelMap = {
+                'sugeridos': 'Valores Sugeridos',
+                'excluidos': 'Excluídos',
+                'mediadiaria': 'Média Diária'
+            };
+            const labelBusca = labelMap[tipo];
             const datasetIndex = validacaoGrafico.data.datasets.findIndex(ds => ds.label === labelBusca);
             if (datasetIndex > -1) {
                 validacaoGrafico.data.datasets[datasetIndex].hidden = !graficoControlesEstado[tipo];
             }
         }
 
+        // Atualizar gráfico
         validacaoGrafico.update();
     }
 
@@ -3857,14 +3970,14 @@ $letrasTipoMedidor = [
       * 
       * @version 2.1 - Adicionado suporte a registros descartados (ID_SITUACAO)
       */
-   /**
-     * Constrói contexto completo com dados do banco para a IA
-     * 
-     * @param {Object} dados - Dados retornados pelo consultarDadosIA.php
-     * @returns {string} - Contexto formatado para enviar à IA
-     * 
-     * @version 2.1 - Adicionado suporte a registros descartados (ID_SITUACAO)
-     */
+    /**
+      * Constrói contexto completo com dados do banco para a IA
+      * 
+      * @param {Object} dados - Dados retornados pelo consultarDadosIA.php
+      * @returns {string} - Contexto formatado para enviar à IA
+      * 
+      * @version 2.1 - Adicionado suporte a registros descartados (ID_SITUACAO)
+      */
     function construirContextoCompletoChat(dados) {
         let contexto = '=== DADOS DO SISTEMA DE ABASTECIMENTO DE ÁGUA ===\n\n';
 
@@ -3973,12 +4086,12 @@ $letrasTipoMedidor = [
             dados.dia_atual.forEach(h => {
                 const hora = String(h.HORA).padStart(2, '0') + ':00';
                 const mediaVazao = parseFloat(h.MEDIA_VAZAO) || 0;
-                
+
                 // Suporte a novo formato com válidos/descartados
                 const qtdValidos = parseInt(h.QTD_VALIDOS) || parseInt(h.QTD_REGISTROS) || 0;
                 const qtdDescartados = parseInt(h.QTD_DESCARTADOS) || 0;
                 const qtdTotal = parseInt(h.QTD_REGISTROS_TOTAL) || (qtdValidos + qtdDescartados);
-                
+
                 const somaHora = parseFloat(h.SOMA_VAZAO) || (mediaVazao * 60);
                 const minVazao = formatNum(h.MIN_VAZAO);
                 const maxVazao = formatNum(h.MAX_VAZAO);

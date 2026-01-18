@@ -18,27 +18,25 @@
 -- ORDEM DE EXECUÇÃO: Executar o script inteiro de uma vez
 --
 -- ============================================================================
-
 -- COMO CARREGAR OS DADOS
 -- Processar de 01/01/2025 até 15/01/2025
 -- DECLARE @DATA DATE = '2025-01-01';
 -- DECLARE @DATA_FIM DATE = '2025-01-15';
-
 -- WHILE @DATA <= @DATA_FIM
 -- BEGIN
 --     PRINT 'Processando: ' + CONVERT(VARCHAR, @DATA, 103);
 --     EXEC SP_PROCESSAR_MEDICAO_DIARIA @DT_PROCESSAMENTO = @DATA;
 --     SET @DATA = DATEADD(DAY, 1, @DATA);
 -- END
-
-
-
 USE [SIMP];
+
 GO
+    PRINT '============================================';
+
+PRINT 'INICIO DA INSTALACAO - SIMP ANALISE MEDICAO';
 
 PRINT '============================================';
-PRINT 'INICIO DA INSTALACAO - SIMP ANALISE MEDICAO';
-PRINT '============================================';
+
 PRINT '';
 
 -- ============================================================================
@@ -46,178 +44,183 @@ PRINT '';
 -- PARTE 1: TABELAS DE RESUMO
 -- ============================================================================
 -- ============================================================================
-
 PRINT '>> PARTE 1: Criando tabelas de resumo...';
+
 PRINT '';
 
 -- ============================================================================
 -- TABELA: MEDICAO_RESUMO_HORARIO
 -- Detalhamento por hora (24 registros por ponto/dia)
 -- ============================================================================
+IF EXISTS (
+    SELECT
+        *
+    FROM
+        sys.objects
+    WHERE
+        object_id = OBJECT_ID(N'[dbo].[MEDICAO_RESUMO_HORARIO]')
+        AND type in (N'U')
+) BEGIN DROP TABLE [dbo].[MEDICAO_RESUMO_HORARIO];
 
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[MEDICAO_RESUMO_HORARIO]') AND type in (N'U'))
-BEGIN
-    DROP TABLE [dbo].[MEDICAO_RESUMO_HORARIO];
-    PRINT '   Tabela MEDICAO_RESUMO_HORARIO removida (recriando).';
+PRINT '   Tabela MEDICAO_RESUMO_HORARIO removida (recriando).';
+
 END
 GO
-
-CREATE TABLE [dbo].[MEDICAO_RESUMO_HORARIO] (
-    [CD_CHAVE]                  INT IDENTITY(1,1) NOT NULL,
-    [CD_PONTO_MEDICAO]          INT NOT NULL,
-    [DT_HORA]                   DATETIME NOT NULL,
-    [NR_HORA]                   TINYINT NOT NULL,
-    [ID_TIPO_MEDIDOR]           INT NULL,
-    
-    -- Contagens
-    [QTD_REGISTROS]             INT NULL DEFAULT 0,
-    [QTD_ESPERADA]              INT NULL DEFAULT 60,
-    [QTD_ZEROS]                 INT NULL DEFAULT 0,
-    [QTD_VALORES_DISTINTOS]     INT NULL DEFAULT 0,
-    
-    -- Estatísticas da hora
-    [VL_MEDIA]                  DECIMAL(18,4) NULL,
-    [VL_MIN]                    DECIMAL(18,4) NULL,
-    [VL_MAX]                    DECIMAL(18,4) NULL,
-    [VL_SOMA]                   DECIMAL(18,4) NULL,
-    [VL_PRIMEIRO]               DECIMAL(18,4) NULL,
-    [VL_ULTIMO]                 DECIMAL(18,4) NULL,
-    
-    -- Variação (para detectar spikes)
-    [VL_VARIACAO_MAX]           DECIMAL(18,4) NULL,
-    [VL_VARIACAO_PERC_MAX]      DECIMAL(18,4) NULL,
-    
-    -- Flags de anomalia
-    [FL_VALOR_CONSTANTE]        BIT NULL DEFAULT 0,
-    [FL_VALOR_NEGATIVO]         BIT NULL DEFAULT 0,
-    [FL_FORA_FAIXA]             BIT NULL DEFAULT 0,
-    [FL_SPIKE]                  BIT NULL DEFAULT 0,
-    [FL_ZEROS_SUSPEITOS]        BIT NULL DEFAULT 0,
-    
-    -- Tratamento
-    [FL_TRATADO]                BIT NULL DEFAULT 0,
-    [QTD_TRATADOS]              INT NULL DEFAULT 0,
-    
-    -- Anomalias
-    [FL_ANOMALIA]               BIT NULL DEFAULT 0,
-    [DS_TIPO_ANOMALIA]          VARCHAR(500) NULL,
-    
-    -- Comparação histórica
-    [VL_MEDIA_HISTORICA]        DECIMAL(18,4) NULL,
-    
-    -- Controle
-    [DT_PROCESSAMENTO]          DATETIME NULL DEFAULT GETDATE(),
-    
-    CONSTRAINT [PK_MEDICAO_RESUMO_HORARIO] PRIMARY KEY CLUSTERED ([CD_CHAVE] ASC),
-    CONSTRAINT [UK_MEDICAO_RESUMO_HORARIO] UNIQUE ([CD_PONTO_MEDICAO], [DT_HORA])
-);
+    CREATE TABLE [dbo].[MEDICAO_RESUMO_HORARIO] (
+        [CD_CHAVE] INT IDENTITY(1, 1) NOT NULL,
+        [CD_PONTO_MEDICAO] INT NOT NULL,
+        [DT_HORA] DATETIME NOT NULL,
+        [NR_HORA] TINYINT NOT NULL,
+        [ID_TIPO_MEDIDOR] INT NULL,
+        -- Contagens
+        [QTD_REGISTROS] INT NULL DEFAULT 0,
+        [QTD_ESPERADA] INT NULL DEFAULT 60,
+        [QTD_ZEROS] INT NULL DEFAULT 0,
+        [QTD_VALORES_DISTINTOS] INT NULL DEFAULT 0,
+        -- Estatísticas da hora
+        [VL_MEDIA] DECIMAL(18, 4) NULL,
+        [VL_MIN] DECIMAL(18, 4) NULL,
+        [VL_MAX] DECIMAL(18, 4) NULL,
+        [VL_SOMA] DECIMAL(18, 4) NULL,
+        [VL_PRIMEIRO] DECIMAL(18, 4) NULL,
+        [VL_ULTIMO] DECIMAL(18, 4) NULL,
+        -- Variação (para detectar spikes)
+        [VL_VARIACAO_MAX] DECIMAL(18, 4) NULL,
+        [VL_VARIACAO_PERC_MAX] DECIMAL(18, 4) NULL,
+        -- Flags de anomalia
+        [FL_VALOR_CONSTANTE] BIT NULL DEFAULT 0,
+        [FL_VALOR_NEGATIVO] BIT NULL DEFAULT 0,
+        [FL_FORA_FAIXA] BIT NULL DEFAULT 0,
+        [FL_SPIKE] BIT NULL DEFAULT 0,
+        [FL_ZEROS_SUSPEITOS] BIT NULL DEFAULT 0,
+        -- Tratamento
+        [FL_TRATADO] BIT NULL DEFAULT 0,
+        [QTD_TRATADOS] INT NULL DEFAULT 0,
+        -- Anomalias
+        [FL_ANOMALIA] BIT NULL DEFAULT 0,
+        [DS_TIPO_ANOMALIA] VARCHAR(500) NULL,
+        -- Comparação histórica
+        [VL_MEDIA_HISTORICA] DECIMAL(18, 4) NULL,
+        -- Controle
+        [DT_PROCESSAMENTO] DATETIME NULL DEFAULT GETDATE(),
+        CONSTRAINT [PK_MEDICAO_RESUMO_HORARIO] PRIMARY KEY CLUSTERED ([CD_CHAVE] ASC),
+        CONSTRAINT [UK_MEDICAO_RESUMO_HORARIO] UNIQUE ([CD_PONTO_MEDICAO], [DT_HORA])
+    );
 
 CREATE NONCLUSTERED INDEX [IX_RESUMO_HORARIO_DATA] ON [dbo].[MEDICAO_RESUMO_HORARIO] ([DT_HORA]) INCLUDE ([CD_PONTO_MEDICAO]);
+
 CREATE NONCLUSTERED INDEX [IX_RESUMO_HORARIO_PONTO] ON [dbo].[MEDICAO_RESUMO_HORARIO] ([CD_PONTO_MEDICAO], [DT_HORA]);
-CREATE NONCLUSTERED INDEX [IX_RESUMO_HORARIO_ANOMALIA] ON [dbo].[MEDICAO_RESUMO_HORARIO] ([FL_ANOMALIA]) WHERE [FL_ANOMALIA] = 1;
+
+CREATE NONCLUSTERED INDEX [IX_RESUMO_HORARIO_ANOMALIA] ON [dbo].[MEDICAO_RESUMO_HORARIO] ([FL_ANOMALIA])
+WHERE
+    [FL_ANOMALIA] = 1;
 
 PRINT '   Tabela MEDICAO_RESUMO_HORARIO criada.';
+
 GO
+    -- ============================================================================
+    -- TABELA: MEDICAO_RESUMO_DIARIO
+    -- Visão consolidada do dia (1 registro por ponto/dia)
+    -- ============================================================================
+    IF EXISTS (
+        SELECT
+            *
+        FROM
+            sys.objects
+        WHERE
+            object_id = OBJECT_ID(N'[dbo].[MEDICAO_RESUMO_DIARIO]')
+            AND type in (N'U')
+    ) BEGIN DROP TABLE [dbo].[MEDICAO_RESUMO_DIARIO];
 
--- ============================================================================
--- TABELA: MEDICAO_RESUMO_DIARIO
--- Visão consolidada do dia (1 registro por ponto/dia)
--- ============================================================================
+PRINT '   Tabela MEDICAO_RESUMO_DIARIO removida (recriando).';
 
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[MEDICAO_RESUMO_DIARIO]') AND type in (N'U'))
-BEGIN
-    DROP TABLE [dbo].[MEDICAO_RESUMO_DIARIO];
-    PRINT '   Tabela MEDICAO_RESUMO_DIARIO removida (recriando).';
 END
 GO
-
-CREATE TABLE [dbo].[MEDICAO_RESUMO_DIARIO] (
-    [CD_CHAVE]                  INT IDENTITY(1,1) NOT NULL,
-    [CD_PONTO_MEDICAO]          INT NOT NULL,
-    [DT_MEDICAO]                DATE NOT NULL,
-    [ID_TIPO_MEDIDOR]           INT NULL,
-    
-    -- ========================================
-    -- CONTAGENS E ESTATÍSTICAS BÁSICAS
-    -- ========================================
-    [QTD_REGISTROS]             INT NULL DEFAULT 0,
-    [QTD_ESPERADA]              INT NULL DEFAULT 1440,
-    [VL_MEDIA_DIARIA]           DECIMAL(18,4) NULL,
-    [VL_MIN_DIARIO]             DECIMAL(18,4) NULL,
-    [VL_MAX_DIARIO]             DECIMAL(18,4) NULL,
-    [VL_DESVIO_PADRAO]          DECIMAL(18,4) NULL,
-    [VL_SOMA_DIARIA]            DECIMAL(18,4) NULL,
-    
-    -- ========================================
-    -- LIMITES DO PONTO
-    -- ========================================
-    [VL_LIMITE_INFERIOR]        DECIMAL(18,4) NULL,
-    [VL_LIMITE_SUPERIOR]        DECIMAL(18,4) NULL,
-    [VL_CAPACIDADE_NOMINAL]     DECIMAL(18,4) NULL,
-    
-    -- ========================================
-    -- FLAGS DE INTEGRIDADE (Telemetria/Comunicação)
-    -- ========================================
-    [FL_SEM_COMUNICACAO]        BIT NULL DEFAULT 0,
-    [FL_VALOR_CONSTANTE]        BIT NULL DEFAULT 0,
-    [FL_ZEROS_SUSPEITOS]        BIT NULL DEFAULT 0,
-    [QTD_VALORES_DISTINTOS]     INT NULL DEFAULT 0,
-    [QTD_ZEROS]                 INT NULL DEFAULT 0,
-    [QTD_HORAS_SEM_DADO]        INT NULL DEFAULT 0,
-    
-    -- ========================================
-    -- FLAGS DE VALIDAÇÃO FÍSICA/HIDRÁULICA
-    -- ========================================
-    [FL_VALOR_NEGATIVO]         BIT NULL DEFAULT 0,
-    [FL_FORA_FAIXA]             BIT NULL DEFAULT 0,
-    [FL_SPIKE]                  BIT NULL DEFAULT 0,
-    [FL_INCOMPATIVEL]           BIT NULL DEFAULT 0,
-    [QTD_NEGATIVOS]             INT NULL DEFAULT 0,
-    [QTD_FORA_FAIXA]            INT NULL DEFAULT 0,
-    [QTD_SPIKES]                INT NULL DEFAULT 0,
-    
-    -- ========================================
-    -- FLAGS DE CONSISTÊNCIA TEMPORAL
-    -- ========================================
-    [FL_PERFIL_ANOMALO]         BIT NULL DEFAULT 0,
-    [FL_DESVIO_HISTORICO]       BIT NULL DEFAULT 0,
-    [VL_MEDIA_HISTORICA]        DECIMAL(18,4) NULL,
-    [VL_DESVIO_HISTORICO]       DECIMAL(18,4) NULL,
-    
-    -- ========================================
-    -- TRATAMENTOS
-    -- ========================================
-    [ID_SITUACAO]               INT NULL DEFAULT 1,
-    [QTD_TRATAMENTOS]           INT NULL DEFAULT 0,
-    [DS_HORAS_TRATADAS]         VARCHAR(100) NULL,
-    
-    -- ========================================
-    -- SCORE DE SAÚDE E ANOMALIAS
-    -- ========================================
-    [VL_SCORE_SAUDE]            INT NULL DEFAULT 10,
-    [FL_ANOMALIA]               BIT NULL DEFAULT 0,
-    [DS_ANOMALIAS]              VARCHAR(1000) NULL,
-    [DS_TIPO_PROBLEMA]          VARCHAR(50) NULL,
-    
-    -- ========================================
-    -- CONTROLE
-    -- ========================================
-    [DT_PROCESSAMENTO]          DATETIME NULL DEFAULT GETDATE(),
-    
-    CONSTRAINT [PK_MEDICAO_RESUMO_DIARIO] PRIMARY KEY CLUSTERED ([CD_CHAVE] ASC),
-    CONSTRAINT [UK_MEDICAO_RESUMO_DIARIO] UNIQUE ([CD_PONTO_MEDICAO], [DT_MEDICAO])
-);
+    CREATE TABLE [dbo].[MEDICAO_RESUMO_DIARIO] (
+        [CD_CHAVE] INT IDENTITY(1, 1) NOT NULL,
+        [CD_PONTO_MEDICAO] INT NOT NULL,
+        [DT_MEDICAO] DATE NOT NULL,
+        [ID_TIPO_MEDIDOR] INT NULL,
+        -- ========================================
+        -- CONTAGENS E ESTATÍSTICAS BÁSICAS
+        -- ========================================
+        [QTD_REGISTROS] INT NULL DEFAULT 0,
+        [QTD_ESPERADA] INT NULL DEFAULT 1440,
+        [VL_MEDIA_DIARIA] DECIMAL(18, 4) NULL,
+        [VL_MIN_DIARIO] DECIMAL(18, 4) NULL,
+        [VL_MAX_DIARIO] DECIMAL(18, 4) NULL,
+        [VL_DESVIO_PADRAO] DECIMAL(18, 4) NULL,
+        [VL_SOMA_DIARIA] DECIMAL(18, 4) NULL,
+        -- ========================================
+        -- LIMITES DO PONTO
+        -- ========================================
+        [VL_LIMITE_INFERIOR] DECIMAL(18, 4) NULL,
+        [VL_LIMITE_SUPERIOR] DECIMAL(18, 4) NULL,
+        [VL_CAPACIDADE_NOMINAL] DECIMAL(18, 4) NULL,
+        -- ========================================
+        -- FLAGS DE INTEGRIDADE (Telemetria/Comunicação)
+        -- ========================================
+        [FL_SEM_COMUNICACAO] BIT NULL DEFAULT 0,
+        [FL_VALOR_CONSTANTE] BIT NULL DEFAULT 0,
+        [FL_ZEROS_SUSPEITOS] BIT NULL DEFAULT 0,
+        [QTD_VALORES_DISTINTOS] INT NULL DEFAULT 0,
+        [QTD_ZEROS] INT NULL DEFAULT 0,
+        [QTD_HORAS_SEM_DADO] INT NULL DEFAULT 0,
+        -- ========================================
+        -- FLAGS DE VALIDAÇÃO FÍSICA/HIDRÁULICA
+        -- ========================================
+        [FL_VALOR_NEGATIVO] BIT NULL DEFAULT 0,
+        [FL_FORA_FAIXA] BIT NULL DEFAULT 0,
+        [FL_SPIKE] BIT NULL DEFAULT 0,
+        [FL_INCOMPATIVEL] BIT NULL DEFAULT 0,
+        [QTD_NEGATIVOS] INT NULL DEFAULT 0,
+        [QTD_FORA_FAIXA] INT NULL DEFAULT 0,
+        [QTD_SPIKES] INT NULL DEFAULT 0,
+        -- ========================================
+        -- FLAGS DE CONSISTÊNCIA TEMPORAL
+        -- ========================================
+        [FL_PERFIL_ANOMALO] BIT NULL DEFAULT 0,
+        [FL_DESVIO_HISTORICO] BIT NULL DEFAULT 0,
+        [VL_MEDIA_HISTORICA] DECIMAL(18, 4) NULL,
+        [VL_DESVIO_HISTORICO] DECIMAL(18, 4) NULL,
+        -- ========================================
+        -- TRATAMENTOS
+        -- ========================================
+        [ID_SITUACAO] INT NULL DEFAULT 1,
+        [QTD_TRATAMENTOS] INT NULL DEFAULT 0,
+        [DS_HORAS_TRATADAS] VARCHAR(100) NULL,
+        -- ========================================
+        -- SCORE DE SAÚDE E ANOMALIAS
+        -- ========================================
+        [VL_SCORE_SAUDE] INT NULL DEFAULT 10,
+        [FL_ANOMALIA] BIT NULL DEFAULT 0,
+        [DS_ANOMALIAS] VARCHAR(1000) NULL,
+        [DS_TIPO_PROBLEMA] VARCHAR(50) NULL,
+        -- ========================================
+        -- CONTROLE
+        -- ========================================
+        [DT_PROCESSAMENTO] DATETIME NULL DEFAULT GETDATE(),
+        CONSTRAINT [PK_MEDICAO_RESUMO_DIARIO] PRIMARY KEY CLUSTERED ([CD_CHAVE] ASC),
+        CONSTRAINT [UK_MEDICAO_RESUMO_DIARIO] UNIQUE ([CD_PONTO_MEDICAO], [DT_MEDICAO])
+    );
 
 CREATE NONCLUSTERED INDEX [IX_RESUMO_DIARIO_DATA] ON [dbo].[MEDICAO_RESUMO_DIARIO] ([DT_MEDICAO]) INCLUDE ([CD_PONTO_MEDICAO], [FL_ANOMALIA]);
+
 CREATE NONCLUSTERED INDEX [IX_RESUMO_DIARIO_PONTO] ON [dbo].[MEDICAO_RESUMO_DIARIO] ([CD_PONTO_MEDICAO]) INCLUDE ([DT_MEDICAO], [ID_SITUACAO]);
-CREATE NONCLUSTERED INDEX [IX_RESUMO_DIARIO_ANOMALIA] ON [dbo].[MEDICAO_RESUMO_DIARIO] ([FL_ANOMALIA]) WHERE [FL_ANOMALIA] = 1;
+
+CREATE NONCLUSTERED INDEX [IX_RESUMO_DIARIO_ANOMALIA] ON [dbo].[MEDICAO_RESUMO_DIARIO] ([FL_ANOMALIA])
+WHERE
+    [FL_ANOMALIA] = 1;
+
 CREATE NONCLUSTERED INDEX [IX_RESUMO_DIARIO_SCORE] ON [dbo].[MEDICAO_RESUMO_DIARIO] ([VL_SCORE_SAUDE]) INCLUDE ([CD_PONTO_MEDICAO], [DT_MEDICAO]);
 
 PRINT '   Tabela MEDICAO_RESUMO_DIARIO criada.';
-GO
 
-PRINT '';
+GO
+    PRINT '';
+
 PRINT '>> PARTE 1: Concluida.';
+
 PRINT '';
 
 -- ============================================================================
@@ -225,41 +228,97 @@ PRINT '';
 -- PARTE 2: TABELA DE LIMITES PADRÃO
 -- ============================================================================
 -- ============================================================================
-
 PRINT '>> PARTE 2: Criando tabela de limites padrao...';
+
 PRINT '';
 
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LIMITES_PADRAO_TIPO_MEDIDOR]') AND type in (N'U'))
-BEGIN
-    DROP TABLE [dbo].[LIMITES_PADRAO_TIPO_MEDIDOR];
-    PRINT '   Tabela LIMITES_PADRAO_TIPO_MEDIDOR removida (recriando).';
+IF EXISTS (
+    SELECT
+        *
+    FROM
+        sys.objects
+    WHERE
+        object_id = OBJECT_ID(N'[dbo].[LIMITES_PADRAO_TIPO_MEDIDOR]')
+        AND type in (N'U')
+) BEGIN DROP TABLE [dbo].[LIMITES_PADRAO_TIPO_MEDIDOR];
+
+PRINT '   Tabela LIMITES_PADRAO_TIPO_MEDIDOR removida (recriando).';
+
 END
 GO
-
-CREATE TABLE [dbo].[LIMITES_PADRAO_TIPO_MEDIDOR] (
-    [ID_TIPO_MEDIDOR]       INT PRIMARY KEY,
-    [DS_TIPO_MEDIDOR]       VARCHAR(50) NOT NULL,
-    [DS_UNIDADE]            VARCHAR(10) NOT NULL,
-    [VL_LIMITE_INFERIOR]    DECIMAL(18,4) NULL,
-    [VL_LIMITE_SUPERIOR]    DECIMAL(18,4) NULL,
-    [VL_VARIACAO_MAX_PERC]  DECIMAL(18,4) NULL,
-    [VL_ZEROS_MAX_PERC]     DECIMAL(18,4) NULL,
-    [DS_OBSERVACAO]         VARCHAR(500) NULL
-);
+    CREATE TABLE [dbo].[LIMITES_PADRAO_TIPO_MEDIDOR] (
+        [ID_TIPO_MEDIDOR] INT PRIMARY KEY,
+        [DS_TIPO_MEDIDOR] VARCHAR(50) NOT NULL,
+        [DS_UNIDADE] VARCHAR(10) NOT NULL,
+        [VL_LIMITE_INFERIOR] DECIMAL(18, 4) NULL,
+        [VL_LIMITE_SUPERIOR] DECIMAL(18, 4) NULL,
+        [VL_VARIACAO_MAX_PERC] DECIMAL(18, 4) NULL,
+        [VL_ZEROS_MAX_PERC] DECIMAL(18, 4) NULL,
+        [DS_OBSERVACAO] VARCHAR(500) NULL
+    );
 
 -- Inserir valores padrão (AJUSTE CONFORME SUA REALIDADE!)
-INSERT INTO [dbo].[LIMITES_PADRAO_TIPO_MEDIDOR] VALUES
-(1, 'Macromedidor',         'L/s',  0,    500,   200,  25, 'Vazao tipica de macromedidores. Ajustar conforme realidade local.'),
-(2, 'Estacao Pitometrica',  'L/s',  0,    300,   200,  25, 'Vazao tipica de estacoes pitometricas.'),
-(4, 'Medidor Pressao',      'mca',  0,    80,    50,   10, 'Pressao tipica: 10-60 mca. Zero pode indicar falha.'),
-(6, 'Nivel Reservatorio',   '%',    0,    100,   30,   5,  'Nivel 0-100%. Zeros prolongados indicam problema.'),
-(8, 'Hidrometro',           'L/s',  0,    50,    200,  25, 'Vazao tipica de hidrometros residenciais/comerciais.');
+INSERT INTO
+    [dbo].[LIMITES_PADRAO_TIPO_MEDIDOR]
+VALUES
+    (
+        1,
+        'Macromedidor',
+        'L/s',
+        0,
+        500,
+        200,
+        25,
+        'Vazao tipica de macromedidores. Ajustar conforme realidade local.'
+    ),
+    (
+        2,
+        'Estacao Pitometrica',
+        'L/s',
+        0,
+        300,
+        200,
+        25,
+        'Vazao tipica de estacoes pitometricas.'
+    ),
+    (
+        4,
+        'Medidor Pressao',
+        'mca',
+        0,
+        80,
+        50,
+        10,
+        'Pressao tipica: 10-60 mca. Zero pode indicar falha.'
+    ),
+    (
+        6,
+        'Nivel Reservatorio',
+        '%',
+        0,
+        100,
+        30,
+        5,
+        'Nivel 0-100%. Zeros prolongados indicam problema.'
+    ),
+    (
+        8,
+        'Hidrometro',
+        'L/s',
+        0,
+        50,
+        200,
+        25,
+        'Vazao tipica de hidrometros residenciais/comerciais.'
+    );
 
 PRINT '   Tabela LIMITES_PADRAO_TIPO_MEDIDOR criada e populada.';
-GO
 
-PRINT '';
+GO
+    PRINT '';
+
 PRINT '>> PARTE 2: Concluida.';
+
 PRINT '';
 
 -- ============================================================================
@@ -267,172 +326,202 @@ PRINT '';
 -- PARTE 3: VIEW DE LIMITES (COM FALLBACK)
 -- ============================================================================
 -- ============================================================================
-
 PRINT '>> PARTE 3: Criando view de limites com fallback...';
+
 PRINT '';
 
-IF EXISTS (SELECT * FROM sys.views WHERE name = 'VW_PONTO_MEDICAO_LIMITES')
-    DROP VIEW [dbo].[VW_PONTO_MEDICAO_LIMITES];
-GO
+IF EXISTS (
+    SELECT
+        *
+    FROM
+        sys.views
+    WHERE
+        name = 'VW_PONTO_MEDICAO_LIMITES'
+) DROP VIEW [dbo].[VW_PONTO_MEDICAO_LIMITES];
 
-CREATE VIEW [dbo].[VW_PONTO_MEDICAO_LIMITES]
-AS
-WITH LimitesEstatisticos AS (
-    SELECT 
-        CD_PONTO_MEDICAO,
-        ID_TIPO_MEDICAO AS ID_TIPO_MEDIDOR,
-        AVG(CASE 
-            WHEN ID_TIPO_MEDICAO IN (1, 2, 8) THEN ISNULL(VL_VAZAO_EFETIVA, VL_VAZAO)
-            WHEN ID_TIPO_MEDICAO = 4 THEN VL_PRESSAO
-            WHEN ID_TIPO_MEDICAO = 6 THEN VL_RESERVATORIO
-        END) AS VL_MEDIA_HIST,
-        STDEV(CASE 
-            WHEN ID_TIPO_MEDICAO IN (1, 2, 8) THEN ISNULL(VL_VAZAO_EFETIVA, VL_VAZAO)
-            WHEN ID_TIPO_MEDICAO = 4 THEN VL_PRESSAO
-            WHEN ID_TIPO_MEDICAO = 6 THEN VL_RESERVATORIO
-        END) AS VL_DESVIO_HIST,
-        MIN(CASE 
-            WHEN ID_TIPO_MEDICAO IN (1, 2, 8) THEN ISNULL(VL_VAZAO_EFETIVA, VL_VAZAO)
-            WHEN ID_TIPO_MEDICAO = 4 THEN VL_PRESSAO
-            WHEN ID_TIPO_MEDICAO = 6 THEN VL_RESERVATORIO
-        END) AS VL_MIN_HIST,
-        MAX(CASE 
-            WHEN ID_TIPO_MEDICAO IN (1, 2, 8) THEN ISNULL(VL_VAZAO_EFETIVA, VL_VAZAO)
-            WHEN ID_TIPO_MEDICAO = 4 THEN VL_PRESSAO
-            WHEN ID_TIPO_MEDICAO = 6 THEN VL_RESERVATORIO
-        END) AS VL_MAX_HIST,
-        COUNT(*) AS QTD_REGISTROS_HIST
-    FROM [dbo].[REGISTRO_VAZAO_PRESSAO]
-    WHERE DT_LEITURA >= DATEADD(DAY, -30, GETDATE())
-      AND ISNULL(ID_SITUACAO, 1) IN (1, 2)
-    GROUP BY CD_PONTO_MEDICAO, ID_TIPO_MEDICAO
-    HAVING COUNT(*) >= 1000
-)
-SELECT 
+GO
+    CREATE VIEW [dbo].[VW_PONTO_MEDICAO_LIMITES] AS WITH LimitesEstatisticos AS (
+        SELECT
+            CD_PONTO_MEDICAO,
+            ID_TIPO_MEDICAO AS ID_TIPO_MEDIDOR,
+            AVG(
+                CASE
+                    WHEN ID_TIPO_MEDICAO IN (1, 2, 8) THEN ISNULL(VL_VAZAO_EFETIVA, VL_VAZAO)
+                    WHEN ID_TIPO_MEDICAO = 4 THEN VL_PRESSAO
+                    WHEN ID_TIPO_MEDICAO = 6 THEN VL_RESERVATORIO
+                END
+            ) AS VL_MEDIA_HIST,
+            STDEV(
+                CASE
+                    WHEN ID_TIPO_MEDICAO IN (1, 2, 8) THEN ISNULL(VL_VAZAO_EFETIVA, VL_VAZAO)
+                    WHEN ID_TIPO_MEDICAO = 4 THEN VL_PRESSAO
+                    WHEN ID_TIPO_MEDICAO = 6 THEN VL_RESERVATORIO
+                END
+            ) AS VL_DESVIO_HIST,
+            MIN(
+                CASE
+                    WHEN ID_TIPO_MEDICAO IN (1, 2, 8) THEN ISNULL(VL_VAZAO_EFETIVA, VL_VAZAO)
+                    WHEN ID_TIPO_MEDICAO = 4 THEN VL_PRESSAO
+                    WHEN ID_TIPO_MEDICAO = 6 THEN VL_RESERVATORIO
+                END
+            ) AS VL_MIN_HIST,
+            MAX(
+                CASE
+                    WHEN ID_TIPO_MEDICAO IN (1, 2, 8) THEN ISNULL(VL_VAZAO_EFETIVA, VL_VAZAO)
+                    WHEN ID_TIPO_MEDICAO = 4 THEN VL_PRESSAO
+                    WHEN ID_TIPO_MEDICAO = 6 THEN VL_RESERVATORIO
+                END
+            ) AS VL_MAX_HIST,
+            COUNT(*) AS QTD_REGISTROS_HIST
+        FROM
+            [dbo].[REGISTRO_VAZAO_PRESSAO]
+        WHERE
+            DT_LEITURA >= DATEADD(DAY, -30, GETDATE())
+            AND ISNULL(ID_SITUACAO, 1) IN (1, 2)
+        GROUP BY
+            CD_PONTO_MEDICAO,
+            ID_TIPO_MEDICAO
+        HAVING
+            COUNT(*) >= 1000
+    )
+SELECT
     PM.CD_PONTO_MEDICAO,
     PM.DS_NOME,
     PM.ID_TIPO_MEDIDOR,
-    
     -- LIMITE INFERIOR: Cadastro > Estatístico > Padrão
     COALESCE(
         PM.VL_LIMITE_INFERIOR_VAZAO,
-        CASE 
-            WHEN LE.VL_MEDIA_HIST IS NOT NULL AND LE.VL_DESVIO_HIST IS NOT NULL
-            THEN CASE 
-                WHEN (LE.VL_MEDIA_HIST - 3 * ISNULL(LE.VL_DESVIO_HIST, 0)) < 0 THEN 0
-                ELSE (LE.VL_MEDIA_HIST - 3 * ISNULL(LE.VL_DESVIO_HIST, 0))
+        CASE
+            WHEN LE.VL_MEDIA_HIST IS NOT NULL
+            AND LE.VL_DESVIO_HIST IS NOT NULL THEN CASE
+                WHEN (
+                    LE.VL_MEDIA_HIST - 3 * ISNULL(LE.VL_DESVIO_HIST, 0)
+                ) < 0 THEN 0
+                ELSE (
+                    LE.VL_MEDIA_HIST - 3 * ISNULL(LE.VL_DESVIO_HIST, 0)
+                )
             END
         END,
         LP.VL_LIMITE_INFERIOR,
         0
     ) AS VL_LIMITE_INFERIOR,
-    
     -- LIMITE SUPERIOR: Cadastro > Capacidade > Estatístico > Padrão
     COALESCE(
         PM.VL_LIMITE_SUPERIOR_VAZAO,
-        CASE PM.ID_TIPO_MEDIDOR
+        CASE
+            PM.ID_TIPO_MEDIDOR
             WHEN 1 THEN MAC.VL_CAPACIDADE_NOMINAL
             WHEN 8 THEN HID.VL_LEITURA_LIMITE
         END,
-        CASE 
-            WHEN LE.VL_MEDIA_HIST IS NOT NULL AND LE.VL_DESVIO_HIST IS NOT NULL
-            THEN CASE 
-                WHEN (LE.VL_MEDIA_HIST + 3 * ISNULL(LE.VL_DESVIO_HIST, 0)) > (ISNULL(LE.VL_MAX_HIST, 0) * 1.5)
-                THEN ISNULL(LE.VL_MAX_HIST, 0) * 1.5
-                ELSE (LE.VL_MEDIA_HIST + 3 * ISNULL(LE.VL_DESVIO_HIST, 0))
+        CASE
+            WHEN LE.VL_MEDIA_HIST IS NOT NULL
+            AND LE.VL_DESVIO_HIST IS NOT NULL THEN CASE
+                WHEN (
+                    LE.VL_MEDIA_HIST + 3 * ISNULL(LE.VL_DESVIO_HIST, 0)
+                ) > (ISNULL(LE.VL_MAX_HIST, 0) * 1.5) THEN ISNULL(LE.VL_MAX_HIST, 0) * 1.5
+                ELSE (
+                    LE.VL_MEDIA_HIST + 3 * ISNULL(LE.VL_DESVIO_HIST, 0)
+                )
             END
         END,
         LP.VL_LIMITE_SUPERIOR,
         999999
     ) AS VL_LIMITE_SUPERIOR,
-    
     -- CAPACIDADE NOMINAL
     COALESCE(
-        CASE PM.ID_TIPO_MEDIDOR
+        CASE
+            PM.ID_TIPO_MEDIDOR
             WHEN 1 THEN MAC.VL_CAPACIDADE_NOMINAL
             WHEN 6 THEN NR.VL_VOLUME_TOTAL
             WHEN 8 THEN HID.VL_LEITURA_LIMITE
         END,
         LP.VL_LIMITE_SUPERIOR
     ) AS VL_CAPACIDADE_NOMINAL,
-    
     -- VARIAÇÃO MÁXIMA PERMITIDA (%)
     COALESCE(
-        CASE 
-            WHEN ISNULL(LE.VL_MEDIA_HIST, 0) > 0.001 AND LE.VL_DESVIO_HIST IS NOT NULL
-            THEN (ISNULL(LE.VL_DESVIO_HIST, 0) / LE.VL_MEDIA_HIST) * 300
+        CASE
+            WHEN ISNULL(LE.VL_MEDIA_HIST, 0) > 0.001
+            AND LE.VL_DESVIO_HIST IS NOT NULL THEN (ISNULL(LE.VL_DESVIO_HIST, 0) / LE.VL_MEDIA_HIST) * 300
         END,
         LP.VL_VARIACAO_MAX_PERC,
         200
     ) AS VL_VARIACAO_MAX_PERC,
-    
     -- % MÁXIMA DE ZEROS
     COALESCE(LP.VL_ZEROS_MAX_PERC, 25) AS VL_ZEROS_MAX_PERC,
-    
     -- VALORES ESTATÍSTICOS
     LE.VL_MEDIA_HIST,
     LE.VL_DESVIO_HIST,
     LE.VL_MIN_HIST,
     LE.VL_MAX_HIST,
     LE.QTD_REGISTROS_HIST,
-    
     -- ORIGEM DOS LIMITES
-    CASE 
+    CASE
         WHEN PM.VL_LIMITE_INFERIOR_VAZAO IS NOT NULL THEN 'CADASTRO'
         WHEN LE.VL_MEDIA_HIST IS NOT NULL THEN 'ESTATISTICO'
         WHEN LP.VL_LIMITE_INFERIOR IS NOT NULL THEN 'PADRAO'
         ELSE 'DEFAULT'
     END AS DS_ORIGEM_LIMITE_INF,
-    
-    CASE 
+    CASE
         WHEN PM.VL_LIMITE_SUPERIOR_VAZAO IS NOT NULL THEN 'CADASTRO'
-        WHEN MAC.VL_CAPACIDADE_NOMINAL IS NOT NULL OR HID.VL_LEITURA_LIMITE IS NOT NULL THEN 'EQUIPAMENTO'
+        WHEN MAC.VL_CAPACIDADE_NOMINAL IS NOT NULL
+        OR HID.VL_LEITURA_LIMITE IS NOT NULL THEN 'EQUIPAMENTO'
         WHEN LE.VL_MEDIA_HIST IS NOT NULL THEN 'ESTATISTICO'
         WHEN LP.VL_LIMITE_SUPERIOR IS NOT NULL THEN 'PADRAO'
         ELSE 'DEFAULT'
     END AS DS_ORIGEM_LIMITE_SUP,
-    
     -- OUTRAS INFORMAÇÕES
     PM.VL_FATOR_CORRECAO_VAZAO,
-    CASE PM.ID_TIPO_MEDIDOR
+    CASE
+        PM.ID_TIPO_MEDIDOR
         WHEN 1 THEN MAC.VL_VAZAO_ESPERADA
         ELSE NULL
     END AS VL_VAZAO_ESPERADA,
-    CASE 
-        WHEN PM.DT_DESATIVACAO IS NULL OR PM.DT_DESATIVACAO > GETDATE() 
-        THEN 1 ELSE 0 
+    CASE
+        WHEN PM.DT_DESATIVACAO IS NULL
+        OR PM.DT_DESATIVACAO > GETDATE() THEN 1
+        ELSE 0
     END AS FL_ATIVO
+FROM
+    [dbo].[PONTO_MEDICAO] PM
+    LEFT JOIN [dbo].[LIMITES_PADRAO_TIPO_MEDIDOR] LP ON PM.ID_TIPO_MEDIDOR = LP.ID_TIPO_MEDIDOR
+    LEFT JOIN LimitesEstatisticos LE ON PM.CD_PONTO_MEDICAO = LE.CD_PONTO_MEDICAO
+    LEFT JOIN [dbo].[MACROMEDIDOR] MAC ON PM.CD_PONTO_MEDICAO = MAC.CD_PONTO_MEDICAO
+    AND PM.ID_TIPO_MEDIDOR = 1
+    LEFT JOIN [dbo].[ESTACAO_PITOMETRICA] EP ON PM.CD_PONTO_MEDICAO = EP.CD_PONTO_MEDICAO
+    AND PM.ID_TIPO_MEDIDOR = 2
+    LEFT JOIN [dbo].[MEDIDOR_PRESSAO] MP ON PM.CD_PONTO_MEDICAO = MP.CD_PONTO_MEDICAO
+    AND PM.ID_TIPO_MEDIDOR = 4
+    LEFT JOIN [dbo].[NIVEL_RESERVATORIO] NR ON PM.CD_PONTO_MEDICAO = NR.CD_PONTO_MEDICAO
+    AND PM.ID_TIPO_MEDIDOR = 6
+    LEFT JOIN [dbo].[HIDROMETRO] HID ON PM.CD_PONTO_MEDICAO = HID.CD_PONTO_MEDICAO
+    AND PM.ID_TIPO_MEDIDOR = 8;
 
-FROM [dbo].[PONTO_MEDICAO] PM
-LEFT JOIN [dbo].[LIMITES_PADRAO_TIPO_MEDIDOR] LP ON PM.ID_TIPO_MEDIDOR = LP.ID_TIPO_MEDIDOR
-LEFT JOIN LimitesEstatisticos LE ON PM.CD_PONTO_MEDICAO = LE.CD_PONTO_MEDICAO
-LEFT JOIN [dbo].[MACROMEDIDOR] MAC ON PM.CD_PONTO_MEDICAO = MAC.CD_PONTO_MEDICAO AND PM.ID_TIPO_MEDIDOR = 1
-LEFT JOIN [dbo].[ESTACAO_PITOMETRICA] EP ON PM.CD_PONTO_MEDICAO = EP.CD_PONTO_MEDICAO AND PM.ID_TIPO_MEDIDOR = 2
-LEFT JOIN [dbo].[MEDIDOR_PRESSAO] MP ON PM.CD_PONTO_MEDICAO = MP.CD_PONTO_MEDICAO AND PM.ID_TIPO_MEDIDOR = 4
-LEFT JOIN [dbo].[NIVEL_RESERVATORIO] NR ON PM.CD_PONTO_MEDICAO = NR.CD_PONTO_MEDICAO AND PM.ID_TIPO_MEDIDOR = 6
-LEFT JOIN [dbo].[HIDROMETRO] HID ON PM.CD_PONTO_MEDICAO = HID.CD_PONTO_MEDICAO AND PM.ID_TIPO_MEDIDOR = 8;
 GO
+    PRINT '   View VW_PONTO_MEDICAO_LIMITES criada.';
 
-PRINT '   View VW_PONTO_MEDICAO_LIMITES criada.';
 GO
+    -- View auxiliar: Pontos sem cadastro completo
+    IF EXISTS (
+        SELECT
+            *
+        FROM
+            sys.views
+        WHERE
+            name = 'VW_PONTOS_SEM_CADASTRO'
+    ) DROP VIEW [dbo].[VW_PONTOS_SEM_CADASTRO];
 
--- View auxiliar: Pontos sem cadastro completo
-IF EXISTS (SELECT * FROM sys.views WHERE name = 'VW_PONTOS_SEM_CADASTRO')
-    DROP VIEW [dbo].[VW_PONTOS_SEM_CADASTRO];
 GO
-
-CREATE VIEW [dbo].[VW_PONTOS_SEM_CADASTRO]
-AS
-SELECT 
+    CREATE VIEW [dbo].[VW_PONTOS_SEM_CADASTRO] AS
+SELECT
     PML.CD_PONTO_MEDICAO,
     PML.DS_NOME,
     PML.ID_TIPO_MEDIDOR,
     LP.DS_TIPO_MEDIDOR,
-    CASE 
-        WHEN PML.DS_ORIGEM_LIMITE_INF = 'CADASTRO' AND PML.DS_ORIGEM_LIMITE_SUP IN ('CADASTRO', 'EQUIPAMENTO')
-        THEN 'COMPLETO'
-        WHEN PML.DS_ORIGEM_LIMITE_SUP = 'ESTATISTICO' OR PML.DS_ORIGEM_LIMITE_INF = 'ESTATISTICO'
-        THEN 'ESTATISTICO'
+    CASE
+        WHEN PML.DS_ORIGEM_LIMITE_INF = 'CADASTRO'
+        AND PML.DS_ORIGEM_LIMITE_SUP IN ('CADASTRO', 'EQUIPAMENTO') THEN 'COMPLETO'
+        WHEN PML.DS_ORIGEM_LIMITE_SUP = 'ESTATISTICO'
+        OR PML.DS_ORIGEM_LIMITE_INF = 'ESTATISTICO' THEN 'ESTATISTICO'
         ELSE 'PADRAO'
     END AS STATUS_CADASTRO,
     PML.DS_ORIGEM_LIMITE_INF,
@@ -443,26 +532,39 @@ SELECT
     PML.VL_MEDIA_HIST,
     PML.VL_DESVIO_HIST,
     PML.QTD_REGISTROS_HIST,
-    CASE 
-        WHEN PML.VL_MEDIA_HIST IS NOT NULL 
-        THEN 'Sugestao: Inferior=' + 
-             CAST(CAST(CASE WHEN ISNULL(PML.VL_MEDIA_HIST,0) - 2*ISNULL(PML.VL_DESVIO_HIST,0) < 0 THEN 0 
-                       ELSE ISNULL(PML.VL_MEDIA_HIST,0) - 2*ISNULL(PML.VL_DESVIO_HIST,0) END AS DECIMAL(10,2)) AS VARCHAR) +
-             ', Superior=' + 
-             CAST(CAST(ISNULL(PML.VL_MEDIA_HIST,0) + 2*ISNULL(PML.VL_DESVIO_HIST,0) AS DECIMAL(10,2)) AS VARCHAR)
+    CASE
+        WHEN PML.VL_MEDIA_HIST IS NOT NULL THEN 'Sugestao: Inferior=' + CAST(
+            CAST(
+                CASE
+                    WHEN ISNULL(PML.VL_MEDIA_HIST, 0) - 2 * ISNULL(PML.VL_DESVIO_HIST, 0) < 0 THEN 0
+                    ELSE ISNULL(PML.VL_MEDIA_HIST, 0) - 2 * ISNULL(PML.VL_DESVIO_HIST, 0)
+                END AS DECIMAL(10, 2)
+            ) AS VARCHAR
+        ) + ', Superior=' + CAST(
+            CAST(
+                ISNULL(PML.VL_MEDIA_HIST, 0) + 2 * ISNULL(PML.VL_DESVIO_HIST, 0) AS DECIMAL(10, 2)
+            ) AS VARCHAR
+        )
         ELSE 'Sem historico suficiente'
     END AS DS_SUGESTAO_LIMITES
-FROM [dbo].[VW_PONTO_MEDICAO_LIMITES] PML
-LEFT JOIN [dbo].[LIMITES_PADRAO_TIPO_MEDIDOR] LP ON PML.ID_TIPO_MEDIDOR = LP.ID_TIPO_MEDIDOR
-WHERE PML.FL_ATIVO = 1
-  AND (PML.DS_ORIGEM_LIMITE_INF NOT IN ('CADASTRO') OR PML.DS_ORIGEM_LIMITE_SUP NOT IN ('CADASTRO', 'EQUIPAMENTO'));
-GO
+FROM
+    [dbo].[VW_PONTO_MEDICAO_LIMITES] PML
+    LEFT JOIN [dbo].[LIMITES_PADRAO_TIPO_MEDIDOR] LP ON PML.ID_TIPO_MEDIDOR = LP.ID_TIPO_MEDIDOR
+WHERE
+    PML.FL_ATIVO = 1
+    AND (
+        PML.DS_ORIGEM_LIMITE_INF NOT IN ('CADASTRO')
+        OR PML.DS_ORIGEM_LIMITE_SUP NOT IN ('CADASTRO', 'EQUIPAMENTO')
+    );
 
-PRINT '   View VW_PONTOS_SEM_CADASTRO criada.';
 GO
+    PRINT '   View VW_PONTOS_SEM_CADASTRO criada.';
 
-PRINT '';
+GO
+    PRINT '';
+
 PRINT '>> PARTE 3: Concluida.';
+
 PRINT '';
 
 -- ============================================================================
@@ -470,16 +572,30 @@ PRINT '';
 -- PARTE 4: STORED PROCEDURE PRINCIPAL (BLINDADA)
 -- ============================================================================
 -- ============================================================================
-
 PRINT '>> PARTE 4: Criando stored procedure principal...';
+
 PRINT '';
 
--- ============================================================================
--- SP_PROCESSAR_MEDICAO_DIARIA (VERSÃO CORRIGIDA)
--- Correção: Removido ID_TIPO_MEDICAO do GROUP BY para evitar duplicatas
--- ============================================================================
+USE [SIMP]
+GO
 
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[SP_PROCESSAR_MEDICAO_DIARIA]') AND type in (N'P'))
+-- =====================================================
+-- SIMP - SP_PROCESSAR_MEDICAO_DIARIA
+-- Versão: 2.0 - Corrigida
+-- Data: 16/01/2026
+-- =====================================================
+-- CORREÇÕES APLICADAS:
+-- 1. VL_SOMA na ETAPA 1 filtra apenas ID_SITUACAO = 1
+-- 2. VL_MEDIA na ETAPA 1 usa SUM/60 para vazão (média horária)
+-- 3. VL_MEDIA_DIARIA na ETAPA 5 usa SUM(VL_SOMA)/1440 para vazão
+--
+-- FÓRMULAS POR TIPO DE MEDIDOR:
+--   Vazão (1,2,8): SUM(valores ID_SITUACAO=1) / 1440
+--   Pressão (4):   AVG(valores ID_SITUACAO=1)
+--   Nível (6):     MAX(valores ID_SITUACAO=1)
+-- =====================================================
+
+IF EXISTS (SELECT * FROM sys.procedures WHERE name = 'SP_PROCESSAR_MEDICAO_DIARIA')
     DROP PROCEDURE [dbo].[SP_PROCESSAR_MEDICAO_DIARIA];
 GO
 
@@ -496,9 +612,10 @@ BEGIN
     DECLARE @DT_FIM DATETIME = DATEADD(DAY, 1, @DT_INICIO);
     
     PRINT '============================================';
-    PRINT 'PROCESSAMENTO DE MEDICAO - VERSAO BLINDADA';
+    PRINT 'PROCESSAMENTO DE MEDICAO - VERSAO 2.0';
     PRINT '============================================';
     PRINT 'Data: ' + CONVERT(VARCHAR, @DT_PROCESSAMENTO, 103);
+    PRINT 'FORMULA: VL_MEDIA_DIARIA = SUM(valores ID_SITUACAO=1) / 1440';
     
     BEGIN TRY
         BEGIN TRANSACTION;
@@ -512,7 +629,7 @@ BEGIN
         
         -- ====================================================================
         -- ETAPA 1: Popular MEDICAO_RESUMO_HORARIO
-        -- CORRIGIDO: Removido ID_TIPO_MEDICAO do GROUP BY, usando MAX()
+        -- CORRIGIDO: VL_SOMA e VL_MEDIA filtram apenas ID_SITUACAO = 1
         -- ====================================================================
         INSERT INTO [dbo].[MEDICAO_RESUMO_HORARIO] (
             [CD_PONTO_MEDICAO], [DT_HORA], [NR_HORA], [ID_TIPO_MEDIDOR],
@@ -524,8 +641,9 @@ BEGIN
             RVP.[CD_PONTO_MEDICAO],
             DATEADD(HOUR, DATEPART(HOUR, RVP.[DT_LEITURA]), CAST(CAST(RVP.[DT_LEITURA] AS DATE) AS DATETIME)),
             DATEPART(HOUR, RVP.[DT_LEITURA]),
-            MAX(ISNULL(RVP.[ID_TIPO_MEDICAO], 0)),  -- MAX em vez de GROUP BY
+            MAX(ISNULL(RVP.[ID_TIPO_MEDICAO], 0)),
             COUNT(*),
+            -- QTD_ZEROS
             SUM(CASE 
                 WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) IN (1, 2, 8) 
                      AND ISNULL(ISNULL(RVP.[VL_VAZAO_EFETIVA], RVP.[VL_VAZAO]), 0) = 0 THEN 1
@@ -535,6 +653,7 @@ BEGIN
                      AND ISNULL(RVP.[VL_RESERVATORIO], 0) = 0 THEN 1
                 ELSE 0
             END),
+            -- QTD_VALORES_DISTINTOS
             COUNT(DISTINCT CASE 
                 WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) IN (1, 2, 8) 
                      THEN CAST(ROUND(ISNULL(ISNULL(RVP.[VL_VAZAO_EFETIVA], RVP.[VL_VAZAO]), 0), 2) AS VARCHAR)
@@ -544,31 +663,45 @@ BEGIN
                      THEN CAST(ROUND(ISNULL(RVP.[VL_RESERVATORIO], 0), 2) AS VARCHAR)
                 ELSE '0'
             END),
-            AVG(CASE 
-                WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) IN (1, 2, 8) THEN ISNULL(ISNULL(RVP.[VL_VAZAO_EFETIVA], RVP.[VL_VAZAO]), 0)
-                WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) = 4 THEN ISNULL(RVP.[VL_PRESSAO], 0)
-                WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) = 6 THEN ISNULL(RVP.[VL_RESERVATORIO], 0)
+            -- VL_MEDIA: Média horária (CORRIGIDO - apenas ID_SITUACAO = 1)
+            -- Vazão: SUM/60, Pressão: AVG, Nível: MAX
+            CASE 
+                WHEN MAX(ISNULL(RVP.[ID_TIPO_MEDICAO], 0)) IN (1, 2, 8) 
+                    THEN SUM(CASE WHEN RVP.[ID_SITUACAO] = 1 THEN ISNULL(ISNULL(RVP.[VL_VAZAO_EFETIVA], RVP.[VL_VAZAO]), 0) ELSE 0 END) / 60.0
+                WHEN MAX(ISNULL(RVP.[ID_TIPO_MEDICAO], 0)) = 4 
+                    THEN AVG(CASE WHEN RVP.[ID_SITUACAO] = 1 THEN ISNULL(RVP.[VL_PRESSAO], 0) END)
+                WHEN MAX(ISNULL(RVP.[ID_TIPO_MEDICAO], 0)) = 6 
+                    THEN MAX(CASE WHEN RVP.[ID_SITUACAO] = 1 THEN ISNULL(RVP.[VL_RESERVATORIO], 0) END)
                 ELSE 0
-            END),
+            END,
+            -- VL_MIN
             MIN(CASE 
                 WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) IN (1, 2, 8) THEN ISNULL(ISNULL(RVP.[VL_VAZAO_EFETIVA], RVP.[VL_VAZAO]), 0)
                 WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) = 4 THEN ISNULL(RVP.[VL_PRESSAO], 0)
                 WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) = 6 THEN ISNULL(RVP.[VL_RESERVATORIO], 0)
                 ELSE 0
             END),
+            -- VL_MAX
             MAX(CASE 
                 WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) IN (1, 2, 8) THEN ISNULL(ISNULL(RVP.[VL_VAZAO_EFETIVA], RVP.[VL_VAZAO]), 0)
                 WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) = 4 THEN ISNULL(RVP.[VL_PRESSAO], 0)
                 WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) = 6 THEN ISNULL(RVP.[VL_RESERVATORIO], 0)
                 ELSE 0
             END),
+            -- VL_SOMA (CORRIGIDO - apenas ID_SITUACAO = 1)
             SUM(CASE 
-                WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) IN (1, 2, 8) THEN ISNULL(ISNULL(RVP.[VL_VAZAO_EFETIVA], RVP.[VL_VAZAO]), 0)
-                WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) = 4 THEN ISNULL(RVP.[VL_PRESSAO], 0)
-                WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) = 6 THEN ISNULL(RVP.[VL_RESERVATORIO], 0)
+                WHEN RVP.[ID_SITUACAO] = 1 THEN
+                    CASE 
+                        WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) IN (1, 2, 8) THEN ISNULL(ISNULL(RVP.[VL_VAZAO_EFETIVA], RVP.[VL_VAZAO]), 0)
+                        WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) = 4 THEN ISNULL(RVP.[VL_PRESSAO], 0)
+                        WHEN ISNULL(RVP.[ID_TIPO_MEDICAO], 0) = 6 THEN ISNULL(RVP.[VL_RESERVATORIO], 0)
+                        ELSE 0
+                    END
                 ELSE 0
             END),
+            -- FL_TRATADO
             MAX(CASE WHEN ISNULL(RVP.[ID_SITUACAO], 1) = 2 THEN 1 ELSE 0 END),
+            -- QTD_TRATADOS
             SUM(CASE WHEN ISNULL(RVP.[ID_SITUACAO], 1) = 2 THEN 1 ELSE 0 END),
             GETDATE()
         FROM [dbo].[REGISTRO_VAZAO_PRESSAO] RVP
@@ -765,7 +898,7 @@ BEGIN
         
         -- ====================================================================
         -- ETAPA 5: Popular MEDICAO_RESUMO_DIARIO
-        -- CORRIGIDO: Removido ID_TIPO_MEDIDOR do GROUP BY, usando MAX()
+        -- **CORRIGIDO**: VL_MEDIA_DIARIA = SUM(VL_SOMA) / 1440 para vazão
         -- ====================================================================
         INSERT INTO [dbo].[MEDICAO_RESUMO_DIARIO] (
             [CD_PONTO_MEDICAO], [DT_MEDICAO], [ID_TIPO_MEDIDOR],
@@ -779,13 +912,23 @@ BEGIN
         SELECT 
             MRH.[CD_PONTO_MEDICAO],
             @DT_PROCESSAMENTO,
-            MAX(ISNULL(MRH.[ID_TIPO_MEDIDOR], 0)),  -- MAX em vez de GROUP BY
+            MAX(ISNULL(MRH.[ID_TIPO_MEDIDOR], 0)),
             ISNULL(SUM(ISNULL(MRH.[QTD_REGISTROS], 0)), 0),
             1440,
+            -- =====================================================
+            -- VL_MEDIA_DIARIA CORRIGIDO:
+            -- Vazão (1,2,8): SUM(VL_SOMA) / 1440
+            -- Pressão (4):   AVG das médias horárias
+            -- Nível (6):     MAX dos máximos horários
+            -- =====================================================
             CASE 
-                WHEN ISNULL(SUM(ISNULL(MRH.[QTD_REGISTROS], 0)), 0) > 0 
-                THEN ISNULL(SUM(ISNULL(MRH.[VL_SOMA], 0)), 0) / SUM(ISNULL(MRH.[QTD_REGISTROS], 0))
-                ELSE 0 
+                WHEN MAX(ISNULL(MRH.[ID_TIPO_MEDIDOR], 0)) IN (1, 2, 8) 
+                    THEN CAST(ISNULL(SUM(ISNULL(MRH.[VL_SOMA], 0)), 0) AS DECIMAL(18,4)) / 1440.0
+                WHEN MAX(ISNULL(MRH.[ID_TIPO_MEDIDOR], 0)) = 4 
+                    THEN AVG(ISNULL(MRH.[VL_MEDIA], 0))
+                WHEN MAX(ISNULL(MRH.[ID_TIPO_MEDIDOR], 0)) = 6 
+                    THEN MAX(ISNULL(MRH.[VL_MAX], 0))
+                ELSE CAST(ISNULL(SUM(ISNULL(MRH.[VL_SOMA], 0)), 0) AS DECIMAL(18,4)) / 1440.0
             END,
             ISNULL(MIN(ISNULL(MRH.[VL_MIN], 0)), 0),
             ISNULL(MAX(ISNULL(MRH.[VL_MAX], 0)), 0),
@@ -964,6 +1107,11 @@ BEGIN
         PRINT '============================================';
         PRINT 'PROCESSAMENTO CONCLUIDO COM SUCESSO';
         PRINT '============================================';
+        PRINT 'FORMULA UTILIZADA:';
+        PRINT '  - Vazao: SUM(valores ID_SITUACAO=1) / 1440';
+        PRINT '  - Pressao: AVG(medias horarias)';
+        PRINT '  - Nivel: MAX(maximos horarios)';
+        PRINT '';
         
         SELECT 
             'RESUMO' AS TIPO,
@@ -987,115 +1135,252 @@ BEGIN
 END
 GO
 
-PRINT 'SP_PROCESSAR_MEDICAO_DIARIA criada/atualizada com sucesso!';
+-- =====================================================
+-- INFORMAÇÕES DE USO
+-- =====================================================
+PRINT '';
+PRINT '=====================================================';
+PRINT 'PROCEDURE CRIADA COM SUCESSO!';
+PRINT '=====================================================';
+PRINT '';
+PRINT 'USO:';
+PRINT '  -- Processar dia anterior (padrao)';
+PRINT '  EXEC SP_PROCESSAR_MEDICAO_DIARIA;';
+PRINT '';
+PRINT '  -- Processar data especifica';
+PRINT '  EXEC SP_PROCESSAR_MEDICAO_DIARIA ''2025-11-21'';';
+PRINT '';
+PRINT 'FORMULAS:';
+PRINT '  - Vazao (1,2,8): SUM(valores ID_SITUACAO=1) / 1440';
+PRINT '  - Pressao (4):   AVG(valores ID_SITUACAO=1)';
+PRINT '  - Nivel (6):     MAX(valores ID_SITUACAO=1)';
+PRINT '';
 GO
-
-PRINT '';
-PRINT '>> PARTE 4: Concluida.';
-PRINT '';
 
 -- ============================================================================
 -- ============================================================================
 -- PARTE 5: VIEWS PARA DASHBOARD
 -- ============================================================================
 -- ============================================================================
-
 PRINT '>> PARTE 5: Criando views para dashboard...';
+
 PRINT '';
 
 -- ============================================
--- Correção da View VW_DASHBOARD_RESUMO_GERAL
+-- ÍNDICES PARA PERFORMANCE DO DASHBOARD
 -- ============================================
--- Problema: Contava registros diários individuais, não pontos
--- Solução: Agrupar por ponto e usar média do score para classificar
--- 
--- IMPORTANTE: Esta view deve ser consistente com:
---   - getResumoGeral.php (dashboard)
---   - getPontosPorScore.php (monitoramento)
+-- Execute ANTES dos outros scripts
 -- ============================================
 
+-- Índice principal para consultas do dashboard
+-- Cobre: filtro por data + agrupamento por ponto
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_MRD_Dashboard_Principal')
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_MRD_Dashboard_Principal
+    ON MEDICAO_RESUMO_DIARIO (DT_MEDICAO, CD_PONTO_MEDICAO)
+    INCLUDE (
+        VL_SCORE_SAUDE,
+        FL_SEM_COMUNICACAO,
+        FL_VALOR_CONSTANTE,
+        FL_PERFIL_ANOMALO,
+        FL_VALOR_NEGATIVO,
+        FL_FORA_FAIXA,
+        FL_SPIKE,
+        FL_ZEROS_SUSPEITOS,
+        FL_ANOMALIA,
+        ID_SITUACAO,
+        QTD_TRATAMENTOS,
+        QTD_REGISTROS,
+        VL_MEDIA_DIARIA
+    );
+    PRINT 'Índice IX_MRD_Dashboard_Principal criado com sucesso!';
+END
+ELSE
+BEGIN
+    PRINT 'Índice IX_MRD_Dashboard_Principal já existe.';
+END
+GO
+
+-- Índice para busca por ponto específico
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_MRD_Ponto_Data')
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_MRD_Ponto_Data
+    ON MEDICAO_RESUMO_DIARIO (CD_PONTO_MEDICAO, DT_MEDICAO)
+    INCLUDE (VL_SCORE_SAUDE, VL_MEDIA_DIARIA, QTD_REGISTROS);
+    PRINT 'Índice IX_MRD_Ponto_Data criado com sucesso!';
+END
+GO
+
+-- Atualizar estatísticas
+UPDATE STATISTICS MEDICAO_RESUMO_DIARIO;
+PRINT 'Estatísticas atualizadas!';
+GO
+
+-- ============================================
+-- SOLUÇÃO OTIMIZADA: Tabela Física + Stored Procedure
+-- ============================================
+-- PROBLEMA: VIEW com CROSS JOIN é recalculada a cada SELECT
+-- SOLUÇÃO: Tabela física atualizada por procedure
+-- ============================================
+
+-- 1. DROPAR VIEW ANTIGA (está travando o sistema)
 IF OBJECT_ID('VW_DASHBOARD_RESUMO_GERAL', 'V') IS NOT NULL
     DROP VIEW VW_DASHBOARD_RESUMO_GERAL;
 GO
 
-CREATE VIEW VW_DASHBOARD_RESUMO_GERAL AS
-WITH UltimaData AS (
-    SELECT MAX(DT_MEDICAO) AS DATA_MAX FROM MEDICAO_RESUMO_DIARIO
-),
-PontosSumarizados AS (
-    SELECT 
-        MRD.CD_PONTO_MEDICAO,
-        COUNT(*) AS DIAS_ANALISADOS,
-        AVG(CAST(MRD.VL_SCORE_SAUDE AS DECIMAL(5,2))) AS SCORE_MEDIO,
-        SUM(CASE WHEN MRD.FL_SEM_COMUNICACAO = 1 THEN 1 ELSE 0 END) AS DIAS_COMUNICACAO,
-        -- MEDIDOR: FL_VALOR_CONSTANTE + FL_PERFIL_ANOMALO (consistente com monitoramento)
-        SUM(CASE WHEN MRD.FL_VALOR_CONSTANTE = 1 OR MRD.FL_PERFIL_ANOMALO = 1 THEN 1 ELSE 0 END) AS DIAS_MEDIDOR,
-        SUM(CASE WHEN MRD.FL_VALOR_NEGATIVO = 1 OR MRD.FL_FORA_FAIXA = 1 OR MRD.FL_SPIKE = 1 THEN 1 ELSE 0 END) AS DIAS_HIDRAULICO,
-        SUM(CASE WHEN MRD.FL_ANOMALIA = 1 THEN 1 ELSE 0 END) AS DIAS_ANOMALIA,
-        SUM(CASE WHEN MRD.ID_SITUACAO = 2 THEN 1 ELSE 0 END) AS TOTAL_TRATADOS,
-        SUM(ISNULL(MRD.QTD_TRATAMENTOS, 0)) AS QTD_TRATAMENTOS
-    FROM MEDICAO_RESUMO_DIARIO MRD
-    CROSS JOIN UltimaData UD
-    WHERE MRD.DT_MEDICAO >= DATEADD(DAY, -7, UD.DATA_MAX)
-      AND MRD.DT_MEDICAO <= UD.DATA_MAX
-    GROUP BY MRD.CD_PONTO_MEDICAO
-)
-SELECT 
-    COUNT(*) AS TOTAL_PONTOS,
-    SUM(PS.DIAS_ANALISADOS) AS TOTAL_MEDICOES,
-    ROUND(AVG(PS.SCORE_MEDIO), 2) AS SCORE_MEDIO,
-    MIN(PS.SCORE_MEDIO) AS SCORE_MINIMO,
-    -- Contagem por STATUS baseada na MÉDIA do ponto (consistente com monitoramento)
-    SUM(CASE WHEN PS.SCORE_MEDIO >= 8 THEN 1 ELSE 0 END) AS PONTOS_SAUDAVEIS,
-    SUM(CASE WHEN PS.SCORE_MEDIO >= 5 AND PS.SCORE_MEDIO < 8 THEN 1 ELSE 0 END) AS PONTOS_ALERTA,
-    SUM(CASE WHEN PS.SCORE_MEDIO < 5 THEN 1 ELSE 0 END) AS PONTOS_CRITICOS,
-    -- Contagem de PONTOS com cada tipo de problema (não soma de dias!)
-    SUM(CASE WHEN PS.DIAS_COMUNICACAO > 0 THEN 1 ELSE 0 END) AS PROB_COMUNICACAO,
-    SUM(CASE WHEN PS.DIAS_MEDIDOR > 0 THEN 1 ELSE 0 END) AS PROB_MEDIDOR,
-    SUM(CASE WHEN PS.DIAS_HIDRAULICO > 0 THEN 1 ELSE 0 END) AS PROB_HIDRAULICO,
-    SUM(CASE WHEN PS.DIAS_ANOMALIA > 0 THEN 1 ELSE 0 END) AS TOTAL_ANOMALIAS,
-    SUM(CASE WHEN PS.TOTAL_TRATADOS > 0 THEN 1 ELSE 0 END) AS PONTOS_TRATADOS,
-    -- Pontos com tratamento recorrente (>3 tratamentos no período)
-    SUM(CASE WHEN PS.QTD_TRATAMENTOS > 3 THEN 1 ELSE 0 END) AS PONTOS_TRATAMENTO_RECORRENTE,
-    (SELECT DATEADD(DAY, -7, DATA_MAX) FROM UltimaData) AS DATA_INICIO,
-    (SELECT DATA_MAX FROM UltimaData) AS DATA_FIM
-FROM PontosSumarizados PS;
+-- 2. CRIAR TABELA FÍSICA PARA ARMAZENAR O RESUMO
+IF OBJECT_ID('TB_DASHBOARD_RESUMO_CACHE', 'U') IS NOT NULL
+    DROP TABLE TB_DASHBOARD_RESUMO_CACHE;
 GO
 
--- Verificar resultado
+CREATE TABLE TB_DASHBOARD_RESUMO_CACHE (
+    ID INT IDENTITY(1,1) PRIMARY KEY,
+    TOTAL_PONTOS INT,
+    TOTAL_MEDICOES INT,
+    SCORE_MEDIO DECIMAL(5,2),
+    SCORE_MINIMO DECIMAL(5,2),
+    PONTOS_SAUDAVEIS INT,
+    PONTOS_ALERTA INT,
+    PONTOS_CRITICOS INT,
+    PROB_COMUNICACAO INT,
+    PROB_MEDIDOR INT,
+    PROB_HIDRAULICO INT,
+    TOTAL_ANOMALIAS INT,
+    PONTOS_TRATADOS INT,
+    PONTOS_TRATAMENTO_RECORRENTE INT,
+    DATA_INICIO DATE,
+    DATA_FIM DATE,
+    DT_ATUALIZACAO DATETIME DEFAULT GETDATE()
+);
+GO
+
+-- 3. CRIAR STORED PROCEDURE PARA ATUALIZAR O CACHE
+IF OBJECT_ID('SP_ATUALIZAR_DASHBOARD_CACHE', 'P') IS NOT NULL
+    DROP PROCEDURE SP_ATUALIZAR_DASHBOARD_CACHE;
+GO
+
+CREATE PROCEDURE SP_ATUALIZAR_DASHBOARD_CACHE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @dataMax DATE;
+    DECLARE @dataInicio DATE;
+    
+    -- Buscar última data disponível
+    SELECT @dataMax = MAX(DT_MEDICAO) FROM MEDICAO_RESUMO_DIARIO;
+    SET @dataInicio = DATEADD(DAY, -7, @dataMax);
+    
+    -- Limpar cache antigo
+    DELETE FROM TB_DASHBOARD_RESUMO_CACHE;
+    
+    -- Inserir dados atualizados
+    INSERT INTO TB_DASHBOARD_RESUMO_CACHE (
+        TOTAL_PONTOS, TOTAL_MEDICOES, SCORE_MEDIO, SCORE_MINIMO,
+        PONTOS_SAUDAVEIS, PONTOS_ALERTA, PONTOS_CRITICOS,
+        PROB_COMUNICACAO, PROB_MEDIDOR, PROB_HIDRAULICO,
+        TOTAL_ANOMALIAS, PONTOS_TRATADOS, PONTOS_TRATAMENTO_RECORRENTE,
+        DATA_INICIO, DATA_FIM
+    )
+    SELECT 
+        COUNT(*) AS TOTAL_PONTOS,
+        SUM(DIAS_ANALISADOS) AS TOTAL_MEDICOES,
+        ROUND(AVG(SCORE_MEDIO), 2) AS SCORE_MEDIO,
+        MIN(SCORE_MEDIO) AS SCORE_MINIMO,
+        SUM(CASE WHEN SCORE_MEDIO >= 8 THEN 1 ELSE 0 END) AS PONTOS_SAUDAVEIS,
+        SUM(CASE WHEN SCORE_MEDIO >= 5 AND SCORE_MEDIO < 8 THEN 1 ELSE 0 END) AS PONTOS_ALERTA,
+        SUM(CASE WHEN SCORE_MEDIO < 5 THEN 1 ELSE 0 END) AS PONTOS_CRITICOS,
+        SUM(CASE WHEN DIAS_COMUNICACAO > 0 THEN 1 ELSE 0 END) AS PROB_COMUNICACAO,
+        SUM(CASE WHEN DIAS_MEDIDOR > 0 THEN 1 ELSE 0 END) AS PROB_MEDIDOR,
+        SUM(CASE WHEN DIAS_HIDRAULICO > 0 THEN 1 ELSE 0 END) AS PROB_HIDRAULICO,
+        SUM(CASE WHEN DIAS_ANOMALIA > 0 THEN 1 ELSE 0 END) AS TOTAL_ANOMALIAS,
+        SUM(CASE WHEN TOTAL_TRATADOS > 0 THEN 1 ELSE 0 END) AS PONTOS_TRATADOS,
+        SUM(CASE WHEN QTD_TRATAMENTOS > 3 THEN 1 ELSE 0 END) AS PONTOS_TRATAMENTO_RECORRENTE,
+        @dataInicio AS DATA_INICIO,
+        @dataMax AS DATA_FIM
+    FROM (
+        SELECT 
+            CD_PONTO_MEDICAO,
+            COUNT(*) AS DIAS_ANALISADOS,
+            AVG(CAST(VL_SCORE_SAUDE AS DECIMAL(5,2))) AS SCORE_MEDIO,
+            SUM(CASE WHEN FL_SEM_COMUNICACAO = 1 THEN 1 ELSE 0 END) AS DIAS_COMUNICACAO,
+            SUM(CASE WHEN FL_VALOR_CONSTANTE = 1 OR FL_PERFIL_ANOMALO = 1 THEN 1 ELSE 0 END) AS DIAS_MEDIDOR,
+            SUM(CASE WHEN FL_VALOR_NEGATIVO = 1 OR FL_FORA_FAIXA = 1 OR FL_SPIKE = 1 THEN 1 ELSE 0 END) AS DIAS_HIDRAULICO,
+            SUM(CASE WHEN FL_ANOMALIA = 1 THEN 1 ELSE 0 END) AS DIAS_ANOMALIA,
+            SUM(CASE WHEN ID_SITUACAO = 2 THEN 1 ELSE 0 END) AS TOTAL_TRATADOS,
+            SUM(ISNULL(QTD_TRATAMENTOS, 0)) AS QTD_TRATAMENTOS
+        FROM MEDICAO_RESUMO_DIARIO
+        WHERE DT_MEDICAO >= @dataInicio
+          AND DT_MEDICAO <= @dataMax
+        GROUP BY CD_PONTO_MEDICAO
+    ) AS PontosSumarizados;
+    
+    PRINT 'Cache do dashboard atualizado em ' + CONVERT(VARCHAR, GETDATE(), 120);
+END;
+GO
+
+-- 4. CRIAR VIEW SIMPLES QUE LÊ DA TABELA (instantânea!)
+CREATE VIEW VW_DASHBOARD_RESUMO_GERAL AS
+SELECT 
+    TOTAL_PONTOS,
+    TOTAL_MEDICOES,
+    SCORE_MEDIO,
+    SCORE_MINIMO,
+    PONTOS_SAUDAVEIS,
+    PONTOS_ALERTA,
+    PONTOS_CRITICOS,
+    PROB_COMUNICACAO,
+    PROB_MEDIDOR,
+    PROB_HIDRAULICO,
+    TOTAL_ANOMALIAS,
+    PONTOS_TRATADOS,
+    PONTOS_TRATAMENTO_RECORRENTE,
+    DATA_INICIO,
+    DATA_FIM
+FROM TB_DASHBOARD_RESUMO_CACHE;
+GO
+
+-- 5. EXECUTAR A PRIMEIRA ATUALIZAÇÃO
+EXEC SP_ATUALIZAR_DASHBOARD_CACHE;
+GO
+
+-- 6. VERIFICAR RESULTADO (deve ser instantâneo!)
 SELECT * FROM VW_DASHBOARD_RESUMO_GERAL;
 GO
 
--- Verificação de consistência: comparar com contagem manual
-SELECT 
-    'Verificação de Saudáveis' AS TESTE,
-    (SELECT COUNT(*) FROM (
-        SELECT CD_PONTO_MEDICAO
-        FROM MEDICAO_RESUMO_DIARIO
-        WHERE DT_MEDICAO >= DATEADD(DAY, -7, (SELECT MAX(DT_MEDICAO) FROM MEDICAO_RESUMO_DIARIO))
-        GROUP BY CD_PONTO_MEDICAO
-        HAVING AVG(CAST(VL_SCORE_SAUDE AS DECIMAL(5,2))) >= 8
-    ) T) AS CONTAGEM_MANUAL,
-    (SELECT PONTOS_SAUDAVEIS FROM VW_DASHBOARD_RESUMO_GERAL) AS CONTAGEM_VIEW;
-GO
+-- ============================================
+-- INSTRUÇÕES DE USO:
+-- ============================================
+-- A procedure SP_ATUALIZAR_DASHBOARD_CACHE deve ser executada:
+-- - Pelo SQL Server Agent Job (recomendado: a cada 1 hora ou 1x ao dia)
+-- - Ou manualmente: EXEC SP_ATUALIZAR_DASHBOARD_CACHE;
+-- - Ou após o processamento diário dos dados
+-- ============================================
+    -- ============================================================================
+    -- VW_PONTOS_POR_SCORE_SAUDE
+    -- ============================================================================
+    IF EXISTS (
+        SELECT
+            *
+        FROM
+            sys.views
+        WHERE
+            name = 'VW_PONTOS_POR_SCORE_SAUDE'
+    ) DROP VIEW [dbo].[VW_PONTOS_POR_SCORE_SAUDE];
 
--- ============================================================================
--- VW_PONTOS_POR_SCORE_SAUDE
--- ============================================================================
-IF EXISTS (SELECT * FROM sys.views WHERE name = 'VW_PONTOS_POR_SCORE_SAUDE')
-    DROP VIEW [dbo].[VW_PONTOS_POR_SCORE_SAUDE];
 GO
-
-CREATE VIEW [dbo].[VW_PONTOS_POR_SCORE_SAUDE]
-AS
-WITH UltimaData AS (
-    SELECT MAX(DT_MEDICAO) AS DT_REFERENCIA FROM [dbo].[MEDICAO_RESUMO_DIARIO]
-)
-SELECT 
+    CREATE VIEW [dbo].[VW_PONTOS_POR_SCORE_SAUDE] AS WITH UltimaData AS (
+        SELECT
+            MAX(DT_MEDICAO) AS DT_REFERENCIA
+        FROM
+            [dbo].[MEDICAO_RESUMO_DIARIO]
+    )
+SELECT
     MRD.CD_PONTO_MEDICAO,
     PM.DS_NOME AS NOME_PONTO,
     MRD.ID_TIPO_MEDIDOR,
-    CASE MRD.ID_TIPO_MEDIDOR
+    CASE
+        MRD.ID_TIPO_MEDIDOR
         WHEN 1 THEN 'M - Macromedidor'
         WHEN 2 THEN 'E - Estacao Pitometrica'
         WHEN 4 THEN 'P - Pressao'
@@ -1103,71 +1388,116 @@ SELECT
         WHEN 8 THEN 'H - Hidrometro'
         ELSE 'Desconhecido'
     END AS TIPO_MEDIDOR,
-    
     -- Score de saúde
     AVG(MRD.VL_SCORE_SAUDE) AS SCORE_MEDIO,
     MIN(MRD.VL_SCORE_SAUDE) AS SCORE_MINIMO,
-    
     -- Classificação visual
-    CASE 
+    CASE
         WHEN AVG(MRD.VL_SCORE_SAUDE) >= 8 THEN 'SAUDAVEL'
         WHEN AVG(MRD.VL_SCORE_SAUDE) >= 5 THEN 'ALERTA'
         ELSE 'CRITICO'
     END AS STATUS_SAUDE,
-    
     -- Cor para dashboard
-    CASE 
+    CASE
         WHEN AVG(MRD.VL_SCORE_SAUDE) >= 8 THEN '#22c55e'
         WHEN AVG(MRD.VL_SCORE_SAUDE) >= 5 THEN '#f59e0b'
         ELSE '#dc2626'
     END AS COR_STATUS,
-    
     -- Ícone
-    CASE 
+    CASE
         WHEN AVG(MRD.VL_SCORE_SAUDE) >= 8 THEN 'checkmark-circle'
         WHEN AVG(MRD.VL_SCORE_SAUDE) >= 5 THEN 'warning'
         ELSE 'alert-circle'
     END AS ICONE_STATUS,
-    
     -- Contagens de problemas
     COUNT(*) AS DIAS_ANALISADOS,
-    SUM(CASE WHEN ISNULL(MRD.FL_SEM_COMUNICACAO, 0) = 1 THEN 1 ELSE 0 END) AS DIAS_SEM_COMUNICACAO,
-    SUM(CASE WHEN ISNULL(MRD.FL_VALOR_CONSTANTE, 0) = 1 THEN 1 ELSE 0 END) AS DIAS_VALOR_CONSTANTE,
-    SUM(CASE WHEN ISNULL(MRD.FL_VALOR_NEGATIVO, 0) = 1 THEN 1 ELSE 0 END) AS DIAS_VALOR_NEGATIVO,
-    SUM(CASE WHEN ISNULL(MRD.FL_FORA_FAIXA, 0) = 1 THEN 1 ELSE 0 END) AS DIAS_FORA_FAIXA,
-    SUM(CASE WHEN ISNULL(MRD.FL_SPIKE, 0) = 1 THEN 1 ELSE 0 END) AS DIAS_COM_SPIKE,
-    SUM(CASE WHEN ISNULL(MRD.FL_ZEROS_SUSPEITOS, 0) = 1 THEN 1 ELSE 0 END) AS DIAS_ZEROS_SUSPEITOS,
-    SUM(CASE WHEN ISNULL(MRD.FL_ANOMALIA, 0) = 1 THEN 1 ELSE 0 END) AS DIAS_COM_ANOMALIA,
-    SUM(CASE WHEN ISNULL(MRD.ID_SITUACAO, 1) = 2 THEN 1 ELSE 0 END) AS DIAS_TRATADOS,
-    
+    SUM(
+        CASE
+            WHEN ISNULL(MRD.FL_SEM_COMUNICACAO, 0) = 1 THEN 1
+            ELSE 0
+        END
+    ) AS DIAS_SEM_COMUNICACAO,
+    SUM(
+        CASE
+            WHEN ISNULL(MRD.FL_VALOR_CONSTANTE, 0) = 1 THEN 1
+            ELSE 0
+        END
+    ) AS DIAS_VALOR_CONSTANTE,
+    SUM(
+        CASE
+            WHEN ISNULL(MRD.FL_VALOR_NEGATIVO, 0) = 1 THEN 1
+            ELSE 0
+        END
+    ) AS DIAS_VALOR_NEGATIVO,
+    SUM(
+        CASE
+            WHEN ISNULL(MRD.FL_FORA_FAIXA, 0) = 1 THEN 1
+            ELSE 0
+        END
+    ) AS DIAS_FORA_FAIXA,
+    SUM(
+        CASE
+            WHEN ISNULL(MRD.FL_SPIKE, 0) = 1 THEN 1
+            ELSE 0
+        END
+    ) AS DIAS_COM_SPIKE,
+    SUM(
+        CASE
+            WHEN ISNULL(MRD.FL_ZEROS_SUSPEITOS, 0) = 1 THEN 1
+            ELSE 0
+        END
+    ) AS DIAS_ZEROS_SUSPEITOS,
+    SUM(
+        CASE
+            WHEN ISNULL(MRD.FL_ANOMALIA, 0) = 1 THEN 1
+            ELSE 0
+        END
+    ) AS DIAS_COM_ANOMALIA,
+    SUM(
+        CASE
+            WHEN ISNULL(MRD.ID_SITUACAO, 1) = 2 THEN 1
+            ELSE 0
+        END
+    ) AS DIAS_TRATADOS,
     -- Estatísticas
     AVG(MRD.VL_MEDIA_DIARIA) AS MEDIA_PERIODO,
     AVG(MRD.QTD_REGISTROS) AS REGISTROS_MEDIO,
     AVG(MRD.VL_DESVIO_HISTORICO) AS DESVIO_HISTORICO_MEDIO
+FROM
+    [dbo].[MEDICAO_RESUMO_DIARIO] MRD
+    CROSS JOIN UltimaData UD
+    LEFT JOIN [dbo].[PONTO_MEDICAO] PM ON MRD.CD_PONTO_MEDICAO = PM.CD_PONTO_MEDICAO
+WHERE
+    MRD.DT_MEDICAO > DATEADD(DAY, -7, UD.DT_REFERENCIA)
+GROUP BY
+    MRD.CD_PONTO_MEDICAO,
+    PM.DS_NOME,
+    MRD.ID_TIPO_MEDIDOR;
 
-FROM [dbo].[MEDICAO_RESUMO_DIARIO] MRD
-CROSS JOIN UltimaData UD
-LEFT JOIN [dbo].[PONTO_MEDICAO] PM ON MRD.CD_PONTO_MEDICAO = PM.CD_PONTO_MEDICAO
-WHERE MRD.DT_MEDICAO > DATEADD(DAY, -7, UD.DT_REFERENCIA)
-GROUP BY MRD.CD_PONTO_MEDICAO, PM.DS_NOME, MRD.ID_TIPO_MEDIDOR;
 GO
+    PRINT 'VW_PONTOS_POR_SCORE_SAUDE atualizada.';
 
-PRINT 'VW_PONTOS_POR_SCORE_SAUDE atualizada.';
 GO
+    -- ============================================================================
+    -- VW_ANOMALIAS_RECENTES
+    -- ============================================================================
+    IF EXISTS (
+        SELECT
+            *
+        FROM
+            sys.views
+        WHERE
+            name = 'VW_ANOMALIAS_RECENTES'
+    ) DROP VIEW [dbo].[VW_ANOMALIAS_RECENTES];
 
--- ============================================================================
--- VW_ANOMALIAS_RECENTES
--- ============================================================================
-IF EXISTS (SELECT * FROM sys.views WHERE name = 'VW_ANOMALIAS_RECENTES')
-    DROP VIEW [dbo].[VW_ANOMALIAS_RECENTES];
 GO
-
-CREATE VIEW [dbo].[VW_ANOMALIAS_RECENTES]
-AS
-WITH UltimaData AS (
-    SELECT MAX(DT_MEDICAO) AS DT_REFERENCIA FROM [dbo].[MEDICAO_RESUMO_DIARIO]
-)
-SELECT 
+    CREATE VIEW [dbo].[VW_ANOMALIAS_RECENTES] AS WITH UltimaData AS (
+        SELECT
+            MAX(DT_MEDICAO) AS DT_REFERENCIA
+        FROM
+            [dbo].[MEDICAO_RESUMO_DIARIO]
+    )
+SELECT
     MRD.CD_PONTO_MEDICAO,
     PM.DS_NOME AS NOME_PONTO,
     MRD.DT_MEDICAO,
@@ -1178,81 +1508,154 @@ SELECT
     MRD.VL_MEDIA_DIARIA,
     MRD.VL_DESVIO_HISTORICO,
     MRD.ID_SITUACAO,
-    CASE WHEN MRD.ID_SITUACAO = 2 THEN 'Tratado' ELSE 'Pendente' END AS STATUS_TRATAMENTO
-FROM [dbo].[MEDICAO_RESUMO_DIARIO] MRD
-CROSS JOIN UltimaData UD
-LEFT JOIN [dbo].[PONTO_MEDICAO] PM ON MRD.CD_PONTO_MEDICAO = PM.CD_PONTO_MEDICAO
-WHERE MRD.FL_ANOMALIA = 1
-  AND MRD.DT_MEDICAO > DATEADD(DAY, -7, UD.DT_REFERENCIA);
-GO
+    CASE
+        WHEN MRD.ID_SITUACAO = 2 THEN 'Tratado'
+        ELSE 'Pendente'
+    END AS STATUS_TRATAMENTO
+FROM
+    [dbo].[MEDICAO_RESUMO_DIARIO] MRD
+    CROSS JOIN UltimaData UD
+    LEFT JOIN [dbo].[PONTO_MEDICAO] PM ON MRD.CD_PONTO_MEDICAO = PM.CD_PONTO_MEDICAO
+WHERE
+    MRD.FL_ANOMALIA = 1
+    AND MRD.DT_MEDICAO > DATEADD(DAY, -7, UD.DT_REFERENCIA);
 
-PRINT 'VW_ANOMALIAS_RECENTES atualizada.';
 GO
+    PRINT 'VW_ANOMALIAS_RECENTES atualizada.';
 
--- ============================================================================
--- VW_EVOLUCAO_DIARIA
--- ============================================================================
-IF EXISTS (SELECT * FROM sys.views WHERE name = 'VW_EVOLUCAO_DIARIA')
-    DROP VIEW [dbo].[VW_EVOLUCAO_DIARIA];
 GO
+    -- ============================================================================
+    -- VW_EVOLUCAO_DIARIA
+    -- ============================================================================
+    IF EXISTS (
+        SELECT
+            *
+        FROM
+            sys.views
+        WHERE
+            name = 'VW_EVOLUCAO_DIARIA'
+    ) DROP VIEW [dbo].[VW_EVOLUCAO_DIARIA];
 
-CREATE VIEW [dbo].[VW_EVOLUCAO_DIARIA]
-AS
-WITH UltimaData AS (
-    SELECT MAX(DT_MEDICAO) AS DT_REFERENCIA FROM [dbo].[MEDICAO_RESUMO_DIARIO]
-)
-SELECT 
+GO
+    CREATE VIEW [dbo].[VW_EVOLUCAO_DIARIA] AS WITH UltimaData AS (
+        SELECT
+            MAX(DT_MEDICAO) AS DT_REFERENCIA
+        FROM
+            [dbo].[MEDICAO_RESUMO_DIARIO]
+    )
+SELECT
     MRD.DT_MEDICAO,
     COUNT(*) AS TOTAL_PONTOS,
-    CAST(AVG(CAST(MRD.VL_SCORE_SAUDE AS DECIMAL(5,2))) AS DECIMAL(5,2)) AS SCORE_MEDIO,
-    SUM(CASE WHEN MRD.VL_SCORE_SAUDE >= 8 THEN 1 ELSE 0 END) AS QTD_SAUDAVEIS,
-    SUM(CASE WHEN MRD.VL_SCORE_SAUDE BETWEEN 5 AND 7 THEN 1 ELSE 0 END) AS QTD_ALERTA,
-    SUM(CASE WHEN MRD.VL_SCORE_SAUDE < 5 THEN 1 ELSE 0 END) AS QTD_CRITICOS,
-    SUM(CASE WHEN MRD.FL_ANOMALIA = 1 THEN 1 ELSE 0 END) AS TOTAL_ANOMALIAS,
+    CAST(
+        AVG(CAST(MRD.VL_SCORE_SAUDE AS DECIMAL(5, 2))) AS DECIMAL(5, 2)
+    ) AS SCORE_MEDIO,
+    SUM(
+        CASE
+            WHEN MRD.VL_SCORE_SAUDE >= 8 THEN 1
+            ELSE 0
+        END
+    ) AS QTD_SAUDAVEIS,
+    SUM(
+        CASE
+            WHEN MRD.VL_SCORE_SAUDE BETWEEN 5
+            AND 7 THEN 1
+            ELSE 0
+        END
+    ) AS QTD_ALERTA,
+    SUM(
+        CASE
+            WHEN MRD.VL_SCORE_SAUDE < 5 THEN 1
+            ELSE 0
+        END
+    ) AS QTD_CRITICOS,
+    SUM(
+        CASE
+            WHEN MRD.FL_ANOMALIA = 1 THEN 1
+            ELSE 0
+        END
+    ) AS TOTAL_ANOMALIAS,
     SUM(MRD.QTD_TRATAMENTOS) AS TOTAL_TRATAMENTOS
-FROM [dbo].[MEDICAO_RESUMO_DIARIO] MRD
-CROSS JOIN UltimaData UD
-WHERE MRD.DT_MEDICAO > DATEADD(DAY, -30, UD.DT_REFERENCIA)
-GROUP BY MRD.DT_MEDICAO;
+FROM
+    [dbo].[MEDICAO_RESUMO_DIARIO] MRD
+    CROSS JOIN UltimaData UD
+WHERE
+    MRD.DT_MEDICAO > DATEADD(DAY, -30, UD.DT_REFERENCIA)
+GROUP BY
+    MRD.DT_MEDICAO;
+
 GO
+    PRINT 'VW_EVOLUCAO_DIARIA atualizada.';
 
-PRINT 'VW_EVOLUCAO_DIARIA atualizada.';
 GO
+    -- ============================================================================
+    -- ============================================================================
+    -- PARTE 6: SP DE CONTEXTO PARA IA
+    -- ============================================================================
+    -- ============================================================================
+    PRINT '>> PARTE 6: Criando SP de contexto para IA...';
 
--- ============================================================================
--- ============================================================================
--- PARTE 6: SP DE CONTEXTO PARA IA
--- ============================================================================
--- ============================================================================
-
-PRINT '>> PARTE 6: Criando SP de contexto para IA...';
 PRINT '';
 
-IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[SP_CONTEXTO_IA]') AND type in (N'P'))
-    DROP PROCEDURE [dbo].[SP_CONTEXTO_IA];
-GO
+IF EXISTS (
+    SELECT
+        *
+    FROM
+        sys.objects
+    WHERE
+        object_id = OBJECT_ID(N '[dbo].[SP_CONTEXTO_IA]')
+        AND type in (N'P')
+) DROP PROCEDURE [dbo].[SP_CONTEXTO_IA];
 
-CREATE PROCEDURE [dbo].[SP_CONTEXTO_IA]
-    @DIAS_ANALISE INT = 7
-AS
-BEGIN
-    SET NOCOUNT ON;
-    
-    DECLARE @DT_INICIO DATE = DATEADD(DAY, -@DIAS_ANALISE, CAST(GETDATE() AS DATE));
-    DECLARE @CONTEXTO NVARCHAR(MAX) = '';
-    DECLARE @TOTAL_PONTOS INT, @SCORE_MEDIO DECIMAL(5,2), @PROB_COM INT, @PROB_MED INT, @PROB_HID INT, @TOTAL_ANOM INT;
-    
-    SELECT 
-        @TOTAL_PONTOS = COUNT(DISTINCT CD_PONTO_MEDICAO),
-        @SCORE_MEDIO = AVG(CAST(VL_SCORE_SAUDE AS DECIMAL(5,2))),
-        @PROB_COM = SUM(CASE WHEN DS_TIPO_PROBLEMA = 'COMUNICACAO' THEN 1 ELSE 0 END),
-        @PROB_MED = SUM(CASE WHEN DS_TIPO_PROBLEMA = 'MEDIDOR' THEN 1 ELSE 0 END),
-        @PROB_HID = SUM(CASE WHEN DS_TIPO_PROBLEMA = 'HIDRAULICO' THEN 1 ELSE 0 END),
-        @TOTAL_ANOM = SUM(CASE WHEN FL_ANOMALIA = 1 THEN 1 ELSE 0 END)
-    FROM [dbo].[MEDICAO_RESUMO_DIARIO]
-    WHERE DT_MEDICAO >= @DT_INICIO;
-    
-    SET @CONTEXTO = '
+GO
+    CREATE PROCEDURE [dbo].[SP_CONTEXTO_IA] @DIAS_ANALISE INT = 7 AS BEGIN
+SET
+    NOCOUNT ON;
+
+DECLARE @DT_INICIO DATE = DATEADD(DAY, - @DIAS_ANALISE, CAST(GETDATE() AS DATE));
+
+DECLARE @CONTEXTO NVARCHAR(MAX) = '';
+
+DECLARE @TOTAL_PONTOS INT,
+@SCORE_MEDIO DECIMAL(5, 2),
+@PROB_COM INT,
+@PROB_MED INT,
+@PROB_HID INT,
+@TOTAL_ANOM INT;
+
+SELECT
+    @TOTAL_PONTOS = COUNT(DISTINCT CD_PONTO_MEDICAO),
+    @SCORE_MEDIO = AVG(CAST(VL_SCORE_SAUDE AS DECIMAL(5, 2))),
+    @PROB_COM = SUM(
+        CASE
+            WHEN DS_TIPO_PROBLEMA = 'COMUNICACAO' THEN 1
+            ELSE 0
+        END
+    ),
+    @PROB_MED = SUM(
+        CASE
+            WHEN DS_TIPO_PROBLEMA = 'MEDIDOR' THEN 1
+            ELSE 0
+        END
+    ),
+    @PROB_HID = SUM(
+        CASE
+            WHEN DS_TIPO_PROBLEMA = 'HIDRAULICO' THEN 1
+            ELSE 0
+        END
+    ),
+    @TOTAL_ANOM = SUM(
+        CASE
+            WHEN FL_ANOMALIA = 1 THEN 1
+            ELSE 0
+        END
+    )
+FROM
+    [dbo].[MEDICAO_RESUMO_DIARIO]
+WHERE
+    DT_MEDICAO >= @DT_INICIO;
+
+SET
+    @CONTEXTO = '
 === CONTEXTO PARA IA - SIMP ===
 Periodo: Ultimos ' + CAST(@DIAS_ANALISE AS VARCHAR) + ' dias
 
@@ -1269,24 +1672,32 @@ HIDRAULICO: ' + CAST(ISNULL(@PROB_HID, 0) AS VARCHAR) + '
 >>> PONTOS CRITICOS (Score < 5) <<<
 ';
 
-    SELECT @CONTEXTO = @CONTEXTO + 
-        '- ' + ISNULL(PM.DS_NOME, 'Ponto ' + CAST(MRD.CD_PONTO_MEDICAO AS VARCHAR)) + 
-        ' | Score: ' + CAST(MRD.VL_SCORE_SAUDE AS VARCHAR) + 
-        ' | ' + ISNULL(MRD.DS_TIPO_PROBLEMA, '') + CHAR(13) + CHAR(10)
-    FROM [dbo].[MEDICAO_RESUMO_DIARIO] MRD
+SELECT
+    @CONTEXTO = @CONTEXTO + '- ' + ISNULL(
+        PM.DS_NOME,
+        'Ponto ' + CAST(MRD.CD_PONTO_MEDICAO AS VARCHAR)
+    ) + ' | Score: ' + CAST(MRD.VL_SCORE_SAUDE AS VARCHAR) + ' | ' + ISNULL(MRD.DS_TIPO_PROBLEMA, '') + CHAR(13) + CHAR(10)
+FROM
+    [dbo].[MEDICAO_RESUMO_DIARIO] MRD
     LEFT JOIN [dbo].[PONTO_MEDICAO] PM ON MRD.CD_PONTO_MEDICAO = PM.CD_PONTO_MEDICAO
-    WHERE MRD.DT_MEDICAO >= @DT_INICIO AND MRD.VL_SCORE_SAUDE < 5
-    ORDER BY MRD.VL_SCORE_SAUDE ASC;
-    
-    SELECT @CONTEXTO AS CONTEXTO_IA;
+WHERE
+    MRD.DT_MEDICAO >= @DT_INICIO
+    AND MRD.VL_SCORE_SAUDE < 5
+ORDER BY
+    MRD.VL_SCORE_SAUDE ASC;
+
+SELECT
+    @CONTEXTO AS CONTEXTO_IA;
+
 END
 GO
+    PRINT '   Stored Procedure SP_CONTEXTO_IA criada.';
 
-PRINT '   Stored Procedure SP_CONTEXTO_IA criada.';
 GO
+    PRINT '';
 
-PRINT '';
 PRINT '>> PARTE 6: Concluida.';
+
 PRINT '';
 
 -- ============================================================================
@@ -1294,127 +1705,223 @@ PRINT '';
 -- FINALIZAÇÃO
 -- ============================================================================
 -- ============================================================================
-
 PRINT '============================================';
+
 PRINT 'INSTALACAO CONCLUIDA COM SUCESSO!';
+
 PRINT '============================================';
+
 PRINT '';
+
 PRINT 'Objetos criados:';
+
 PRINT '  - MEDICAO_RESUMO_HORARIO (tabela)';
+
 PRINT '  - MEDICAO_RESUMO_DIARIO (tabela)';
+
 PRINT '  - LIMITES_PADRAO_TIPO_MEDIDOR (tabela)';
+
 PRINT '  - VW_PONTO_MEDICAO_LIMITES (view)';
+
 PRINT '  - VW_PONTOS_SEM_CADASTRO (view)';
+
 PRINT '  - VW_DASHBOARD_RESUMO_GERAL (view)';
+
 PRINT '  - VW_PONTOS_POR_SCORE_SAUDE (view)';
+
 PRINT '  - VW_ANOMALIAS_RECENTES (view)';
+
 PRINT '  - VW_EVOLUCAO_DIARIA (view)';
+
 PRINT '  - SP_PROCESSAR_MEDICAO_DIARIA (procedure)';
+
 PRINT '  - SP_CONTEXTO_IA (procedure)';
+
 PRINT '';
+
 PRINT 'Para executar o processamento:';
+
 PRINT '  EXEC SP_PROCESSAR_MEDICAO_DIARIA;  -- Processa D-1';
+
 PRINT '  EXEC SP_PROCESSAR_MEDICAO_DIARIA @DT_PROCESSAMENTO = ''2025-01-14'';';
+
 PRINT '';
+
 PRINT 'Para verificar cadastros pendentes:';
+
 PRINT '  SELECT * FROM VW_PONTOS_SEM_CADASTRO;';
+
 PRINT '';
+
 PRINT '============================================';
+
 GO
+    
+
+    -- COMO CARREGAR OS DADOS =========================================================
+    -- ================================================================================
+    📋 Procedures para Execução Diária
+    1. SP_PROCESSAR_MEDICAO_DIARIA
+    Função: Processa dados brutos → Resumos → Score de Saúde
+    sql-- Executa para o dia anterior (padrão)
+    EXEC SP_PROCESSAR_MEDICAO_DIARIA;
+    O que faz:
+
+    Popula MEDICAO_RESUMO_HORARIO
+    Popula MEDICAO_RESUMO_DIARIO
+    Calcula anomalias e flags
+    Calcula score de saúde (0-10)
+    Classifica problemas (COMUNICACAO, MEDIDOR, HIDRAULICO, VERIFICAR)
 
 
--- COMO CARREGAR OS DADOS =========================================================
--- Processar de 01/01/2025 até 15/01/2025
--- DECLARE @DATA DATE = '2025-01-01';
--- DECLARE @DATA_FIM DATE = '2025-01-15';
+    2. SP_ATUALIZAR_DASHBOARD_CACHE
+    Função: Atualiza cache do Dashboard para performance
+    sqlEXEC SP_ATUALIZAR_DASHBOARD_CACHE;
+    O que faz:
 
--- WHILE @DATA <= @DATA_FIM
--- BEGIN
---     PRINT 'Processando: ' + CONVERT(VARCHAR, @DATA, 103);
---     EXEC SP_PROCESSAR_MEDICAO_DIARIA @DT_PROCESSAMENTO = @DATA;
---     SET @DATA = DATEADD(DAY, 1, @DATA);
--- END
+    Atualiza TB_DASHBOARD_RESUMO_CACHE
+    Alimenta a VW_DASHBOARD_RESUMO_GERAL
+    Evita queries pesadas de ~30 segundos (reduz para ~10ms)
 
 
+    -- Reprocessar data específica
+    EXEC SP_PROCESSAR_MEDICAO_DIARIA '2025-11-21';
+    EXEC SP_ATUALIZAR_DASHBOARD_CACHE;
 
--- REGISTRO_VAZAO_PRESSAO (origem - ~1440 reg/ponto/dia)
---          │
---          ▼
--- ┌─────────────────────────────────────────────────┐
--- │        SP_PROCESSAR_MEDICAO_DIARIA              │
--- │                                                 │
--- │  Etapa 1-4: Agrupa por hora                     │
--- │         │                                       │
--- │         ▼                                       │
--- │  ┌─────────────────────────────────┐            │
--- │  │   MEDICAO_RESUMO_HORARIO        │            │
--- │  │   (24 registros por ponto/dia)  │            │
--- │  └─────────────────────────────────┘            │
--- │         │                                       │
--- │  Etapa 5-9: Consolida o dia                     │
--- │         │                                       │
--- │         ▼                                       │
--- │  ┌─────────────────────────────────┐            │
--- │  │   MEDICAO_RESUMO_DIARIO         │            │
--- │  │   (1 registro por ponto/dia)    │            │
--- │  └─────────────────────────────────┘            │
--- └─────────────────────────────────────────────────┘
+    -- Reprocessar últimos 7 dias
+    DECLARE @i INT = 1;
+    WHILE @i <= 7
+    BEGIN
+        EXEC SP_PROCESSAR_MEDICAO_DIARIA @DT_PROCESSAMENTO = DATEADD(DAY, -@i, GETDATE());
+        SET @i = @i + 1;
+    END
+    EXEC SP_ATUALIZAR_DASHBOARD_CACHE;
 
--- PRINT '  - SP_CONTEXTO_IA (procedure)';
--- ┌─────────────────────────────────────────────────────────────┐
--- │  DIARIAMENTE (job agendado, ex: 6h da manhã)                │
--- │                                                             │
--- │  EXEC SP_PROCESSAR_MEDICAO_DIARIA;  -- Processa D-1         │
--- └─────────────────────────────────────────────────────────────┘
---                           │
---                           ▼
---               Tabelas RESUMO alimentadas
---                           │
---                           ▼
--- ┌─────────────────────────────────────────────────────────────┐
--- │  SOB DEMANDA (quando usuário clica "Analisar com IA")       │
--- │                                                             │
--- │  EXEC SP_CONTEXTO_IA @DIAS_ANALISE = 7;                     │
--- │                                                             │
--- │  Retorna texto formatado → Envia para DeepSeek → Resposta   │
--- └─────────────────────────────────────────────────────────────┘
+    -- COMO CARREGAR OS DADOS =========================================================
+    -- Processar de 01/01/2025 até 15/01/2025, POR EXEMPLO
+    DECLARE @DATA DATE = '2025-01-01';
+    DECLARE @DATA_FIM DATE = '2025-01-15';
+    WHILE @DATA <= @DATA_FIM
+    BEGIN
+        PRINT 'Processando: ' + CONVERT(VARCHAR, @DATA, 103);
+        EXEC SP_PROCESSAR_MEDICAO_DIARIA @DT_PROCESSAMENTO = @DATA;
+        SET @DATA = DATEADD(DAY, 1, @DATA);
+    END
 
 
+        -- Processar dia anterior
+    EXEC SP_PROCESSAR_MEDICAO_DIARIA;
+    EXEC SP_ATUALIZAR_DASHBOARD_CACHE;
 
--- QUERYES ÚTEIS PARA DASHBOARD E IA ============================
--- Mostrar período dos dados
-SELECT 
+    -- Processar data específica
+    EXEC SP_PROCESSAR_MEDICAO_DIARIA '2025-11-21';
+    EXEC SP_ATUALIZAR_DASHBOARD_CACHE;
+
+    -- =================================================================================
+
+    -- REGISTRO_VAZAO_PRESSAO (origem - ~1440 reg/ponto/dia)
+    --          │
+    --          ▼
+    -- ┌─────────────────────────────────────────────────┐
+    -- │        SP_PROCESSAR_MEDICAO_DIARIA              │
+    -- │                                                 │
+    -- │  Etapa 1-4: Agrupa por hora                     │
+    -- │         │                                       │
+    -- │         ▼                                       │
+    -- │  ┌─────────────────────────────────┐            │
+    -- │  │   MEDICAO_RESUMO_HORARIO        │            │
+    -- │  │   (24 registros por ponto/dia)  │            │
+    -- │  └─────────────────────────────────┘            │
+    -- │         │                                       │
+    -- │  Etapa 5-9: Consolida o dia                     │
+    -- │         │                                       │
+    -- │         ▼                                       │
+    -- │  ┌─────────────────────────────────┐            │
+    -- │  │   MEDICAO_RESUMO_DIARIO         │            │
+    -- │  │   (1 registro por ponto/dia)    │            │
+    -- │  └─────────────────────────────────┘            │
+    -- └─────────────────────────────────────────────────┘
+    -- PRINT '  - SP_CONTEXTO_IA (procedure)';
+    -- ┌─────────────────────────────────────────────────────────────┐
+    -- │  DIARIAMENTE (job agendado, ex: 6h da manhã)                │
+    -- │                                                             │
+    -- │  EXEC SP_PROCESSAR_MEDICAO_DIARIA;  -- Processa D-1         │
+    -- └─────────────────────────────────────────────────────────────┘
+    --                           │
+    --                           ▼
+    --               Tabelas RESUMO alimentadas
+    --                           │
+    --                           ▼
+    -- ┌─────────────────────────────────────────────────────────────┐
+    -- │  SOB DEMANDA (quando usuário clica "Analisar com IA")       │
+    -- │                                                             │
+    -- │  EXEC SP_CONTEXTO_IA @DIAS_ANALISE = 7;                     │
+    -- │                                                             │
+    -- │  Retorna texto formatado → Envia para DeepSeek → Resposta   │
+    -- └─────────────────────────────────────────────────────────────┘
+    -- QUERYES ÚTEIS PARA DASHBOARD E IA ============================
+    -- Mostrar período dos dados
+SELECT
     'PERIODO DOS DADOS' AS INFO,
     MIN(DT_MEDICAO) AS PRIMEIRA_DATA,
     MAX(DT_MEDICAO) AS ULTIMA_DATA,
     DATEDIFF(DAY, MIN(DT_MEDICAO), MAX(DT_MEDICAO)) + 1 AS DIAS_PROCESSADOS
-FROM [dbo].[MEDICAO_RESUMO_DIARIO];
+FROM
+    [dbo].[MEDICAO_RESUMO_DIARIO];
+    
 
 -- Testar views
-SELECT 'VW_DASHBOARD_RESUMO_GERAL' AS VIEW_NAME, * FROM VW_DASHBOARD_RESUMO_GERAL;
-GO
+SELECT
+    'VW_DASHBOARD_RESUMO_GERAL' AS VIEW_NAME,
+    *
+FROM
+    VW_DASHBOARD_RESUMO_GERAL;
 
--- Pontos críticos (score < 5)
-SELECT * FROM VW_PONTOS_POR_SCORE_SAUDE 
-WHERE SCORE_MEDIO < 5 
-ORDER BY SCORE_MEDIO;
+GO
+    -- Pontos críticos (score < 5)
+SELECT
+    *
+FROM
+    VW_PONTOS_POR_SCORE_SAUDE
+WHERE
+    SCORE_MEDIO < 5
+ORDER BY
+    SCORE_MEDIO;
 
 -- Pontos saudáveis
-SELECT * FROM VW_PONTOS_POR_SCORE_SAUDE 
-WHERE STATUS_SAUDE = 'SAUDAVEL';
+SELECT
+    *
+FROM
+    VW_PONTOS_POR_SCORE_SAUDE
+WHERE
+    STATUS_SAUDE = 'SAUDAVEL';
 
 -- Anomalias pendentes (não tratadas)
-SELECT * FROM VW_ANOMALIAS_RECENTES 
-WHERE STATUS_TRATAMENTO = 'Pendente';
+SELECT
+    *
+FROM
+    VW_ANOMALIAS_RECENTES
+WHERE
+    STATUS_TRATAMENTO = 'Pendente';
 
 -- Evolução do score ao longo do tempo
-SELECT * FROM VW_EVOLUCAO_DIARIA ORDER BY DT_MEDICAO;
+SELECT
+    *
+FROM
+    VW_EVOLUCAO_DIARIA
+ORDER BY
+    DT_MEDICAO;
 
 -- Detalhe horário de um ponto específico
-SELECT * FROM MEDICAO_RESUMO_HORARIO 
-WHERE CD_PONTO_MEDICAO = 123 
-  AND CAST(DT_HORA AS DATE) = '2025-01-14'
-ORDER BY NR_HORA;
+SELECT
+    *
+FROM
+    MEDICAO_RESUMO_HORARIO
+WHERE
+    CD_PONTO_MEDICAO = 123
+    AND CAST(DT_HORA AS DATE) = '2025-01-14'
+ORDER BY
+    NR_HORA;
 
 -- Contexto para IA
 EXEC SP_CONTEXTO_IA @DIAS_ANALISE = 7;
