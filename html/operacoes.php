@@ -3825,7 +3825,7 @@ $letrasTipoMedidor = [
                 };
 
                 // Enviar para API da IA
-                return fetch('bd/operacoes/testarIA.php', {
+                return fetch('bd/operacoes/analiseIA.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)

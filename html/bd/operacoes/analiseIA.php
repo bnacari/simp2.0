@@ -3,7 +3,7 @@
  * SIMP - Chat com IA
  * 
  * Suporta DeepSeek, Groq e Gemini com histórico de conversa
- * Agora busca regras do banco de dados (tabela IA_REGRAS)
+ * Busca regras do banco de dados (tabela IA_REGRAS)
  * 
  * @author Bruno
  * @version 2.0 - Regras dinâmicas via banco de dados
@@ -52,7 +52,7 @@ try {
     
     // ========================================
     // Carregar regras da IA do BANCO DE DADOS
-    // Com fallback para arquivo ia_regras.php
+    // Tabela: SIMP.dbo.IA_REGRAS
     // ========================================
     $regrasIA = '';
     
@@ -61,24 +61,14 @@ try {
     if (file_exists($buscarRegrasFile)) {
         include_once $buscarRegrasFile;
         
-        // Tentar buscar regras do banco
+        // Buscar regras do banco
         try {
             include_once __DIR__ . '/../conexao.php';
             if (isset($pdoSIMP)) {
-                // Usar função que busca do banco
                 $regrasIA = obterRegrasIA($pdoSIMP);
             }
         } catch (Exception $e) {
-            // Log do erro mas continua
             error_log('Erro ao buscar regras IA do banco: ' . $e->getMessage());
-        }
-    }
-    
-    // Fallback: se não conseguiu do banco, tentar arquivo
-    if (empty($regrasIA)) {
-        $regrasFile = __DIR__ . '/../config/ia_regras.php';
-        if (file_exists($regrasFile)) {
-            $regrasIA = require $regrasFile;
         }
     }
 
@@ -154,7 +144,7 @@ try {
         'modelo' => $provider === 'deepseek' ? $config['deepseek']['model'] : ($provider === 'groq' ? $config['groq']['model'] : $config['gemini']['model']),
         'mensagens_no_historico' => count($historico),
         'contexto_tamanho' => strlen($contexto),
-        'regras_fonte' => !empty($regrasIA) ? 'banco' : 'nenhuma' // Indica se regras vieram do banco
+        'regras_fonte' => !empty($regrasIA) ? 'banco' : 'nenhuma'
     ]);
 
 } catch (Exception $e) {
@@ -166,20 +156,13 @@ try {
 
 /**
  * Chama a API do DeepSeek com histórico (formato OpenAI)
- * 
- * @param string $contexto Contexto/instruções do sistema
- * @param array $historico Histórico de mensagens
- * @param array $config Configurações
- * @return string Resposta da IA
  */
 function chamarDeepSeekComHistorico($contexto, $historico, $config) {
     $deepseekConfig = $config['deepseek'];
     $url = $deepseekConfig['api_url'];
     
-    // Montar array de mensagens
     $messages = [];
     
-    // Adicionar contexto como system message (se existir)
     if (!empty($contexto)) {
         $messages[] = [
             'role' => 'system',
@@ -187,7 +170,6 @@ function chamarDeepSeekComHistorico($contexto, $historico, $config) {
         ];
     }
     
-    // Adicionar histórico de mensagens
     foreach ($historico as $msg) {
         $messages[] = [
             'role' => $msg['role'],
@@ -239,20 +221,13 @@ function chamarDeepSeekComHistorico($contexto, $historico, $config) {
 
 /**
  * Chama a API do Groq com histórico (formato OpenAI)
- * 
- * @param string $contexto Contexto/instruções do sistema
- * @param array $historico Histórico de mensagens
- * @param array $config Configurações
- * @return string Resposta da IA
  */
 function chamarGroqComHistorico($contexto, $historico, $config) {
     $groqConfig = $config['groq'];
     $url = $groqConfig['api_url'];
     
-    // Montar array de mensagens
     $messages = [];
     
-    // Adicionar contexto como system message (se existir)
     if (!empty($contexto)) {
         $messages[] = [
             'role' => 'system',
@@ -260,7 +235,6 @@ function chamarGroqComHistorico($contexto, $historico, $config) {
         ];
     }
     
-    // Adicionar histórico de mensagens
     foreach ($historico as $msg) {
         $messages[] = [
             'role' => $msg['role'],
@@ -311,17 +285,11 @@ function chamarGroqComHistorico($contexto, $historico, $config) {
 
 /**
  * Chama a API do Gemini com histórico
- * 
- * @param string $contexto Contexto/instruções do sistema
- * @param array $historico Histórico de mensagens
- * @param array $config Configurações
- * @return string Resposta da IA
  */
 function chamarGeminiComHistorico($contexto, $historico, $config) {
     $geminiConfig = $config['gemini'];
     $url = $geminiConfig['api_url'] . $geminiConfig['model'] . ':generateContent?key=' . $geminiConfig['api_key'];
     
-    // Montar array de contents para Gemini
     $contents = [];
     
     foreach ($historico as $msg) {
@@ -340,7 +308,6 @@ function chamarGeminiComHistorico($contexto, $historico, $config) {
         ]
     ];
     
-    // Adicionar contexto como system instruction (se existir)
     if (!empty($contexto)) {
         $payload['systemInstruction'] = [
             'parts' => [['text' => $contexto]]

@@ -2,6 +2,8 @@
 /**
  * SIMP - Análise IA de um dia específico
  * Busca dados do dia e gera análise usando IA
+ * 
+ * @version 2.1 - Agora busca regras do banco de dados (IA_REGRAS)
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -25,6 +27,27 @@ register_shutdown_function(function() {
 try {
     include_once '../conexao.php';
     $iaConfig = require '../config/ia_config.php';
+    
+    // ========================================
+    // Carregar regras da IA do BANCO DE DADOS
+    // Tabela: SIMP.dbo.IA_REGRAS
+    // ========================================
+    $regrasIA = '';
+    
+    // Incluir função de busca de regras
+    $buscarRegrasFile = __DIR__ . '/../ia/buscarRegrasIA.php';
+    if (file_exists($buscarRegrasFile)) {
+        include_once $buscarRegrasFile;
+        
+        // Buscar regras do banco
+        try {
+            if (isset($pdoSIMP)) {
+                $regrasIA = obterRegrasIA($pdoSIMP);
+            }
+        } catch (Exception $e) {
+            error_log('getAnaliseIA - Erro ao buscar regras IA do banco: ' . $e->getMessage());
+        }
+    }
     
     // Parâmetros
     $cdPonto = isset($_GET['cdPonto']) ? (int)$_GET['cdPonto'] : 0;
@@ -62,38 +85,27 @@ try {
                   $letraTipo . '-' . 
                   ($infoPonto['CD_UNIDADE'] ?? '0');
     
-    // Buscar dados horários do dia
+    // Buscar dados do dia agrupados por hora
     $sqlDados = "SELECT 
                     DATEPART(HOUR, DT_LEITURA) as HORA,
                     COUNT(*) as QTD_REGISTROS,
-                    SUM(VL_VAZAO_EFETIVA) / 60.0 as MEDIA_VAZAO,
-                    MIN(VL_VAZAO_EFETIVA) as MIN_VAZAO,
-                    MAX(VL_VAZAO_EFETIVA) as MAX_VAZAO,
-                    SUM(VL_PRESSAO) / 60.0 as MEDIA_PRESSAO,
-                    SUM(CASE WHEN NR_EXTRAVASOU = 1 THEN 1 ELSE 0 END) as MINUTOS_EXTRAVASOU
+                    SUM(ISNULL(VL_VAZAO_EFETIVA, VL_VAZAO)) as SOMA_VAZAO,
+                    AVG(ISNULL(VL_VAZAO_EFETIVA, VL_VAZAO)) as MEDIA_VAZAO,
+                    MIN(ISNULL(VL_VAZAO_EFETIVA, VL_VAZAO)) as MIN_VAZAO,
+                    MAX(ISNULL(VL_VAZAO_EFETIVA, VL_VAZAO)) as MAX_VAZAO,
+                    AVG(VL_PRESSAO) as MEDIA_PRESSAO
                 FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO
                 WHERE CD_PONTO_MEDICAO = :cdPonto
-                  AND ID_SITUACAO = 1
                   AND CAST(DT_LEITURA AS DATE) = :data
+                  AND ID_SITUACAO = 1
                 GROUP BY DATEPART(HOUR, DT_LEITURA)
                 ORDER BY HORA";
     
     $stmtDados = $pdoSIMP->prepare($sqlDados);
     $stmtDados->execute([':cdPonto' => $cdPonto, ':data' => $data]);
+    $dadosHorarios = $stmtDados->fetchAll(PDO::FETCH_ASSOC);
     
-    // Inicializar array com todas as 24 horas (vazias por padrão)
-    $dadosPorHora = [];
-    for ($h = 0; $h < 24; $h++) {
-        $dadosPorHora[$h] = null; // null indica hora vazia (sem dados)
-    }
-    
-    // Preencher com dados do banco
-    while ($row = $stmtDados->fetch(PDO::FETCH_ASSOC)) {
-        $hora = intval($row['HORA']);
-        $dadosPorHora[$hora] = $row;
-    }
-    
-    $dadosHorarios = [];
+    // Calcular estatísticas
     $totalRegistros = 0;
     $somaVazao = 0;
     $minVazaoGlobal = null;
@@ -102,67 +114,40 @@ try {
     $horasZeradas = [];
     $horasVazias = [];
     
-    // Processar todas as 24 horas
-    for ($hora = 0; $hora < 24; $hora++) {
-        $row = $dadosPorHora[$hora];
-        $horaFormatada = str_pad($hora, 2, '0', STR_PAD_LEFT) . ':00';
+    // Inicializar array de horas
+    $horasComDados = [];
+    foreach ($dadosHorarios as $row) {
+        $hora = (int)$row['HORA'];
+        $horasComDados[$hora] = true;
+        $totalRegistros += $row['QTD_REGISTROS'];
+        $somaVazao += $row['SOMA_VAZAO'];
         
-        if ($row === null) {
-            // Hora VAZIA - sem nenhum registro
-            $horasVazias[] = $horaFormatada;
-            $dadosHorarios[] = [
-                'hora' => $hora,
-                'horaFormatada' => $horaFormatada,
-                'registros' => 0,
-                'vazia' => true,
-                'mediaVazao' => null,
-                'minVazao' => null,
-                'maxVazao' => null,
-                'mediaPressao' => null,
-                'extravasou' => 0
-            ];
-        } else {
-            // Hora com dados
-            $qtdRegistros = intval($row['QTD_REGISTROS']);
-            $mediaVazao = floatval($row['MEDIA_VAZAO']);
-            $minVazao = floatval($row['MIN_VAZAO']);
-            $maxVazao = floatval($row['MAX_VAZAO']);
-            
-            $totalRegistros += $qtdRegistros;
-            $somaVazao += $mediaVazao * 60; // Soma total para média diária
-            
-            if ($minVazaoGlobal === null || $minVazao < $minVazaoGlobal) {
-                $minVazaoGlobal = $minVazao;
-            }
-            if ($maxVazaoGlobal === null || $maxVazao > $maxVazaoGlobal) {
-                $maxVazaoGlobal = $maxVazao;
-            }
-            
-            // Detectar horas incompletas (tem dados mas < 50 registros)
-            if ($qtdRegistros < 50) {
-                $horasIncompletas[] = $horaFormatada;
-            }
-            
-            // Detectar horas zeradas (tem dados suficientes mas média = 0)
-            if ($mediaVazao == 0 && $qtdRegistros >= 50) {
-                $horasZeradas[] = $horaFormatada;
-            }
-            
-            $dadosHorarios[] = [
-                'hora' => $hora,
-                'horaFormatada' => $horaFormatada,
-                'registros' => $qtdRegistros,
-                'vazia' => false,
-                'mediaVazao' => round($mediaVazao, 2),
-                'minVazao' => round($minVazao, 2),
-                'maxVazao' => round($maxVazao, 2),
-                'mediaPressao' => round(floatval($row['MEDIA_PRESSAO']), 2),
-                'extravasou' => intval($row['MINUTOS_EXTRAVASOU'])
-            ];
+        if ($minVazaoGlobal === null || $row['MIN_VAZAO'] < $minVazaoGlobal) {
+            $minVazaoGlobal = $row['MIN_VAZAO'];
+        }
+        if ($maxVazaoGlobal === null || $row['MAX_VAZAO'] > $maxVazaoGlobal) {
+            $maxVazaoGlobal = $row['MAX_VAZAO'];
+        }
+        
+        // Hora incompleta (menos de 50 registros)
+        if ($row['QTD_REGISTROS'] < 50) {
+            $horasIncompletas[] = str_pad($hora, 2, '0', STR_PAD_LEFT) . 'h';
+        }
+        
+        // Hora com vazão zerada
+        if ($row['MEDIA_VAZAO'] == 0) {
+            $horasZeradas[] = str_pad($hora, 2, '0', STR_PAD_LEFT) . 'h';
         }
     }
     
-    // Calcular média diária (soma / 1440)
+    // Detectar horas completamente vazias (sem nenhum registro)
+    for ($h = 0; $h < 24; $h++) {
+        if (!isset($horasComDados[$h])) {
+            $horasVazias[] = str_pad($h, 2, '0', STR_PAD_LEFT) . 'h';
+        }
+    }
+    
+    // Calcular média diária (SOMA / 1440, não AVG!)
     $mediaDiaria = $totalRegistros > 0 ? round($somaVazao / 1440, 2) : 0;
     $percentualCompleto = round(($totalRegistros / 1440) * 100, 1);
     
@@ -173,7 +158,7 @@ try {
                     FROM (
                         SELECT 
                             CAST(DT_LEITURA AS DATE) as DIA,
-                            SUM(VL_VAZAO_EFETIVA) / 1440.0 as MEDIA_DIA
+                            SUM(ISNULL(VL_VAZAO_EFETIVA, VL_VAZAO)) / 1440.0 as MEDIA_DIA
                         FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO
                         WHERE CD_PONTO_MEDICAO = :cdPonto
                           AND ID_SITUACAO = 1
@@ -208,15 +193,32 @@ try {
     $diasSemana = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
     $diaSemanaTexto = $diasSemana[$diaSemana];
     
-    $contexto = "Analise os dados do ponto de medição e gere um resumo executivo em 3-5 linhas.\n\n";
+    // ========================================
+    // Montar contexto com dados + regras do banco
+    // ========================================
+    $contexto = "";
+    
+    // Adicionar regras do banco primeiro (se existirem)
+    if (!empty($regrasIA)) {
+        $contexto .= $regrasIA . "\n\n";
+        $contexto .= "─────────────────────────────────────────────\n";
+        $contexto .= "TAREFA: ANÁLISE RÁPIDA DO DIA\n";
+        $contexto .= "─────────────────────────────────────────────\n\n";
+    }
+    
+    // Instruções específicas para análise rápida
+    $contexto .= "Gere um RESUMO EXECUTIVO de 3-5 linhas sobre este ponto de medição.\n\n";
+    
     $contexto .= "PONTO: {$infoPonto['DS_NOME']} ({$tipoMedidorNome})\n";
+    $contexto .= "CÓDIGO: {$codigoPonto}\n";
     $contexto .= "LOCAL: {$infoPonto['LOCALIDADE']}\n";
     $contexto .= "DATA: {$dataFormatada} ({$diaSemanaTexto})\n\n";
+    
     $contexto .= "RESUMO DO DIA:\n";
     $contexto .= "- Total de registros: {$totalRegistros} de 1440 ({$percentualCompleto}%)\n";
     $contexto .= "- Média diária de vazão: {$mediaDiaria} L/s\n";
-    $contexto .= "- Vazão mínima: " . ($minVazaoGlobal !== null ? $minVazaoGlobal : '-') . " L/s\n";
-    $contexto .= "- Vazão máxima: " . ($maxVazaoGlobal !== null ? $maxVazaoGlobal : '-') . " L/s\n";
+    $contexto .= "- Vazão mínima: " . ($minVazaoGlobal !== null ? round($minVazaoGlobal, 2) : '-') . " L/s\n";
+    $contexto .= "- Vazão máxima: " . ($maxVazaoGlobal !== null ? round($maxVazaoGlobal, 2) : '-') . " L/s\n";
     
     if ($mediaHistorica) {
         $contexto .= "- Média histórica (mesmo dia semana): {$mediaHistorica} L/s\n";
@@ -236,7 +238,7 @@ try {
         $contexto .= "  ATENÇÃO: Horas vazias indicam ausência total de comunicação/leitura. Isso é DIFERENTE de vazão zero!\n";
     }
     
-    $contexto .= "\nINSTRUÇÕES:\n";
+    $contexto .= "\nINSTRUÇÕES PARA ESTA RESPOSTA:\n";
     $contexto .= "1. Gere um resumo executivo de 3-5 linhas\n";
     $contexto .= "2. Destaque anomalias se houver (horas VAZIAS são críticas, vazão zerada, incompleto, variação alta)\n";
     $contexto .= "3. Compare com histórico se disponível\n";
@@ -273,7 +275,8 @@ try {
             'horasVazias' => $horasVazias
         ],
         'dadosHorarios' => $dadosHorarios,
-        'analiseIA' => $analiseIA
+        'analiseIA' => $analiseIA,
+        'regras_fonte' => !empty($regrasIA) ? 'banco' : 'nenhuma'
     ]);
     
 } catch (Exception $e) {
@@ -303,7 +306,6 @@ function chamarIA($contexto, $config) {
 }
 
 function chamarGemini($contexto, $config) {
-    // Montar URL completa: base + modelo + :generateContent
     $baseUrl = rtrim($config['api_url'], '/');
     $model = $config['model'] ?? 'gemini-2.0-flash-lite';
     $url = $baseUrl . '/' . $model . ':generateContent?key=' . $config['api_key'];
@@ -324,7 +326,8 @@ function chamarGemini($contexto, $config) {
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -332,7 +335,6 @@ function chamarGemini($contexto, $config) {
     $curlErrno = curl_errno($ch);
     curl_close($ch);
     
-    // Verificar erro de cURL
     if ($curlErrno !== 0) {
         throw new Exception("Erro cURL $curlErrno: $curlError");
     }
@@ -373,13 +375,23 @@ function chamarGroq($contexto, $config) {
         'Authorization: Bearer ' . $config['api_key']
     ]);
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    $curlErrno = curl_errno($ch);
     curl_close($ch);
     
+    if ($curlErrno !== 0) {
+        throw new Exception("Erro cURL $curlErrno: $curlError");
+    }
+    
     if ($httpCode !== 200) {
-        throw new Exception("Erro HTTP $httpCode");
+        $errorData = json_decode($response, true);
+        $errorMsg = $errorData['error']['message'] ?? "Erro HTTP $httpCode";
+        throw new Exception($errorMsg);
     }
     
     $data = json_decode($response, true);
@@ -407,7 +419,8 @@ function chamarDeepSeek($contexto, $config) {
         'Authorization: Bearer ' . $config['api_key']
     ]);
     curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -415,7 +428,6 @@ function chamarDeepSeek($contexto, $config) {
     $curlErrno = curl_errno($ch);
     curl_close($ch);
     
-    // Verificar erro de cURL
     if ($curlErrno !== 0) {
         throw new Exception("Erro cURL $curlErrno: $curlError");
     }
