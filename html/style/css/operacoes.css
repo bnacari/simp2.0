@@ -3469,3 +3469,58 @@ input[type="date"].form-control {
 .legenda-cor.incompleto.nivel-vermelho::after {
     background: #ef4444 !important;
 }
+
+/* Verde: >= 80% dos dados (48+ registros de 60) */
+#validacaoTabelaBody tr.completude-verde {
+    background: rgba(34, 197, 94, 0.15) !important;
+}
+#validacaoTabelaBody tr.completude-verde:hover {
+    background: rgba(34, 197, 94, 0.25) !important;
+}
+#validacaoTabelaBody tr.completude-verde.selecionada {
+    background: rgba(34, 197, 94, 0.35) !important;
+}
+
+/* Amarelo: >= 50% e < 80% dos dados (30-47 registros de 60) */
+#validacaoTabelaBody tr.completude-amarelo {
+    background: rgba(234, 179, 8, 0.15) !important;
+}
+#validacaoTabelaBody tr.completude-amarelo:hover {
+    background: rgba(234, 179, 8, 0.25) !important;
+}
+#validacaoTabelaBody tr.completude-amarelo.selecionada {
+    background: rgba(234, 179, 8, 0.35) !important;
+}
+
+/* Vermelho: < 50% dos dados (< 30 registros de 60) */
+#validacaoTabelaBody tr.completude-vermelho {
+    background: rgba(239, 68, 68, 0.15) !important;
+}
+#validacaoTabelaBody tr.completude-vermelho:hover {
+    background: rgba(239, 68, 68, 0.25) !important;
+}
+#validacaoTabelaBody tr.completude-vermelho.selecionada {
+    background: rgba(239, 68, 68, 0.35) !important;
+}
+
+/* Manter prioridade do estado "tratado" (azul) */
+#validacaoTabelaBody tr.tratado {
+    background: rgba(59, 130, 246, 0.1) !important;
+}
+#validacaoTabelaBody tr.tratado:hover {
+    background: rgba(59, 130, 246, 0.2) !important;
+}
+#validacaoTabelaBody tr.tratado.selecionada {
+    background: rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Combinar completude com tratado - mostrar borda colorida à esquerda */
+#validacaoTabelaBody tr.tratado.completude-verde {
+    border-left: 3px solid #22c55e;
+}
+#validacaoTabelaBody tr.tratado.completude-amarelo {
+    border-left: 3px solid #eab308;
+}
+#validacaoTabelaBody tr.tratado.completude-vermelho {
+    border-left: 3px solid #ef4444;
+}

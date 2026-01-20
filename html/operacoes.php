@@ -398,8 +398,14 @@ $letrasTipoMedidor = [
                         originais</span>
                     <span class="legenda-item"><span class="legenda-cor" style="background:#3b82f6;"></span> Dados
                         validados</span>
+                    <span class="legenda-item"><span class="legenda-cor"
+                            style="background:rgba(34, 197, 94, 0.3);"></span> ≥80% reg. (48+)</span>
+                    <span class="legenda-item"><span class="legenda-cor"
+                            style="background:rgba(234, 179, 8, 0.3);"></span> ≥50% reg. (30-47)</span>
+                    <span class="legenda-item"><span class="legenda-cor"
+                            style="background:rgba(239, 68, 68, 0.3);"></span> &lt;50% reg. (&lt;30)</span>
                 </div>
-
+              
                 <!-- Controles do Gráfico -->
                 <div class="grafico-controles" id="graficoControles">
                     <span class="grafico-controles-titulo">Exibir:</span>
@@ -2591,7 +2597,8 @@ $letrasTipoMedidor = [
 
             if (isTipoNivel) {
                 // Layout para tipo 6: Mínimo, Máximo, Min >= 100, Registros
-                html += `<tr data-hora="${h}" class="${selecionada ? 'selecionada' : ''} ${tratado ? 'tratado' : ''}">
+                const classeCompletude = calcularNivelCompletudePorHora(d.qtd_registros);
+                html += `<tr data-hora="${h}" class="${selecionada ? 'selecionada' : ''} ${tratado ? 'tratado' : ''} ${classeCompletude}">
                 <td class="hora-col">
                     <label style="display:flex;align-items:center;gap:6px;cursor:${desabilitarCheckbox ? 'default' : 'pointer'};">
                         ${!desabilitarCheckbox ? `<input type="checkbox" class="hora-checkbox" value="${h}" 
@@ -2608,7 +2615,8 @@ $letrasTipoMedidor = [
             </tr>`;
             } else {
                 // Layout padrão: Média, Mínimo, Máximo, Registros
-                html += `<tr data-hora="${h}" class="${selecionada ? 'selecionada' : ''} ${tratado ? 'tratado' : ''}">
+                const classeCompletude = calcularNivelCompletudePorHora(d.qtd_registros);
+                html += `<tr data-hora="${h}" class="${selecionada ? 'selecionada' : ''} ${tratado ? 'tratado' : ''} ${classeCompletude}">
                 <td class="hora-col">
                     <label style="display:flex;align-items:center;gap:6px;cursor:${desabilitarCheckbox ? 'default' : 'pointer'};">
                         ${!desabilitarCheckbox ? `<input type="checkbox" class="hora-checkbox" value="${h}" 
@@ -5318,6 +5326,38 @@ $letrasTipoMedidor = [
             return 'nivel-amarelo';
         } else {
             return 'nivel-vermelho';
+        }
+    }
+
+    /**
+ * =====================================================
+ * PATCH: Cores de fundo por completude horária - Modal de Validação
+ * =====================================================
+ * 
+ * Este arquivo contém as alterações para operacoes.php
+ * 
+ * REGRAS (base 60 registros por hora):
+ * - >= 80% dos dados (48+ registros) = fundo VERDE
+ * - >= 50% e < 80% (30-47 registros) = fundo AMARELO
+ * - < 50% (< 30 registros) = fundo VERMELHO
+ * - 0 registros = sem cor especial (linha cinza padrão)
+ */
+
+    // =====================================================
+    // PASSO 1: Adicionar função helper para completude horária
+    // (junto com a função calcularNivelCompletude já adicionada)
+    // =====================================================
+
+    // ADICIONAR ESTA FUNÇÃO:
+    function calcularNivelCompletudePorHora(qtdRegistros) {
+        if (qtdRegistros === 0) return ''; // Sem dados, sem classe
+        const percentual = (qtdRegistros / 60) * 100;
+        if (percentual >= 80) {
+            return 'completude-verde';    // >= 48 registros
+        } else if (percentual >= 50) {
+            return 'completude-amarelo';  // >= 30 e < 48 registros
+        } else {
+            return 'completude-vermelho'; // < 30 registros
         }
     }
 </script>
