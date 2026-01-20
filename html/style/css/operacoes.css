@@ -3435,3 +3435,37 @@ input[type="date"].form-control {
         right: 2.5vw !important;
     }
 }
+
+
+/*
+/* Bolinhas de completude coloridas */
+/* Bolinha verde: >= 80% dos dados */
+.tabela-dados td.incompleto.nivel-verde::after {
+    background: #22c55e !important;
+    box-shadow: 0 0 4px rgba(34, 197, 94, 0.5);
+}
+
+/* Bolinha amarela: >= 50% e < 80% dos dados */
+.tabela-dados td.incompleto.nivel-amarelo::after {
+    background: #eab308 !important;
+    box-shadow: 0 0 4px rgba(234, 179, 8, 0.5);
+}
+
+/* Bolinha vermelha: < 50% dos dados */
+.tabela-dados td.incompleto.nivel-vermelho::after {
+    background: #ef4444 !important;
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.5);
+}
+
+/* Legenda - novas classes */
+.legenda-cor.incompleto.nivel-verde::after {
+    background: #22c55e !important;
+}
+
+.legenda-cor.incompleto.nivel-amarelo::after {
+    background: #eab308 !important;
+}
+
+.legenda-cor.incompleto.nivel-vermelho::after {
+    background: #ef4444 !important;
+}

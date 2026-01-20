@@ -266,8 +266,16 @@ $letrasTipoMedidor = [
                 </div>
                 <div class="legenda-itens">
                     <div class="legenda-item">
-                        <span class="legenda-cor incompleto"></span>
-                        <span class="legenda-texto">Dia com menos de 1440 registros (dados incompletos)</span>
+                        <span class="legenda-cor incompleto nivel-verde"></span>
+                        <span class="legenda-texto">Incompleto ≥80% (≥1152 reg.)</span>
+                    </div>
+                    <div class="legenda-item">
+                        <span class="legenda-cor incompleto nivel-amarelo"></span>
+                        <span class="legenda-texto">Incompleto ≥50% (720-1151 reg.)</span>
+                    </div>
+                    <div class="legenda-item">
+                        <span class="legenda-cor incompleto nivel-vermelho"></span>
+                        <span class="legenda-texto">Incompleto &lt;50% (&lt;720 reg.)</span>
                     </div>
                     <div class="legenda-item">
                         <span class="legenda-cor tratado"></span>
@@ -1749,7 +1757,12 @@ $letrasTipoMedidor = [
                 if (dados && dados.count > 0) {
                     const media = dados.soma / dados.count;
                     // Se tipo_medidor = 6, não considera incompleto (é valor máximo)
-                    const incompleto = (dados.tipo_medidor != 6 && dados.qtd_registros < 1440) ? ' incompleto' : '';
+                    let incompleto = '';
+                    let nivelCompletude = '';
+                    if (dados.tipo_medidor != 6 && dados.qtd_registros < 1440) {
+                        incompleto = ' incompleto';
+                        nivelCompletude = ' ' + calcularNivelCompletude(dados.qtd_registros);
+                    }
                     const tratado = dados.qtd_tratados > 0 ? ' tratado' : '';
                     // Nível crítico: tipo_medidor = 6 e valor >= 100
                     const nivelCritico = (dados.tipo_medidor == 6 && media >= 100) ? ' nivel-critico' : '';
@@ -1762,7 +1775,7 @@ $letrasTipoMedidor = [
                     tooltipParts.push('Clique para validar');
                     const titulo = ` title="${tooltipParts.join(' | ')}"`;
                     const onclickAttr = cdPonto ? ` onclick="abrirModalValidacao(${cdPonto}, '${diaStr}', ${tipoMedidor || 1}, '${pontoNome.replace(/'/g, "\\'")}', '${pontoCodigo}')"` : '';
-                    bodyHtml += `<td class="valor-entrada${incompleto}${tratado}${nivelCritico}"${titulo}${onclickAttr}>${formatarNumero(media)}</td>`;
+                    bodyHtml += `<td class="valor-entrada${incompleto}${nivelCompletude}${tratado}${nivelCritico}"${titulo}${onclickAttr}>${formatarNumero(media)}</td>`;
 
                     // Aplicar operação ao subtotal de entrada
                     // Se operação não definida, assume soma (1) como padrão
@@ -1801,7 +1814,12 @@ $letrasTipoMedidor = [
                 if (dados && dados.count > 0) {
                     const media = dados.soma / dados.count;
                     // Se tipo_medidor = 6, não considera incompleto (é valor máximo)
-                    const incompleto = (dados.tipo_medidor != 6 && dados.qtd_registros < 1440) ? ' incompleto' : '';
+                    let incompleto = '';
+                    let nivelCompletude = '';
+                    if (dados.tipo_medidor != 6 && dados.qtd_registros < 1440) {
+                        incompleto = ' incompleto';
+                        nivelCompletude = ' ' + calcularNivelCompletude(dados.qtd_registros);
+                    }
                     const tratado = dados.qtd_tratados > 0 ? ' tratado' : '';
                     // Nível crítico: tipo_medidor = 6 e valor >= 100
                     const nivelCritico = (dados.tipo_medidor == 6 && media >= 100) ? ' nivel-critico' : '';
@@ -1814,7 +1832,7 @@ $letrasTipoMedidor = [
                     tooltipParts.push('Clique para validar');
                     const titulo = ` title="${tooltipParts.join(' | ')}"`;
                     const onclickAttr = cdPonto ? ` onclick="abrirModalValidacao(${cdPonto}, '${diaStr}', ${tipoMedidor || 1}, '${pontoNome.replace(/'/g, "\\'")}', '${pontoCodigo}')"` : '';
-                    bodyHtml += `<td class="valor-saida${incompleto}${tratado}${nivelCritico}"${titulo}${onclickAttr}>${formatarNumero(media)}</td>`;
+                    bodyHtml += `<td class="valor-saida${incompleto}${nivelCompletude}${tratado}${nivelCritico}"${titulo}${onclickAttr}>${formatarNumero(media)}</td>`;
 
                     // Aplicar operação ao subtotal de saída
                     // Se operação não definida, assume soma (1) como padrão
@@ -5269,6 +5287,38 @@ $letrasTipoMedidor = [
         }
 
         container.innerHTML = html;
+    }
+
+    /**
+ * =====================================================
+ * PATCH: Bolinhas de completude coloridas - operacoes.php
+ * =====================================================
+ * 
+ * Este arquivo contém as alterações exatas a serem feitas em operacoes.php
+ * 
+ * REGRAS:
+ * - >= 80% dos dados (1152+ registros) = bola VERDE
+ * - >= 50% e < 80% (720-1151 registros) = bola AMARELA
+ * - < 50% (< 720 registros) = bola VERMELHA
+ * 
+ * O fundo da célula permanece laranja para indicar dado incompleto
+ */
+
+    // =====================================================
+    // PASSO 1: Adicionar função helper no início do <script>
+    // (logo após a declaração das variáveis globais)
+    // =====================================================
+
+    // ADICIONAR ESTA FUNÇÃO:
+    function calcularNivelCompletude(qtdRegistros) {
+        const percentual = (qtdRegistros / 1440) * 100;
+        if (percentual >= 80) {
+            return 'nivel-verde';
+        } else if (percentual >= 50) {
+            return 'nivel-amarelo';
+        } else {
+            return 'nivel-vermelho';
+        }
     }
 </script>
 
