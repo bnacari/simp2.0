@@ -2,13 +2,17 @@
 /**
  * SIMP - Sistema Integrado de Macromedição e Pitometria
  * Dashboard / Página Inicial
+ * 
+ * @version 2.0 - Inclui análise de qualidade dos dados
  */
 
 include_once 'includes/header.inc.php';
 include_once 'includes/menu.inc.php';
 include_once 'bd/conexao.php';
 
-// Buscar dados para o dashboard
+// ============================================
+// CONSULTAS BÁSICAS DO DASHBOARD
+// ============================================
 try {
     // Total de pontos de medição (ativos = sem data de desativação ou data futura)
     $stmtPontos = $pdoSIMP->query("
@@ -42,79 +46,83 @@ try {
     ");
     $totalManutencoesTipo2 = $stmtManutencoesTipo2->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
     
-    // Últimas programações
-    $stmtUltimasManutencoes = $pdoSIMP->query("
-        SELECT TOP 5 
-            PM.CD_CHAVE,
+    // Últimas programações de manutenção
+    $stmtUltimasManut = $pdoSIMP->query("
+        SELECT TOP 5
             PM.CD_CODIGO,
             PM.CD_ANO,
-            PM.DT_PROGRAMACAO,
-            PM.ID_SITUACAO,
             PM.ID_TIPO_PROGRAMACAO,
-            P.DS_NOME AS PONTO_NOME
+            PM.ID_SITUACAO,
+            PM.DT_PROGRAMACAO,
+            P.DS_NOME AS DS_PONTO
         FROM SIMP.dbo.PROGRAMACAO_MANUTENCAO PM
-        INNER JOIN SIMP.dbo.PONTO_MEDICAO P ON PM.CD_PONTO_MEDICAO = P.CD_PONTO_MEDICAO
-        ORDER BY PM.DT_PROGRAMACAO DESC
+        LEFT JOIN SIMP.dbo.PONTO_MEDICAO P ON P.CD_PONTO_MEDICAO = PM.CD_PONTO_MEDICAO
+        ORDER BY PM.DT_CADASTRO DESC
     ");
-    $ultimasManutencoes = $stmtUltimasManutencoes->fetchAll(PDO::FETCH_ASSOC);
+    $ultimasManutencoes = $stmtUltimasManut->fetchAll(PDO::FETCH_ASSOC);
     
-} catch (PDOException $e) {
-    // Valores padrão em caso de erro
-    $totalPontos = $totalManutencoes = $totalCalibracoes = $totalManutencoesTipo2 = 0;
+} catch (Exception $e) {
+    $totalPontos = 0;
+    $totalManutencoes = 0;
+    $totalCalibracoes = 0;
+    $totalManutencoesTipo2 = 0;
     $ultimasManutencoes = [];
 }
 
-// Mapear situações (conforme seu sistema)
+// Dia da semana
+$diasSemana = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+$diaSemana = $diasSemana[date('w')];
+
+// Situações e tipos
 $situacoes = [
     1 => ['nome' => 'Prevista', 'cor' => 'warning', 'icone' => 'time-outline'],
-    2 => ['nome' => 'Executada', 'cor' => 'success', 'icone' => 'checkmark-circle-outline'],
-    4 => ['nome' => 'Cancelada', 'cor' => 'danger', 'icone' => 'close-circle-outline'],
+    2 => ['nome' => 'Realizada', 'cor' => 'success', 'icone' => 'checkmark-circle-outline'],
+    3 => ['nome' => 'Cancelada', 'cor' => 'danger', 'icone' => 'close-circle-outline']
 ];
 
 $tiposProgramacao = [
     1 => 'Calibração',
-    2 => 'Manutenção',
+    2 => 'Manutenção'
 ];
 
-// Dia da semana em português
-$diasSemana = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-$diaSemana = $diasSemana[date('w')];
+// Buscar unidades para filtro
+$unidades = [];
+try {
+    $sqlUnidades = "SELECT CD_UNIDADE, DS_NOME FROM SIMP.dbo.UNIDADE ORDER BY DS_NOME";
+    $stmtUnidades = $pdoSIMP->query($sqlUnidades);
+    $unidades = $stmtUnidades->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $unidades = [];
+}
 ?>
 
 <style>
     /* ============================================
-       Reset e Box Sizing
-       ============================================ */
-    *, *::before, *::after {
-        box-sizing: border-box;
-    }
-
-    /* ============================================
-       Page Container
+       Reset e Base
        ============================================ */
     .page-container {
-        padding: 24px;
-        max-width: 1800px;
+        max-width: 1600px;
         margin: 0 auto;
-        overflow-x: hidden;
+        padding: 24px;
+        background: #f1f5f9;
+        min-height: 100vh;
     }
 
     /* ============================================
-       Page Header (mesmo padrão do pontoMedicao)
+       Page Header (mesmo padrão filters-header)
        ============================================ */
     .page-header {
         background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
         border-radius: 16px;
-        padding: 28px 32px;
+        padding: 24px 32px;
         margin-bottom: 24px;
-        color: white;
-        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(30, 58, 95, 0.3);
     }
 
     .page-header-content {
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        justify-content: space-between;
         flex-wrap: wrap;
         gap: 16px;
     }
@@ -122,30 +130,31 @@ $diaSemana = $diasSemana[date('w')];
     .page-header-info {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 20px;
     }
 
     .page-header-icon {
-        width: 52px;
-        height: 52px;
+        width: 64px;
+        height: 64px;
         background: rgba(255, 255, 255, 0.15);
-        border-radius: 12px;
+        border-radius: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 24px;
+        font-size: 28px;
+        color: white;
     }
 
     .page-header h1 {
         font-size: 22px;
         font-weight: 700;
-        margin: 0 0 4px 0;
         color: white;
+        margin: 0 0 4px 0;
     }
 
     .page-header-subtitle {
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.7);
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.8);
         margin: 0;
     }
 
@@ -153,59 +162,60 @@ $diaSemana = $diasSemana[date('w')];
         display: flex;
         align-items: center;
         gap: 12px;
-        background: rgba(255, 255, 255, 0.1);
         padding: 12px 20px;
-        border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        color: white;
     }
 
     .header-date ion-icon {
-        font-size: 20px;
-        color: rgba(255, 255, 255, 0.8);
-    }
-
-    .header-date-info {
-        display: flex;
-        flex-direction: column;
+        font-size: 24px;
     }
 
     .header-date-day {
         font-size: 14px;
         font-weight: 600;
-        color: white;
+        display: block;
     }
 
     .header-date-full {
         font-size: 12px;
-        color: rgba(255, 255, 255, 0.7);
+        opacity: 0.8;
     }
 
     /* ============================================
-       Stats Cards
+       Stats Cards (cards superiores)
        ============================================ */
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        grid-template-columns: repeat(4, 1fr);
         gap: 20px;
         margin-bottom: 24px;
+    }
+
+    @media (max-width: 1200px) {
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    
+    @media (max-width: 640px) {
+        .stats-grid { grid-template-columns: 1fr; }
     }
 
     .stat-card {
         background: #ffffff;
         border: 1px solid #e2e8f0;
         border-radius: 16px;
-        padding: 24px;
+        padding: 20px;
         position: relative;
         overflow: hidden;
-        transition: all 0.2s ease;
-        cursor: pointer;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
     }
 
     .stat-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
     .stat-card::before {
@@ -274,16 +284,171 @@ $diaSemana = $diasSemana[date('w')];
     .stat-icon.danger { background: linear-gradient(135deg, #ef4444, #f87171); }
 
     /* ============================================
-       Dashboard Grid (2 colunas)
+       Seção de Análise de Qualidade
        ============================================ */
-    .dashboard-grid {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 24px;
+    .analise-section {
+        margin-bottom: 24px;
+    }
+
+    .analise-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .analise-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .analise-title ion-icon {
+        font-size: 24px;
+        color: #3b82f6;
+    }
+
+    .analise-filtros {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .analise-filtros select {
+        padding: 8px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #475569;
+        background: white;
+        cursor: pointer;
+    }
+
+    .analise-filtros select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-carregar {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-carregar:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn-carregar:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .btn-carregar ion-icon {
+        font-size: 16px;
     }
 
     /* ============================================
-       Content Cards (mesmo padrão filters-card)
+       Cards de Resumo da Análise
+       ============================================ */
+    .analise-resumo-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    @media (max-width: 1200px) {
+        .analise-resumo-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    
+    @media (max-width: 768px) {
+        .analise-resumo-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    
+    @media (max-width: 480px) {
+        .analise-resumo-grid { grid-template-columns: 1fr; }
+    }
+
+    .analise-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px;
+        text-align: center;
+        transition: all 0.2s;
+    }
+
+    .analise-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .analise-card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 10px;
+        font-size: 18px;
+    }
+
+    .analise-card-icon.bom { background: #dcfce7; color: #16a34a; }
+    .analise-card-icon.regular { background: #fef3c7; color: #d97706; }
+    .analise-card-icon.pessimo { background: #fee2e2; color: #dc2626; }
+    .analise-card-icon.info { background: #dbeafe; color: #2563eb; }
+    .analise-card-icon.roxo { background: #ede9fe; color: #7c3aed; }
+
+    .analise-card-valor {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 4px;
+    }
+
+    .analise-card-label {
+        font-size: 12px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* ============================================
+       Dashboard Grid Principal
+       ============================================ */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+        .dashboard-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ============================================
+       Content Cards (padrão SIMP)
        ============================================ */
     .content-card {
         background: #ffffff;
@@ -297,17 +462,18 @@ $diaSemana = $diasSemana[date('w')];
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 20px 24px;
-        border-bottom: 1px solid #f1f5f9;
+        padding: 16px 20px;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f8fafc;
     }
 
     .content-card-title {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
         font-size: 14px;
         font-weight: 600;
-        color: #334155;
+        color: #1e293b;
     }
 
     .content-card-title ion-icon {
@@ -315,408 +481,300 @@ $diaSemana = $diasSemana[date('w')];
         color: #3b82f6;
     }
 
+    .content-card-body {
+        padding: 16px 20px;
+    }
+
     .btn-ver-todos {
-        display: inline-flex;
+        display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 14px;
-        background: #f8fafc;
-        color: #64748b;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
+        gap: 4px;
         font-size: 12px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
+        color: #3b82f6;
         text-decoration: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        transition: background 0.2s;
     }
 
     .btn-ver-todos:hover {
-        background: #3b82f6;
-        color: white;
-        border-color: #3b82f6;
-    }
-
-    .content-card-body {
-        padding: 0;
+        background: #eff6ff;
     }
 
     /* ============================================
-       Data Table (mesmo padrão do sistema)
+       Lista de Ranking
+       ============================================ */
+    .ranking-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .ranking-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background 0.2s;
+    }
+
+    .ranking-item:last-child {
+        border-bottom: none;
+    }
+
+    .ranking-item:hover {
+        background: #f8fafc;
+        margin: 0 -20px;
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+
+    .ranking-posicao {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .ranking-posicao.top1 { background: #fef3c7; color: #b45309; }
+    .ranking-posicao.top2 { background: #e5e7eb; color: #4b5563; }
+    .ranking-posicao.top3 { background: #fed7aa; color: #c2410c; }
+    .ranking-posicao.normal { background: #f1f5f9; color: #64748b; }
+
+    .ranking-tipo {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .ranking-tipo.M { background: linear-gradient(135deg, #3b82f6, #60a5fa); }
+    .ranking-tipo.E { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+    .ranking-tipo.P { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+    .ranking-tipo.R { background: linear-gradient(135deg, #06b6d4, #22d3ee); }
+    .ranking-tipo.H { background: linear-gradient(135deg, #10b981, #34d399); }
+
+    .ranking-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .ranking-nome {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1e293b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .ranking-local {
+        font-size: 11px;
+        color: #64748b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .ranking-stats {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 2px;
+    }
+
+    .ranking-valor {
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    .ranking-valor.bom { color: #16a34a; }
+    .ranking-valor.regular { color: #d97706; }
+    .ranking-valor.pessimo { color: #dc2626; }
+
+    .ranking-detalhe {
+        font-size: 10px;
+        color: #94a3b8;
+    }
+
+    /* ============================================
+       Barra de Progresso
+       ============================================ */
+    .progress-bar-container {
+        width: 80px;
+        height: 6px;
+        background: #e2e8f0;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.5s ease;
+    }
+
+    .progress-bar-fill.bom { background: linear-gradient(90deg, #10b981, #34d399); }
+    .progress-bar-fill.regular { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .progress-bar-fill.pessimo { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+    /* ============================================
+       Badge de Classificação
+       ============================================ */
+    .badge-classificacao {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .badge-classificacao.bom { background: #dcfce7; color: #16a34a; }
+    .badge-classificacao.regular { background: #fef3c7; color: #d97706; }
+    .badge-classificacao.pessimo { background: #fee2e2; color: #dc2626; }
+
+    /* ============================================
+       Tabela de Dados
        ============================================ */
     .data-table {
         width: 100%;
         border-collapse: collapse;
-    }
-
-    .data-table thead th {
-        text-align: left;
-        padding: 14px 16px;
-        font-size: 11px;
-        font-weight: 600;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        background: #f8fafc;
-        border-bottom: 1px solid #e2e8f0;
-    }
-
-    .data-table tbody tr {
-        border-bottom: 1px solid #f1f5f9;
-        transition: background 0.2s ease;
-        cursor: pointer;
-    }
-
-    .data-table tbody tr:hover {
-        background: #f8fafc;
-    }
-
-    .data-table tbody tr:last-child {
-        border-bottom: none;
-    }
-
-    .data-table tbody td {
-        padding: 16px;
-        color: #334155;
         font-size: 13px;
     }
 
-    .data-table .code {
-        font-family: 'SF Mono', Monaco, monospace;
-        font-weight: 600;
-        color: #1e293b;
+    .data-table th,
+    .data-table td {
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid #f1f5f9;
     }
 
-    /* ============================================
-       Badges (mesmo padrão do sistema)
-       ============================================ */
-    .badge {
+    .data-table th {
+        font-weight: 600;
+        color: #64748b;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        background: #f8fafc;
+    }
+
+    .data-table tr:hover td {
+        background: #f8fafc;
+    }
+
+    .data-table .badge {
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        padding: 4px 10px;
+        padding: 4px 8px;
         border-radius: 6px;
         font-size: 11px;
         font-weight: 500;
     }
 
-    .badge-tipo {
-        background: #f0f9ff;
-        color: #0369a1;
-    }
-
-    .badge-tipo.calibracao {
-        background: #faf5ff;
-        color: #7c3aed;
-    }
-
-    .badge-tipo.manutencao {
-        background: #f0f9ff;
-        color: #0369a1;
-    }
-
-    .badge-status {
-        padding: 5px 12px;
-        border-radius: 20px;
-    }
-
-    .badge-status.warning {
-        background: #fffbeb;
-        color: #b45309;
-    }
-
-    .badge-status.success {
-        background: #ecfdf5;
-        color: #047857;
-    }
-
-    .badge-status.danger {
-        background: #fef2f2;
-        color: #b91c1c;
-    }
+    .data-table .badge.warning { background: #fef3c7; color: #b45309; }
+    .data-table .badge.success { background: #dcfce7; color: #15803d; }
+    .data-table .badge.danger { background: #fee2e2; color: #b91c1c; }
+    .data-table .badge.calibracao { background: #dbeafe; color: #1d4ed8; }
+    .data-table .badge.manutencao { background: #ede9fe; color: #7c3aed; }
 
     /* ============================================
-       Empty State
+       Loading e Empty States
        ============================================ */
+    .loading-state,
     .empty-state {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 48px 24px;
         text-align: center;
-    }
-
-    .empty-state-icon {
-        width: 64px;
-        height: 64px;
-        background: #f1f5f9;
-        border-radius: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 16px;
-    }
-
-    .empty-state-icon ion-icon {
-        font-size: 28px;
-        color: #94a3b8;
-    }
-
-    .empty-state h3 {
-        font-size: 14px;
-        font-weight: 600;
-        color: #475569;
-        margin: 0 0 8px 0;
-    }
-
-    .empty-state p {
-        font-size: 13px;
-        color: #94a3b8;
-        margin: 0;
-    }
-
-    /* ============================================
-       Quick Actions
-       ============================================ */
-    .quick-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        padding: 20px 24px;
-    }
-
-    .quick-action-btn {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 14px 16px;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        color: #334155;
-        text-decoration: none;
-        transition: all 0.2s ease;
-    }
-
-    .quick-action-btn:hover {
-        background: #3b82f6;
-        border-color: #3b82f6;
-        color: white;
-    }
-
-    .quick-action-btn:hover .action-icon {
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
-    }
-
-    .quick-action-btn:hover .action-text p {
-        color: rgba(255, 255, 255, 0.8);
-    }
-
-    .quick-action-btn:hover .action-arrow {
-        color: white;
-    }
-
-    .action-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 18px;
-        background: #e0f2fe;
-        color: #0369a1;
-        transition: all 0.2s ease;
-    }
-
-    .action-text {
-        flex: 1;
-    }
-
-    .action-text h4 {
-        margin: 0 0 2px 0;
-        font-size: 13px;
-        font-weight: 600;
-    }
-
-    .action-text p {
-        margin: 0;
-        font-size: 11px;
+        padding: 40px 20px;
         color: #64748b;
-        transition: color 0.2s ease;
     }
 
-    .action-arrow {
-        font-size: 18px;
-        color: #94a3b8;
-        transition: all 0.2s ease;
+    .loading-state ion-icon,
+    .empty-state ion-icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+        opacity: 0.5;
+    }
+
+    .loading-spinner {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
     }
 
     /* ============================================
-       Status Widget
+       Gráfico Container
        ============================================ */
-    .status-widget {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        padding: 20px 24px;
-    }
-
-    .status-item {
+    .grafico-container {
+        position: relative;
+        height: 250px;
+        margin-top: 16px;
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 14px 16px;
-        background: #f8fafc;
-        border-radius: 10px;
-        border: 1px solid #e2e8f0;
+        justify-content: center;
     }
 
-    .status-item-info {
-        display: flex;
-        align-items: center;
-        gap: 10px;
+    .grafico-container .empty-state {
+        position: absolute;
+        width: 100%;
     }
-
-    .status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        animation: pulse 2s infinite;
-    }
-
-    .status-dot.success { background: #10b981; }
-    .status-dot.warning { background: #f59e0b; }
-    .status-dot.danger { background: #ef4444; }
-
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-    }
-
-    .status-item-label {
-        font-size: 13px;
-        color: #475569;
-    }
-
-    .status-item-value {
-        font-size: 13px;
-        font-weight: 600;
-        color: #334155;
-    }
-
-    .status-item-value.success { color: #059669; }
-    .status-item-value.warning { color: #d97706; }
 
     /* ============================================
-       Responsive
+       Legenda do Gráfico
        ============================================ */
-    @media (max-width: 1200px) {
-        .dashboard-grid {
-            grid-template-columns: 1fr;
-        }
+    .grafico-legenda {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 12px;
+        font-size: 12px;
     }
 
+    .grafico-legenda-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .grafico-legenda-cor {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+    }
+
+    /* ============================================
+       Responsivo
+       ============================================ */
     @media (max-width: 768px) {
-        .page-container {
-            padding: 16px;
-        }
-
-        .page-header {
-            padding: 20px;
-            border-radius: 12px;
-        }
-
-        .page-header-content {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 16px;
-        }
-
-        .page-header-info {
-            flex-direction: column;
-            text-align: center;
-            gap: 12px;
-        }
-
-        .page-header-icon {
-            width: 48px;
-            height: 48px;
-            margin: 0 auto;
-        }
-
-        .page-header h1 {
-            font-size: 18px;
-        }
-
-        .header-date {
-            justify-content: center;
-        }
-
-        .stats-grid {
-            grid-template-columns: 1fr;
-            gap: 16px;
-        }
-
-        .stat-card {
-            padding: 20px;
-        }
-
-        .stat-value {
-            font-size: 28px;
-        }
-
-        .data-table th,
-        .data-table td {
-            padding: 12px;
-            font-size: 12px;
-        }
-
-        .content-card-header {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 12px;
-        }
-
-        .btn-ver-todos {
-            width: 100%;
-            justify-content: center;
-        }
-    }
-
-    @media (max-width: 480px) {
-        .page-container {
-            padding: 12px;
-        }
-
-        .page-header {
-            padding: 16px;
-        }
-
-        .page-header h1 {
-            font-size: 16px;
-        }
-
-        .stat-card {
-            padding: 16px;
-        }
-
-        .stat-value {
-            font-size: 24px;
-        }
-
-        .stat-icon {
-            width: 40px;
-            height: 40px;
-            font-size: 18px;
-        }
+        .page-container { padding: 16px; }
+        .page-header { padding: 16px 20px; }
+        .page-header-icon { display: none; }
+        .page-header h1 { font-size: 18px; }
+        .stat-value { font-size: 24px; }
+        .content-card-header { padding: 12px 16px; }
+        .content-card-body { padding: 12px 16px; }
     }
 </style>
 
 <div class="page-container">
-    <!-- Page Header -->
+    <!-- Header -->
     <div class="page-header">
         <div class="page-header-content">
             <div class="page-header-info">
@@ -724,7 +782,7 @@ $diaSemana = $diasSemana[date('w')];
                     <ion-icon name="speedometer-outline"></ion-icon>
                 </div>
                 <div>
-                    <h1>Olá, <?= htmlspecialchars($_SESSION['nome'] ?? 'Usuário') ?>!</h1>
+                    <h1>Olá, <?= htmlspecialchars($_SESSION['DS_NOME'] ?? 'Usuário') ?>!</h1>
                     <p class="page-header-subtitle">Bem-vindo ao SIMP - Sistema Integrado de Macromedição e Pitometria</p>
                 </div>
             </div>
@@ -805,8 +863,148 @@ $diaSemana = $diasSemana[date('w')];
         </div>
     </div>
 
-    <!-- Dashboard Grid -->
+    <!-- Seção de Análise de Qualidade dos Dados -->
+    <div class="analise-section">
+        <div class="analise-header">
+            <div class="analise-title">
+                <ion-icon name="pulse-outline"></ion-icon>
+                Análise de Qualidade dos Dados
+            </div>
+            <div class="analise-filtros">
+                <select id="filtro-dias">
+                    <option value="7" selected>Últimos 7 dias</option>
+                    <option value="14">Últimos 14 dias</option>
+                    <option value="30">Últimos 30 dias</option>
+                    <option value="60">Últimos 60 dias</option>
+                </select>
+                <select id="filtro-unidade">
+                    <option value="">Todas as Unidades</option>
+                    <?php foreach ($unidades as $uni): ?>
+                    <option value="<?= $uni['CD_UNIDADE'] ?>"><?= htmlspecialchars($uni['DS_NOME']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="button" id="btn-carregar-analise" class="btn-carregar" onclick="carregarAnalise()">
+                    <ion-icon name="analytics-outline"></ion-icon>
+                    Carregar Análise
+                </button>
+            </div>
+        </div>
+
+        <!-- Cards de Resumo -->
+        <div class="analise-resumo-grid" id="analise-resumo">
+            <div class="analise-card">
+                <div class="analise-card-icon info">
+                    <ion-icon name="document-text-outline"></ion-icon>
+                </div>
+                <div class="analise-card-valor" id="total-registros">-</div>
+                <div class="analise-card-label">Registros</div>
+            </div>
+            <div class="analise-card">
+                <div class="analise-card-icon roxo">
+                    <ion-icon name="trash-outline"></ion-icon>
+                </div>
+                <div class="analise-card-valor" id="taxa-descarte">-</div>
+                <div class="analise-card-label">Taxa Descarte</div>
+            </div>
+            <div class="analise-card">
+                <div class="analise-card-icon bom">
+                    <ion-icon name="checkmark-circle-outline"></ion-icon>
+                </div>
+                <div class="analise-card-valor" id="dias-bom">-</div>
+                <div class="analise-card-label">Dias Bom (≥80%)</div>
+            </div>
+            <div class="analise-card">
+                <div class="analise-card-icon regular">
+                    <ion-icon name="alert-circle-outline"></ion-icon>
+                </div>
+                <div class="analise-card-valor" id="dias-regular">-</div>
+                <div class="analise-card-label">Dias Regular (≥50%)</div>
+            </div>
+            <div class="analise-card">
+                <div class="analise-card-icon pessimo">
+                    <ion-icon name="close-circle-outline"></ion-icon>
+                </div>
+                <div class="analise-card-valor" id="dias-pessimo">-</div>
+                <div class="analise-card-label">Dias Péssimo (&lt;50%)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Grid com Rankings -->
     <div class="dashboard-grid">
+        <!-- Pontos com Maior Taxa de Descarte -->
+        <div class="content-card">
+            <div class="content-card-header">
+                <div class="content-card-title">
+                    <ion-icon name="trending-down-outline"></ion-icon>
+                    Maior Taxa de Descarte
+                </div>
+                <a href="registroVazaoPressao.php" class="btn-ver-todos">
+                    <ion-icon name="eye-outline"></ion-icon>
+                    Ver Todos
+                </a>
+            </div>
+            <div class="content-card-body">
+                <ul class="ranking-list" id="ranking-descarte">
+                    <li class="empty-state">
+                        <ion-icon name="analytics-outline"></ion-icon>
+                        <p>Clique em "Carregar Análise" para ver os dados</p>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Pontos com Pior Integridade -->
+        <div class="content-card">
+            <div class="content-card-header">
+                <div class="content-card-title">
+                    <ion-icon name="cellular-outline"></ion-icon>
+                    Menor Integridade de Dados
+                </div>
+                <a href="monitoramento.php" class="btn-ver-todos">
+                    <ion-icon name="eye-outline"></ion-icon>
+                    Monitorar
+                </a>
+            </div>
+            <div class="content-card-body">
+                <ul class="ranking-list" id="ranking-integridade">
+                    <li class="empty-state">
+                        <ion-icon name="cellular-outline"></ion-icon>
+                        <p>Clique em "Carregar Análise" para ver os dados</p>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Evolução Diária -->
+        <div class="content-card">
+            <div class="content-card-header">
+                <div class="content-card-title">
+                    <ion-icon name="bar-chart-outline"></ion-icon>
+                    Evolução Diária - Registros vs Descartes
+                </div>
+            </div>
+            <div class="content-card-body">
+                <div class="grafico-container" id="grafico-container">
+                    <div class="empty-state" id="grafico-placeholder">
+                        <ion-icon name="bar-chart-outline"></ion-icon>
+                        <p>Clique em "Carregar Análise" para ver o gráfico</p>
+                    </div>
+                    <canvas id="grafico-evolucao" style="display: none;"></canvas>
+                </div>
+                <div class="grafico-legenda" id="grafico-legenda" style="display: none;">
+                    <div class="grafico-legenda-item">
+                        <div class="grafico-legenda-cor" style="background: #3b82f6;"></div>
+                        <span>Registros Válidos</span>
+                    </div>
+                    <div class="grafico-legenda-item">
+                        <div class="grafico-legenda-cor" style="background: #ef4444;"></div>
+                        <span>Descartados</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Últimas Programações -->
         <div class="content-card">
             <div class="content-card-header">
@@ -836,21 +1034,15 @@ $diaSemana = $diasSemana[date('w')];
                             $sit = $situacoes[$manut['ID_SITUACAO']] ?? ['nome' => 'Desconhecida', 'cor' => 'secondary', 'icone' => 'help-outline'];
                             $tipo = $tiposProgramacao[$manut['ID_TIPO_PROGRAMACAO']] ?? 'Outro';
                             $tipoClasse = $manut['ID_TIPO_PROGRAMACAO'] == 1 ? 'calibracao' : 'manutencao';
-                            // Código formatado: CD_CODIGO-CD_ANO/ID_TIPO_PROGRAMACAO
                             $codigoFormatado = str_pad($manut['CD_CODIGO'], 3, '0', STR_PAD_LEFT) . '-' . $manut['CD_ANO'] . '/' . $manut['ID_TIPO_PROGRAMACAO'];
                         ?>
-                        <tr onclick="window.location.href='programacaoManutencaoView.php?id=<?= $manut['CD_CHAVE'] ?>'">
-                            <td class="code"><?= $codigoFormatado ?></td>
-                            <td><?= htmlspecialchars($manut['PONTO_NOME'] ?? 'N/A') ?></td>
-                            <td>
-                                <span class="badge badge-tipo <?= $tipoClasse ?>">
-                                    <ion-icon name="<?= $tipoClasse == 'calibracao' ? 'analytics-outline' : 'build-outline' ?>"></ion-icon>
-                                    <?= $tipo ?>
-                                </span>
-                            </td>
+                        <tr>
+                            <td><strong><?= $codigoFormatado ?></strong></td>
+                            <td><?= htmlspecialchars(mb_substr($manut['DS_PONTO'] ?? 'N/I', 0, 25)) ?></td>
+                            <td><span class="badge <?= $tipoClasse ?>"><?= $tipo ?></span></td>
                             <td><?= date('d/m/Y', strtotime($manut['DT_PROGRAMACAO'])) ?></td>
                             <td>
-                                <span class="badge badge-status <?= $sit['cor'] ?>">
+                                <span class="badge <?= $sit['cor'] ?>">
                                     <ion-icon name="<?= $sit['icone'] ?>"></ion-icon>
                                     <?= $sit['nome'] ?>
                                 </span>
@@ -861,108 +1053,357 @@ $diaSemana = $diasSemana[date('w')];
                 </table>
                 <?php else: ?>
                 <div class="empty-state">
-                    <div class="empty-state-icon">
-                        <ion-icon name="calendar-outline"></ion-icon>
-                    </div>
-                    <h3>Nenhuma programação encontrada</h3>
-                    <p>As programações de manutenção e calibração aparecerão aqui</p>
+                    <ion-icon name="calendar-outline"></ion-icon>
+                    <p>Nenhuma programação encontrada</p>
                 </div>
                 <?php endif; ?>
             </div>
         </div>
-
-        <!-- Coluna Direita -->
-        <div style="display: flex; flex-direction: column; gap: 24px;">
-            <!-- Ações Rápidas -->
-            <div class="content-card">
-                <div class="content-card-header">
-                    <div class="content-card-title">
-                        <ion-icon name="flash-outline"></ion-icon>
-                        Ações Rápidas
-                    </div>
-                </div>
-                <div class="quick-actions">
-                    <a href="programacaoManutencaoForm.php" class="quick-action-btn">
-                        <div class="action-icon">
-                            <ion-icon name="add-outline"></ion-icon>
-                        </div>
-                        <div class="action-text">
-                            <h4>Nova Programação</h4>
-                            <p>Criar manutenção ou calibração</p>
-                        </div>
-                        <ion-icon name="chevron-forward-outline" class="action-arrow"></ion-icon>
-                    </a>
-
-                    <a href="pontoMedicaoForm.php" class="quick-action-btn">
-                        <div class="action-icon">
-                            <ion-icon name="location-outline"></ion-icon>
-                        </div>
-                        <div class="action-text">
-                            <h4>Novo Ponto</h4>
-                            <p>Cadastrar ponto de medição</p>
-                        </div>
-                        <ion-icon name="chevron-forward-outline" class="action-arrow"></ion-icon>
-                    </a>
-
-                    <a href="cadastrosAuxiliares.php" class="quick-action-btn">
-                        <div class="action-icon">
-                            <ion-icon name="settings-outline"></ion-icon>
-                        </div>
-                        <div class="action-text">
-                            <h4>Configurações</h4>
-                            <p>Cadastros auxiliares</p>
-                        </div>
-                        <ion-icon name="chevron-forward-outline" class="action-arrow"></ion-icon>
-                    </a>
-                </div>
-            </div>
-
-            <!-- Status do Sistema -->
-            <div class="content-card">
-                <div class="content-card-header">
-                    <div class="content-card-title">
-                        <ion-icon name="pulse-outline"></ion-icon>
-                        Status do Sistema
-                    </div>
-                </div>
-                <div class="status-widget">
-                    <div class="status-item">
-                        <div class="status-item-info">
-                            <span class="status-dot success"></span>
-                            <span class="status-item-label">Banco de Dados</span>
-                        </div>
-                        <span class="status-item-value success">Online</span>
-                    </div>
-
-                    <div class="status-item">
-                        <div class="status-item-info">
-                            <span class="status-dot success"></span>
-                            <span class="status-item-label">Servidor LDAP</span>
-                        </div>
-                        <span class="status-item-value success">Conectado</span>
-                    </div>
-
-                    <div class="status-item">
-                        <div class="status-item-info">
-                            <span class="status-dot <?= $totalManutencoes > 0 ? 'warning' : 'success' ?>"></span>
-                            <span class="status-item-label">Programações Previstas</span>
-                        </div>
-                        <span class="status-item-value <?= $totalManutencoes > 0 ? 'warning' : 'success' ?>">
-                            <?= $totalManutencoes > 0 ? $totalManutencoes . ' pendente(s)' : 'Nenhuma' ?>
-                        </span>
-                    </div>
-
-                    <div class="status-item">
-                        <div class="status-item-info">
-                            <span class="status-dot success"></span>
-                            <span class="status-item-label">Seu Grupo</span>
-                        </div>
-                        <span class="status-item-value"><?= htmlspecialchars($_SESSION['grupo'] ?? 'N/A') ?></span>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+    alert('teste');
+// Variável global do gráfico
+let graficoEvolucao = null;
+let dadosCarregados = false;
+
+// Caminho da API
+const API_BASE = '/bd/dashboard/getAnaliseQualidade.php';
+
+/**
+ * Formata número com separador de milhares
+ */
+function formatarNumero(num) {
+    return new Intl.NumberFormat('pt-BR').format(num);
+}
+
+/**
+ * Carrega todos os dados de análise
+ */
+async function carregarAnalise() {
+    // Mostrar loading
+    document.getElementById('btn-carregar-analise').disabled = true;
+    document.getElementById('btn-carregar-analise').innerHTML = '<ion-icon name="sync-outline" class="loading-spinner"></ion-icon> Carregando...';
+    
+    const dias = document.getElementById('filtro-dias').value;
+    const unidade = document.getElementById('filtro-unidade').value;
+    
+    // Construir parâmetros
+    let params = `dias=${dias}`;
+    if (unidade) params += `&cd_unidade=${unidade}`;
+    
+    try {
+        // Carregar em paralelo
+        await Promise.all([
+            carregarResumo(params),
+            carregarRankingDescarte(params),
+            carregarRankingIntegridade(params),
+            carregarEvolucao(params)
+        ]);
+        
+        dadosCarregados = true;
+    } catch (error) {
+        console.error('Erro ao carregar análise:', error);
+    } finally {
+        // Restaurar botão
+        document.getElementById('btn-carregar-analise').disabled = false;
+        document.getElementById('btn-carregar-analise').innerHTML = '<ion-icon name="refresh-outline"></ion-icon> Atualizar Análise';
+    }
+}
+
+/**
+ * Carrega resumo geral
+ */
+async function carregarResumo(params) {
+    // Mostrar loading nos cards
+    document.getElementById('total-registros').textContent = '...';
+    document.getElementById('taxa-descarte').textContent = '...';
+    document.getElementById('dias-bom').textContent = '...';
+    document.getElementById('dias-regular').textContent = '...';
+    document.getElementById('dias-pessimo').textContent = '...';
+    
+    try {
+        const response = await fetch(`${API_BASE}?tipo=resumo&${params}`);
+        const text = await response.text();
+        
+        // Debug - mostrar resposta bruta se não for JSON válido
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('Resposta não é JSON válido:', text);
+            return;
+        }
+        
+        if (data.success) {
+            document.getElementById('total-registros').textContent = formatarNumero(data.totais.total_registros);
+            document.getElementById('taxa-descarte').textContent = (data.totais.taxa_descarte_geral || 0).toFixed(1) + '%';
+            document.getElementById('dias-bom').textContent = formatarNumero(data.integridade_diaria.BOM || 0);
+            document.getElementById('dias-regular').textContent = formatarNumero(data.integridade_diaria.REGULAR || 0);
+            document.getElementById('dias-pessimo').textContent = formatarNumero(data.integridade_diaria.PESSIMO || 0);
+        } else {
+            console.error('Erro no resumo:', data.message);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar resumo:', error);
+    }
+}
+
+/**
+ * Carrega ranking de descarte
+ */
+async function carregarRankingDescarte(params) {
+    const container = document.getElementById('ranking-descarte');
+    
+    // Mostrar loading
+    container.innerHTML = `<li class="loading-state"><ion-icon name="sync-outline" class="loading-spinner"></ion-icon><p>Carregando...</p></li>`;
+    
+    try {
+        const response = await fetch(`${API_BASE}?tipo=descarte&limite=5&${params}`);
+        const text = await response.text();
+        
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('Resposta descarte não é JSON:', text);
+            container.innerHTML = `<li class="empty-state"><ion-icon name="alert-circle-outline"></ion-icon><p>Erro: resposta inválida</p></li>`;
+            return;
+        }
+        
+        if (data.success && data.data && data.data.length > 0) {
+            container.innerHTML = data.data.map((item, idx) => `
+                <li class="ranking-item" onclick="window.location.href='registroVazaoPressao.php?cdPonto=${item.CD_PONTO_MEDICAO}'">
+                    <div class="ranking-posicao ${idx < 3 ? 'top' + (idx + 1) : 'normal'}">${idx + 1}</div>
+                    <div class="ranking-tipo ${item.TIPO_MEDIDOR_LETRA}">${item.TIPO_MEDIDOR_LETRA}</div>
+                    <div class="ranking-info">
+                        <div class="ranking-nome">${item.CD_PONTO_MEDICAO} - ${item.DS_PONTO || 'N/I'}</div>
+                        <div class="ranking-local">${item.DS_UNIDADE || ''} ${item.DS_LOCALIDADE ? '• ' + item.DS_LOCALIDADE : ''}</div>
+                    </div>
+                    <div class="ranking-stats">
+                        <div class="ranking-valor pessimo">${(item.TAXA_DESCARTE || 0).toFixed(1)}%</div>
+                        <div class="ranking-detalhe">${formatarNumero(item.REGISTROS_DESCARTADOS || 0)} descartados</div>
+                    </div>
+                </li>
+            `).join('');
+        } else {
+            container.innerHTML = `
+                <li class="empty-state">
+                    <ion-icon name="checkmark-circle-outline"></ion-icon>
+                    <p>${data.message || 'Nenhum descarte no período'}</p>
+                </li>
+            `;
+        }
+    } catch (error) {
+        console.error('Erro ao carregar ranking descarte:', error);
+        container.innerHTML = `
+            <li class="empty-state">
+                <ion-icon name="alert-circle-outline"></ion-icon>
+                <p>Erro ao carregar dados</p>
+            </li>
+        `;
+    }
+}
+
+/**
+ * Carrega ranking de integridade (piores)
+ */
+async function carregarRankingIntegridade(params) {
+    const container = document.getElementById('ranking-integridade');
+    
+    // Mostrar loading
+    container.innerHTML = `<li class="loading-state"><ion-icon name="sync-outline" class="loading-spinner"></ion-icon><p>Carregando...</p></li>`;
+    
+    try {
+        const response = await fetch(`${API_BASE}?tipo=integridade&limite=5&ordem=piores&${params}`);
+        const text = await response.text();
+        
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('Resposta integridade não é JSON:', text);
+            container.innerHTML = `<li class="empty-state"><ion-icon name="alert-circle-outline"></ion-icon><p>Erro: resposta inválida</p></li>`;
+            return;
+        }
+        
+        if (data.success && data.data && data.data.length > 0) {
+            container.innerHTML = data.data.map((item, idx) => {
+                const classificacao = (item.CLASSIFICACAO || 'PESSIMO').toLowerCase();
+                const percentual = item.PERCENTUAL_INTEGRIDADE || 0;
+                
+                return `
+                <li class="ranking-item" onclick="window.location.href='registroVazaoPressao.php?cdPonto=${item.CD_PONTO_MEDICAO}'">
+                    <div class="ranking-posicao ${idx < 3 ? 'top' + (idx + 1) : 'normal'}">${idx + 1}</div>
+                    <div class="ranking-tipo ${item.TIPO_MEDIDOR_LETRA}">${item.TIPO_MEDIDOR_LETRA}</div>
+                    <div class="ranking-info">
+                        <div class="ranking-nome">${item.CD_PONTO_MEDICAO} - ${item.DS_PONTO || 'N/I'}</div>
+                        <div class="ranking-local">${item.DS_UNIDADE || ''} ${item.DS_LOCALIDADE ? '• ' + item.DS_LOCALIDADE : ''}</div>
+                    </div>
+                    <div class="ranking-stats">
+                        <div class="ranking-valor ${classificacao}">${percentual.toFixed(1)}%</div>
+                        <div class="ranking-detalhe">
+                            <span class="badge-classificacao ${classificacao}">${item.CLASSIFICACAO || 'N/I'}</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill ${classificacao}" style="width: ${Math.min(percentual, 100)}%"></div>
+                        </div>
+                    </div>
+                </li>
+            `}).join('');
+        } else {
+            container.innerHTML = `
+                <li class="empty-state">
+                    <ion-icon name="analytics-outline"></ion-icon>
+                    <p>${data.message || 'Sem dados no período'}</p>
+                </li>
+            `;
+        }
+    } catch (error) {
+        console.error('Erro ao carregar ranking integridade:', error);
+        container.innerHTML = `
+            <li class="empty-state">
+                <ion-icon name="alert-circle-outline"></ion-icon>
+                <p>Erro ao carregar dados</p>
+            </li>
+        `;
+    }
+}
+
+/**
+ * Carrega e renderiza gráfico de evolução
+ */
+async function carregarEvolucao(params) {
+    try {
+        const response = await fetch(`${API_BASE}?tipo=evolucao&${params}`);
+        const text = await response.text();
+        
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('Resposta evolução não é JSON:', text);
+            return;
+        }
+        
+        if (data.success && data.data && data.data.length > 0) {
+            renderizarGrafico(data.data);
+        } else {
+            console.log('Sem dados para gráfico:', data.message);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar evolução:', error);
+    }
+}
+
+/**
+ * Renderiza gráfico com Chart.js
+ */
+function renderizarGrafico(dados) {
+    // Esconder placeholder e mostrar canvas
+    const placeholder = document.getElementById('grafico-placeholder');
+    const canvas = document.getElementById('grafico-evolucao');
+    const legenda = document.getElementById('grafico-legenda');
+    
+    if (placeholder) placeholder.style.display = 'none';
+    if (canvas) canvas.style.display = 'block';
+    if (legenda) legenda.style.display = 'flex';
+    
+    const ctx = canvas.getContext('2d');
+    
+    // Destruir gráfico anterior se existir
+    if (graficoEvolucao) {
+        graficoEvolucao.destroy();
+    }
+    
+    const labels = dados.map(d => {
+        const dt = new Date(d.DT_DIA);
+        return dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    });
+    
+    const validos = dados.map(d => d.REGISTROS_VALIDOS);
+    const descartados = dados.map(d => d.REGISTROS_DESCARTADOS);
+    
+    graficoEvolucao = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Registros Válidos',
+                    data: validos,
+                    backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Descartados',
+                    data: descartados,
+                    backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                    borderColor: '#ef4444',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleFont: { size: 12 },
+                    bodyFont: { size: 11 },
+                    padding: 10,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + formatarNumero(context.raw);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { 
+                        font: { size: 10 },
+                        color: '#64748b'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#f1f5f9' },
+                    ticks: { 
+                        font: { size: 10 },
+                        color: '#64748b',
+                        callback: function(value) {
+                            return formatarNumero(value);
+                        }
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+    });
+}
+
+// Inicialização - NÃO carrega dados automaticamente (consultas pesadas)
+document.addEventListener('DOMContentLoaded', function() {
+    // Página pronta - dados serão carregados ao clicar no botão
+    console.log('Página carregada. Clique em "Carregar Análise" para buscar os dados.');
+});
+</script>
 
 <?php include_once 'includes/footer.inc.php'; ?>

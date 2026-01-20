@@ -961,31 +961,6 @@ if (isset($_SESSION['msg'])) {
     <div class="sidebar-divider"></div>
 
     <!-- Seção: Administração -->
-    <div class="sidebar-section">
-        <div class="sidebar-section-title" onclick="toggleSection(this)" data-section="monitoramento">
-            <span class="section-icon">
-                <ion-icon name="shield-checkmark-outline"></ion-icon>
-                <span>Monitoramento</span>
-            </span>
-            <ion-icon name="chevron-down-outline" class="toggle-icon"></ion-icon>
-        </div>
-        <div class="sidebar-section-content" id="section-monitoramento">
-            <ul class="sidebar-nav">
-                <li class="sidebar-item">
-                    <a href="dashboardSaude.php"
-                        class="sidebar-link <?= $paginaAtual === 'dashboardSaude' ? 'active' : '' ?>"
-                        data-title="Dashboard">
-                        <ion-icon name="shield-checkmark-outline"></ion-icon>
-                        <span class="sidebar-link-text">Dashboard</span>
-                    </a>
-                </li>
-            </ul>
-        </div>
-    </div>
-
-    <div class="sidebar-divider"></div>
-
-    <!-- Seção: Administração -->
     <!-- Seção: Administração -->
     <div class="sidebar-section">
         <div class="sidebar-section-title" onclick="toggleSection(this)" data-section="administracao">
