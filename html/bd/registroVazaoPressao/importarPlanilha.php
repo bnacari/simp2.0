@@ -1,6 +1,7 @@
 <?php
 /**
- * SIMP - Importacao de Planilha de Registro de Vazao e Pressao
+ * SIMP - Importação de Planilha de Registro de Vazão e Pressão
+ * COM REGISTRO DE LOG
  * CORRIGIDO: Converte data para formato YYYY-MM-DD
  */
 
@@ -32,12 +33,12 @@ try {
     session_start();
     
     if (!isset($_SESSION['sucesso']) || $_SESSION['sucesso'] != 1) {
-        die(json_encode(['success' => false, 'message' => 'Nao autenticado']));
+        die(json_encode(['success' => false, 'message' => 'Não autenticado']));
     }
     
     $cdUsuario = $_SESSION['cd_usuario'] ?? null;
     if (!$cdUsuario) {
-        die(json_encode(['success' => false, 'message' => 'Usuario nao identificado']));
+        die(json_encode(['success' => false, 'message' => 'Usuário não identificado']));
     }
     
     $json = file_get_contents('php://input');
@@ -52,7 +53,7 @@ try {
         die(json_encode(['success' => false, 'message' => 'Nenhum registro recebido']));
     }
     
-    // Parametros
+    // Parâmetros
     $sobrescrever = isset($dados['sobrescrever']) && $dados['sobrescrever'] === true;
     $dataEventoMedicao = isset($dados['dataEventoMedicao']) ? trim($dados['dataEventoMedicao']) : null;
     $tipoVazao = isset($dados['tipoVazao']) ? (int)$dados['tipoVazao'] : 2;
@@ -61,13 +62,14 @@ try {
     $observacao = isset($dados['observacao']) && trim($dados['observacao']) !== '' ? substr(trim($dados['observacao']), 0, 200) : null;
     
     if (!$dataEventoMedicao) {
-        die(json_encode(['success' => false, 'message' => 'Data do Evento de Medicao obrigatoria']));
+        die(json_encode(['success' => false, 'message' => 'Data do Evento de Medição obrigatória']));
     }
     
     include_once '../conexao.php';
+    @include_once '../logHelper.php';
     
     if (!isset($pdoSIMP)) {
-        die(json_encode(['success' => false, 'message' => 'Erro conexao']));
+        die(json_encode(['success' => false, 'message' => 'Erro conexão']));
     }
     
     $registros = $dados['registros'];
@@ -84,29 +86,36 @@ try {
     foreach (array_keys($dadosPorPonto) as $cod) {
         $codInt = (int)$cod;
         
-        $sql = "SELECT CD_PONTO_MEDICAO, DS_NOME, ID_TIPO_MEDIDOR, OP_PERIODICIDADE_LEITURA 
-                FROM PONTO_MEDICAO 
-                WHERE CD_PONTO_MEDICAO = ?";
+        $sql = "SELECT PM.CD_PONTO_MEDICAO, PM.DS_NOME, PM.ID_TIPO_MEDIDOR, PM.OP_PERIODICIDADE_LEITURA, L.CD_UNIDADE 
+                FROM PONTO_MEDICAO PM
+                LEFT JOIN LOCALIDADE L ON L.CD_CHAVE = PM.CD_LOCALIDADE
+                WHERE PM.CD_PONTO_MEDICAO = ?";
         $stmt = $pdoSIMP->prepare($sql);
         $stmt->execute([$codInt]);
-        $pt = $stmt->fetch(PDO::FETCH_ASSOC);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        if ($pt) {
-            $pontosMap[$cod] = $pt;
+        if ($row) {
+            $pontosMap[$cod] = $row;
         }
     }
     
-    // Verificar pontos nao encontrados
-    $pontosNaoEncontrados = [];
+    // Verificar pontos não encontrados
+    $naoEncontrados = [];
     foreach (array_keys($dadosPorPonto) as $cod) {
         if (!isset($pontosMap[$cod])) {
-            $pontosNaoEncontrados[] = $cod;
+            $naoEncontrados[] = $cod;
         }
     }
     
-    if (!empty($pontosNaoEncontrados)) {
-        die(json_encode(['success' => false, 'message' => 'Ponto(s) nao encontrado(s): ' . implode(', ', $pontosNaoEncontrados)]));
+    if (!empty($naoEncontrados)) {
+        die(json_encode([
+            'success' => false, 
+            'message' => 'Ponto(s) de medição não encontrado(s): ' . implode(', ', $naoEncontrados)
+        ]));
     }
+    
+    // Iniciar transação
+    $pdoSIMP->beginTransaction();
     
     $erros = [];
     $avisos = [];
@@ -114,32 +123,17 @@ try {
     $totalRegistros = 0;
     $totalSobrescritos = 0;
     
-    // Iniciar transacao
-    $pdoSIMP->beginTransaction();
-    
-    $nomesTipoMedidor = [
-        1 => 'Macromedidor',
-        2 => 'Estacao Pitometrica',
-        4 => 'Medidor de Pressao',
-        6 => 'Nivel Reservatorio',
-        8 => 'Hidrometro'
-    ];
-    
-    foreach ($dadosPorPonto as $cod => $regs) {
-        $pt = $pontosMap[$cod];
-        $cdPonto = $pt['CD_PONTO_MEDICAO'];
-        $nomePonto = $cdPonto . ' - ' . trim($pt['DS_NOME']);
-        $tipoMedidor = (int)$pt['ID_TIPO_MEDIDOR'];
+    foreach ($dadosPorPonto as $codPonto => $regs) {
+        $ponto = $pontosMap[$codPonto];
+        $cdPonto = $ponto['CD_PONTO_MEDICAO'];
+        $nomePonto = $ponto['DS_NOME'];
+        $tipoMedidor = $ponto['ID_TIPO_MEDIDOR'];
+        $cdUnidadePonto = $ponto['CD_UNIDADE'] ?? null;
         
-        // Tipo 6 nao permitido
-        if ($tipoMedidor === 6) {
-            $erros[] = "Ponto $nomePonto: Nao e possivel importar para Nivel de Reservatorio";
-            continue;
-        }
-        
-        $isMacromedidor = in_array($tipoMedidor, [1, 2, 8]);
-        $isMedidorPressao = ($tipoMedidor === 4);
-        $nomeTipo = $nomesTipoMedidor[$tipoMedidor] ?? "Tipo $tipoMedidor";
+        // Verificar tipo de medidor
+        $isMacromedidor = in_array($tipoMedidor, [1, 2, 3]);
+        $isMedidorPressao = ($tipoMedidor == 4);
+        $nomeTipo = $isMacromedidor ? "Macromedidor" : ($isMedidorPressao ? "Medidor de Pressão" : "Tipo $tipoMedidor");
         
         // Validar registros
         $registrosValidos = [];
@@ -151,14 +145,14 @@ try {
                 $temPeriodo = isset($reg['periodo']) && $reg['periodo'] !== null && $reg['periodo'] !== '';
                 
                 if (!$temVolume || !$temPeriodo) {
-                    $erros[] = "Linha $linha - Ponto $nomePonto: VOLUME e PERIODO obrigatorios para $nomeTipo";
+                    $erros[] = "Linha $linha - Ponto $nomePonto: VOLUME e PERIODO obrigatórios para $nomeTipo";
                     continue;
                 }
             } elseif ($isMedidorPressao) {
                 $temPressao = isset($reg['pressao']) && $reg['pressao'] !== null && $reg['pressao'] !== '';
                 
                 if (!$temPressao) {
-                    $erros[] = "Linha $linha - Ponto $nomePonto: PRESSAO obrigatoria para $nomeTipo";
+                    $erros[] = "Linha $linha - Ponto $nomePonto: PRESSAO obrigatória para $nomeTipo";
                     continue;
                 }
             }
@@ -186,7 +180,7 @@ try {
             $dataISO = converterDataParaISO($reg['data']);
             $dtLeitura = $dataISO . ' ' . $reg['hora'];
             
-            // Calcular vazao efetiva
+            // Calcular vazão efetiva
             $vazaoEfetiva = null;
             if ($isMacromedidor && isset($reg['volume']) && isset($reg['periodo']) && $reg['periodo'] > 0) {
                 $vazaoEfetiva = ($reg['volume'] * 1000) / $reg['periodo'];
@@ -249,7 +243,7 @@ try {
         
         // Avisos
         if ($countDuplicados > 0 && !$sobrescrever) {
-            $avisos[] = "Ponto $nomePonto: $countDuplicados registro(s) ignorados (ja existentes)";
+            $avisos[] = "Ponto $nomePonto: $countDuplicados registro(s) ignorados (já existentes)";
         }
         if ($countSobrescritos > 0) {
             $avisos[] = "Ponto $nomePonto: $countSobrescritos registro(s) sobrescritos";
@@ -269,6 +263,30 @@ try {
     
     // Commit
     $pdoSIMP->commit();
+    
+    // Registrar log de importação (isolado)
+    if ($totalRegistros > 0 && function_exists('registrarLogAlteracaoMassa')) {
+        try {
+            $resumoPontos = [];
+            foreach ($resumo as $r) {
+                if ($r['registros'] > 0) {
+                    $resumoPontos[] = $r['ponto'] . ' (' . $r['registros'] . ' reg.)';
+                }
+            }
+            
+            $contexto = [
+                'total_registros_importados' => $totalRegistros,
+                'total_sobrescritos' => $totalSobrescritos,
+                'pontos_afetados' => $resumoPontos,
+                'data_evento_medicao' => $dataEventoMedicao,
+                'tipo_vazao' => $tipoVazao,
+                'sobrescrever_ativado' => $sobrescrever,
+                'acao' => 'IMPORTAÇÃO DE PLANILHA'
+            ];
+            
+            registrarLogAlteracaoMassa('Registro de Vazão e Pressão', 'Registro Vazão/Pressão', $totalRegistros, 'Importação de planilha', $contexto);
+        } catch (Exception $logEx) {}
+    }
     
     // Retornar
     if ($totalRegistros > 0) {
@@ -292,10 +310,23 @@ try {
     if (isset($pdoSIMP) && $pdoSIMP->inTransaction()) {
         $pdoSIMP->rollBack();
     }
+    
+    // Registrar log de erro (isolado)
+    if (function_exists('registrarLogErro')) { 
+        try { registrarLogErro('Registro de Vazão e Pressão', 'IMPORTAR', $e->getMessage(), ['registros' => count($registros ?? [])]); } catch (Exception $ex) {} 
+    }
+    
     echo json_encode(['success' => false, 'message' => 'Erro BD: ' . $e->getMessage()]);
+
 } catch (Exception $e) {
     if (isset($pdoSIMP) && $pdoSIMP->inTransaction()) {
         $pdoSIMP->rollBack();
     }
+    
+    // Registrar log de erro (isolado)
+    if (function_exists('registrarLogErro')) { 
+        try { registrarLogErro('Registro de Vazão e Pressão', 'IMPORTAR', $e->getMessage(), ['registros' => count($registros ?? [])]); } catch (Exception $ex) {} 
+    }
+    
     echo json_encode(['success' => false, 'message' => 'Erro: ' . $e->getMessage()]);
 }
