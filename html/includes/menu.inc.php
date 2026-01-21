@@ -11,7 +11,12 @@ if (session_status() === PHP_SESSION_NONE) {
 
 $paginaAtual = basename($_SERVER['PHP_SELF'], '.php');
 
-if (strpos($_SERVER['HTTP_HOST'], 'vdesk') !== false) {
+// Determina ambiente baseado no servidor de banco de dados
+// Inclui conexão se não existir $serverName
+if (!isset($serverName)) {
+    require_once __DIR__ . '/../bd/conexao.php';
+}
+if (strpos($serverName, 'sgbd-hom-') !== false) {
     $ambiente = "HOMOLOGAÇÃO";
 } else {
     $ambiente = "PRODUÇÃO";
@@ -1057,7 +1062,7 @@ if (isset($_SESSION['msg'])) {
     // ============================================
     // Restore States on Load
     // ============================================
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
         // Restore sidebar state (desktop only)
         if (window.innerWidth > 768) {
             const sidebarState = localStorage.getItem('sidebarCollapsed');
@@ -1084,7 +1089,7 @@ if (isset($_SESSION['msg'])) {
     // ============================================
     // Handle Resize
     // ============================================
-    window.addEventListener('resize', function () {
+    window.addEventListener('resize', function() {
         const sidebar = document.getElementById('modernSidebar');
         const overlay = document.getElementById('sidebarOverlay');
 
@@ -1139,7 +1144,7 @@ if (isset($_SESSION['msg'])) {
 
 <?php if (!empty($msgSistema)): ?>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             showToast(<?= json_encode($msgSistema) ?>, 'info');
         });
     </script>
