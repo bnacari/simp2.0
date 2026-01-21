@@ -105,6 +105,18 @@ try {
         }
     }
 
+    // Buscar nome do ponto para log
+    $nomePonto = "Ponto $cdPonto";
+    try {
+        $sqlPonto = "SELECT DS_NOME FROM SIMP.dbo.PONTO_MEDICAO WHERE CD_PONTO_MEDICAO = :cdPonto";
+        $stmtPonto = $pdoSIMP->prepare($sqlPonto);
+        $stmtPonto->execute([':cdPonto' => $cdPonto]);
+        $rowPonto = $stmtPonto->fetch(PDO::FETCH_ASSOC);
+        if ($rowPonto) {
+            $nomePonto = $rowPonto['DS_NOME'];
+        }
+    } catch (Exception $e) {}
+
     // Obter usuário logado
     $cdUsuario = $_SESSION['cd_usuario'] ?? null;
     debugLog('Usuário logado', $cdUsuario);
@@ -216,6 +228,20 @@ try {
             $pdoSIMP->commit();
             debugLog('Transação commitada');
 
+            // Log (isolado)
+            try {
+                @include_once '../logHelper.php';
+                if (function_exists('registrarLog')) {
+                    $qtdHoras = count($horas);
+                    $motivoTexto = $motivo == 1 ? 'Falha' : 'Extravasou';
+                    $horasTexto = implode(', ', array_map(function($h) { return str_pad($h, 2, '0', STR_PAD_LEFT) . ':00'; }, $horas));
+                    $identificador = "$nomePonto - $data";
+                    registrarLog('Validação dos Dados', 'VALIDACAO_NIVEL', 
+                        "Validou dados de nível ($qtdHoras hora(s): $horasTexto). Motivo: $motivoTexto. $totalInativados descartados, $totalInseridos inseridos.",
+                        ['cdPonto' => $cdPonto, 'data' => $data, 'horas' => $horas, 'minutosExtravasou' => $minutosExtravasou, 'motivo' => $motivoTexto, 'identificador' => $identificador]);
+                }
+            } catch (Exception $logEx) {}
+
             $qtdHoras = count($horas);
             $motivoTexto = $motivo == 1 ? 'Falha' : 'Extravasou';
             $mensagem = "Dados de nível validados! {$totalInativados} registros descartados e {$totalInseridos} novos criados em {$qtdHoras} hora(s). Min >= 100: {$minutosExtravasou} por hora. Motivo: {$motivoTexto}.";
@@ -303,6 +329,19 @@ try {
 
             $pdoSIMP->commit();
 
+            // Log (isolado)
+            try {
+                @include_once '../logHelper.php';
+                if (function_exists('registrarLog')) {
+                    $qtdHoras = count($horas);
+                    $horasTexto = implode(', ', array_map(function($h) { return str_pad($h, 2, '0', STR_PAD_LEFT) . ':00'; }, $horas));
+                    $identificador = "$nomePonto - $data";
+                    registrarLog('Validação dos Dados', 'VALIDACAO', 
+                        "Validou dados ($qtdHoras hora(s): $horasTexto). Novo valor: $novoValor. $totalInativados descartados, $totalInseridos inseridos.",
+                        ['cdPonto' => $cdPonto, 'data' => $data, 'horas' => $horas, 'novoValor' => $novoValor, 'coluna' => $coluna, 'identificador' => $identificador]);
+                }
+            } catch (Exception $logEx) {}
+
             $qtdHoras = count($horas);
             $mensagem = $totalInativados > 0 
                 ? "Dados validados com sucesso! {$totalInativados} registros inativados e {$totalInseridos} novos registros criados em {$qtdHoras} hora(s)."
@@ -335,6 +374,16 @@ try {
         'file' => $e->getFile(),
         'line' => $e->getLine()
     ]);
+
+    // Log de erro (isolado)
+    try {
+        @include_once '../logHelper.php';
+        if (function_exists('registrarLogErro')) {
+            registrarLogErro('Validação dos Dados', 'VALIDACAO', $e->getMessage(), 
+                ['cdPonto' => $cdPonto ?? null, 'data' => $data ?? null, 'horas' => $horas ?? []]);
+        }
+    } catch (Exception $logEx) {}
+
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage(),

@@ -58,6 +58,18 @@ try {
         }
     }
 
+    // Buscar nome do ponto para log
+    $nomePonto = "Ponto $cdPonto";
+    try {
+        $sqlPonto = "SELECT DS_NOME FROM SIMP.dbo.PONTO_MEDICAO WHERE CD_PONTO_MEDICAO = :cdPonto";
+        $stmtPonto = $pdoSIMP->prepare($sqlPonto);
+        $stmtPonto->execute([':cdPonto' => $cdPonto]);
+        $rowPonto = $stmtPonto->fetch(PDO::FETCH_ASSOC);
+        if ($rowPonto) {
+            $nomePonto = $rowPonto['DS_NOME'];
+        }
+    } catch (Exception $e) {}
+
     // Definir coluna baseado no tipo de medidor
     $colunasPorTipo = [
         1 => 'VL_VAZAO_EFETIVA',
@@ -124,18 +136,33 @@ try {
                     ':valor' => $novoValor,
                     ':cdUsuarioResp' => $cdUsuario,
                     ':cdUsuarioAtu' => $cdUsuario,
-                    ':observacao' => $observacao
+                    ':observacao' => $observacao ?: 'Valor sugerido e aplicado via IA'
                 ]);
                 $totalInseridos++;
             }
             
             $horasProcessadas[] = [
-                'hora' => sprintf('%02d:00', $hora),
+                'hora' => $hora,
                 'valor' => $novoValor
             ];
         }
 
         $pdoSIMP->commit();
+
+        // Log (isolado)
+        try {
+            @include_once '../logHelper.php';
+            if (function_exists('registrarLog')) {
+                $qtdHoras = count($valores);
+                $horasTexto = implode(', ', array_map(function($v) { 
+                    return str_pad($v['hora'], 2, '0', STR_PAD_LEFT) . ':00 (' . number_format($v['valor'], 2, ',', '.') . ')'; 
+                }, $valores));
+                $identificador = "$nomePonto - $data";
+                registrarLog('Validação dos Dados', 'VALIDACAO_IA', 
+                    "Validou dados via IA ($qtdHoras hora(s)). Valores: $horasTexto. $totalInativados descartados, $totalInseridos inseridos.",
+                    ['cdPonto' => $cdPonto, 'data' => $data, 'valores' => $valores, 'identificador' => $identificador]);
+            }
+        } catch (Exception $logEx) {}
 
         $qtdHoras = count($valores);
         $mensagem = $totalInativados > 0 
@@ -156,6 +183,15 @@ try {
     }
 
 } catch (Exception $e) {
+    // Log de erro (isolado)
+    try {
+        @include_once '../logHelper.php';
+        if (function_exists('registrarLogErro')) {
+            registrarLogErro('Validação dos Dados', 'VALIDACAO_IA', $e->getMessage(), 
+                ['cdPonto' => $cdPonto ?? null, 'data' => $data ?? null, 'valores' => $valores ?? []]);
+        }
+    } catch (Exception $logEx) {}
+
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()

@@ -4,7 +4,7 @@
  * Salva ou atualiza o conteúdo único de instruções
  * 
  * @author Bruno
- * @version 2.0
+ * @version 2.1 - Com registro de log de atividades
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -39,7 +39,8 @@ try {
     $cdUsuario = isset($_SESSION['cd_usuario']) ? (int)$_SESSION['cd_usuario'] : null;
 
     // Verificar se já existe registro
-    $sqlCheck = "SELECT TOP 1 CD_CHAVE FROM SIMP.dbo.IA_REGRAS ORDER BY CD_CHAVE DESC";
+    $sqlCheck = "SELECT TOP 1 CD_CHAVE, CAST(DS_CONTEUDO AS VARCHAR(MAX)) AS DS_CONTEUDO 
+                 FROM SIMP.dbo.IA_REGRAS ORDER BY CD_CHAVE DESC";
     $stmtCheck = $pdoSIMP->query($sqlCheck);
     $registro = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
@@ -57,6 +58,28 @@ try {
             ':usuario' => $cdUsuario,
             ':cdChave' => $registro['CD_CHAVE']
         ]);
+
+        // Log de UPDATE (isolado)
+        try {
+            @include_once '../logHelper.php';
+            if (function_exists('registrarLogUpdate')) {
+                $caracteresAnteriores = strlen($registro['DS_CONTEUDO'] ?? '');
+                $caracteresNovos = strlen($conteudo);
+                registrarLogUpdate(
+                    'Treinamento IA',
+                    'Instruções da IA',
+                    $registro['CD_CHAVE'],
+                    'Regras de comportamento',
+                    [
+                        'caracteres_anteriores' => $caracteresAnteriores,
+                        'caracteres_novos' => $caracteresNovos,
+                        'diferenca' => $caracteresNovos - $caracteresAnteriores
+                    ]
+                );
+            }
+        } catch (Exception $logEx) {
+            error_log('Erro ao registrar log de UPDATE em IA_REGRAS: ' . $logEx->getMessage());
+        }
 
         echo json_encode([
             'success' => true,
@@ -79,6 +102,22 @@ try {
 
         // Pegar ID gerado
         $cdChave = $pdoSIMP->query("SELECT SCOPE_IDENTITY() AS id")->fetch(PDO::FETCH_ASSOC)['id'];
+
+        // Log de INSERT (isolado)
+        try {
+            @include_once '../logHelper.php';
+            if (function_exists('registrarLogInsert')) {
+                registrarLogInsert(
+                    'Treinamento IA',
+                    'Instruções da IA',
+                    $cdChave,
+                    'Regras de comportamento',
+                    ['caracteres' => strlen($conteudo)]
+                );
+            }
+        } catch (Exception $logEx) {
+            error_log('Erro ao registrar log de INSERT em IA_REGRAS: ' . $logEx->getMessage());
+        }
 
         echo json_encode([
             'success' => true,
