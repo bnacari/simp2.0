@@ -21,7 +21,7 @@ if (!$temPermissao) {
 }
 
 // Verifica se foi passado o ID
-$id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
 if ($id <= 0) {
     $_SESSION['msg'] = 'Cálculo de KPC não informado.';
@@ -385,7 +385,7 @@ $isAtivo = $calculoKPC['ID_SITUACAO'] == 1;
         text-align: right;
         padding-right: 12px;
     }
-    
+
     .leituras-table th.posicao-valor {
         background: #eff6ff;
         color: #3b82f6;
@@ -420,10 +420,22 @@ $isAtivo = $calculoKPC['ID_SITUACAO'] == 1;
        Responsivo
        ============================================ */
     @media (max-width: 768px) {
-        .page-container { padding: 12px; }
-        .info-grid { grid-template-columns: 1fr 1fr; }
-        .header-actions { flex-direction: column; width: 100%; }
-        .btn-header { justify-content: center; }
+        .page-container {
+            padding: 12px;
+        }
+
+        .info-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .header-actions {
+            flex-direction: column;
+            width: 100%;
+        }
+
+        .btn-header {
+            justify-content: center;
+        }
     }
 </style>
 
@@ -447,10 +459,10 @@ $isAtivo = $calculoKPC['ID_SITUACAO'] == 1;
             </div>
             <div class="header-actions">
                 <?php if ($podeEditar && $isAtivo): ?>
-                <a href="calculoKPCForm.php?id=<?= $id ?>" class="btn-header warning">
-                    <ion-icon name="create-outline"></ion-icon>
-                    Editar
-                </a>
+                    <a href="calculoKPCForm.php?id=<?= $id ?>" class="btn-header warning">
+                        <ion-icon name="create-outline"></ion-icon>
+                        Editar
+                    </a>
                 <?php endif; ?>
                 <a href="calculoKPC.php" class="btn-header">
                     <ion-icon name="arrow-back-outline"></ion-icon>
@@ -474,7 +486,8 @@ $isAtivo = $calculoKPC['ID_SITUACAO'] == 1;
                 </div>
                 <div class="info-item">
                     <span class="info-label"><ion-icon name="map-outline"></ion-icon> Localidade</span>
-                    <span class="info-value"><?= $calculoKPC['CD_LOCALIDADE'] ?> - <?= htmlspecialchars($calculoKPC['DS_LOCALIDADE']) ?></span>
+                    <span class="info-value"><?= $calculoKPC['CD_LOCALIDADE'] ?> -
+                        <?= htmlspecialchars($calculoKPC['DS_LOCALIDADE']) ?></span>
                 </div>
                 <div class="info-item">
                     <span class="info-label"><ion-icon name="speedometer-outline"></ion-icon> Ponto de Medição</span>
@@ -490,6 +503,7 @@ $isAtivo = $calculoKPC['ID_SITUACAO'] == 1;
                         <span class="badge badge-metodo"><?= $metodos[$calculoKPC['ID_METODO']] ?? 'N/A' ?></span>
                     </span>
                 </div>
+
             </div>
         </div>
     </div>
@@ -504,24 +518,36 @@ $isAtivo = $calculoKPC['ID_SITUACAO'] == 1;
             <div class="info-grid">
                 <div class="info-item">
                     <span class="info-label"><ion-icon name="resize-outline"></ion-icon> Diâmetro Nominal</span>
-                    <span class="info-value mono"><?= number_format($calculoKPC['VL_DIAMETRO_NOMINAL'], 2, ',', '.') ?> mm</span>
+                    <span class="info-value mono"><?= number_format($calculoKPC['VL_DIAMETRO_NOMINAL'], 2, ',', '.') ?>
+                        mm</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label"><ion-icon name="resize-outline"></ion-icon> Diâmetro Real</span>
-                    <span class="info-value mono"><?= number_format($calculoKPC['VL_DIAMETRO_REAL'], 2, ',', '.') ?> mm</span>
+                    <span class="info-value mono"><?= number_format($calculoKPC['VL_DIAMETRO_REAL'], 2, ',', '.') ?>
+                        mm</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label"><ion-icon name="locate-outline"></ion-icon> Última Posição</span>
+                    <span class="info-value mono">
+                        <?= number_format($ultimaPosicaoValor, 2, ',', '.') ?> mm
+                    </span>
                 </div>
                 <div class="info-item">
                     <span class="info-label"><ion-icon name="analytics-outline"></ion-icon> Projeção da TAP</span>
-                    <span class="info-value mono"><?= number_format($calculoKPC['VL_PROJECAO_TAP'], 2, ',', '.') ?> mm</span>
+                    <span class="info-value mono"><?= number_format($calculoKPC['VL_PROJECAO_TAP'], 2, ',', '.') ?>
+                        mm</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label"><ion-icon name="ellipse-outline"></ion-icon> Raio do TIP</span>
-                    <span class="info-value mono"><?= number_format($calculoKPC['VL_RAIO_TIP'], 2, ',', '.') ?> mm</span>
+                    <span class="info-value mono"><?= number_format($calculoKPC['VL_RAIO_TIP'], 2, ',', '.') ?>
+                        mm</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label"><ion-icon name="thermometer-outline"></ion-icon> Temperatura</span>
-                    <span class="info-value mono"><?= number_format($calculoKPC['VL_TEMPERATURA'], 1, ',', '.') ?> °C</span>
+                    <span class="info-value mono"><?= number_format($calculoKPC['VL_TEMPERATURA'], 1, ',', '.') ?>
+                        °C</span>
                 </div>
+
             </div>
         </div>
     </div>
@@ -536,19 +562,23 @@ $isAtivo = $calculoKPC['ID_SITUACAO'] == 1;
             <div class="info-grid">
                 <div class="info-item">
                     <span class="info-label"><ion-icon name="pulse-outline"></ion-icon> Fator de Velocidade</span>
-                    <span class="info-value mono"><?= number_format($calculoKPC['VL_FATOR_VELOCIDADE'], 10, '.', '') ?></span>
+                    <span
+                        class="info-value mono"><?= number_format($calculoKPC['VL_FATOR_VELOCIDADE'], 10, '.', '') ?></span>
                 </div>
                 <div class="info-item">
                     <span class="info-label"><ion-icon name="expand-outline"></ion-icon> Correção Diâmetro</span>
-                    <span class="info-value mono"><?= number_format($calculoKPC['VL_CORRECAO_DIAMETRO'], 6, '.', '') ?></span>
+                    <span
+                        class="info-value mono"><?= number_format($calculoKPC['VL_CORRECAO_DIAMETRO'], 6, '.', '') ?></span>
                 </div>
                 <div class="info-item">
                     <span class="info-label"><ion-icon name="git-merge-outline"></ion-icon> Correção Projeção TAP</span>
-                    <span class="info-value mono"><?= number_format($calculoKPC['VL_CORRECAO_PROJECAO_TAP'], 2, '.', '') ?></span>
+                    <span
+                        class="info-value mono"><?= number_format($calculoKPC['VL_CORRECAO_PROJECAO_TAP'], 2, '.', '') ?></span>
                 </div>
                 <div class="info-item">
                     <span class="info-label"><ion-icon name="scan-outline"></ion-icon> Área Efetiva</span>
-                    <span class="info-value mono"><?= number_format($calculoKPC['VL_AREA_EFETIVA'], 6, '.', '') ?> m²</span>
+                    <span class="info-value mono"><?= number_format($calculoKPC['VL_AREA_EFETIVA'], 6, '.', '') ?>
+                        m²</span>
                 </div>
                 <div class="info-item destaque">
                     <span class="info-label"><ion-icon name="star-outline"></ion-icon> KPC</span>
@@ -556,7 +586,8 @@ $isAtivo = $calculoKPC['ID_SITUACAO'] == 1;
                 </div>
                 <div class="info-item destaque">
                     <span class="info-label"><ion-icon name="water-outline"></ion-icon> Vazão</span>
-                    <span class="info-value grande"><?= $calculoKPC['VL_VAZAO'] ? number_format($calculoKPC['VL_VAZAO'], 2, ',', '.') . ' L/s' : 'N/A' ?></span>
+                    <span
+                        class="info-value grande"><?= $calculoKPC['VL_VAZAO'] ? number_format($calculoKPC['VL_VAZAO'], 2, ',', '.') . ' L/s' : 'N/A' ?></span>
                 </div>
             </div>
         </div>
@@ -592,10 +623,10 @@ $isAtivo = $calculoKPC['ID_SITUACAO'] == 1;
                     </span>
                 </div>
                 <?php if ($calculoKPC['DS_OBSERVACAO']): ?>
-                <div class="info-item" style="grid-column: span 2;">
-                    <span class="info-label"><ion-icon name="chatbox-outline"></ion-icon> Observação</span>
-                    <span class="info-value"><?= htmlspecialchars($calculoKPC['DS_OBSERVACAO']) ?></span>
-                </div>
+                    <div class="info-item" style="grid-column: span 2;">
+                        <span class="info-label"><ion-icon name="chatbox-outline"></ion-icon> Observação</span>
+                        <span class="info-value"><?= htmlspecialchars($calculoKPC['DS_OBSERVACAO']) ?></span>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>
@@ -614,45 +645,45 @@ $isAtivo = $calculoKPC['ID_SITUACAO'] == 1;
                         <tr>
                             <th class="posicao" style="min-width: 100px;">Pontos:</th>
                             <?php for ($ponto = 1; $ponto <= 11; $ponto++): ?>
-                            <th><?= $ponto ?></th>
+                                <th><?= $ponto ?></th>
                             <?php endfor; ?>
                         </tr>
                         <tr>
                             <th class="posicao">Posição(mm):</th>
                             <?php foreach ($posicoesCalculadas as $pos): ?>
-                            <th class="posicao-valor"><?= number_format($pos, 2, ',', '.') ?></th>
+                                <th class="posicao-valor"><?= number_format($pos, 2, ',', '.') ?></th>
                             <?php endforeach; ?>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php 
+                        <?php
                         // 20 linhas de leitura
-                        for ($leitura = 1; $leitura <= 20; $leitura++): 
-                        ?>
-                        <tr>
-                            <td class="posicao-label">Leitura <?= $leitura ?>:</td>
-                            <?php for ($ponto = 1; $ponto <= 11; $ponto++): ?>
-                            <td>
-                                <?php if (isset($leiturasOrganizadas[$leitura][$ponto])): ?>
-                                    <?= number_format($leiturasOrganizadas[$leitura][$ponto]['deflexao'], 2, ',', '.') ?>
-                                <?php else: ?>
-                                    <span style="color: #94a3b8;">-</span>
-                                <?php endif; ?>
-                            </td>
-                            <?php endfor; ?>
-                        </tr>
+                        for ($leitura = 1; $leitura <= 20; $leitura++):
+                            ?>
+                            <tr>
+                                <td class="posicao-label">Leitura <?= $leitura ?>:</td>
+                                <?php for ($ponto = 1; $ponto <= 11; $ponto++): ?>
+                                    <td>
+                                        <?php if (isset($leiturasOrganizadas[$leitura][$ponto])): ?>
+                                            <?= number_format($leiturasOrganizadas[$leitura][$ponto]['deflexao'], 2, ',', '.') ?>
+                                        <?php else: ?>
+                                            <span style="color: #94a3b8;">-</span>
+                                        <?php endif; ?>
+                                    </td>
+                                <?php endfor; ?>
+                            </tr>
                         <?php endfor; ?>
                         <!-- Linha de Médias das Deflexões -->
                         <tr>
                             <td class="media-row">Média das<br>Deflexões:</td>
                             <?php for ($ponto = 1; $ponto <= 11; $ponto++): ?>
-                            <td class="media-row">
-                                <?php if (isset($leiturasOrganizadas[21][$ponto])): ?>
-                                    <?= number_format($leiturasOrganizadas[21][$ponto]['deflexao'], 2, ',', '.') ?>
-                                <?php else: ?>
-                                    <span style="color: #92400e;">-</span>
-                                <?php endif; ?>
-                            </td>
+                                <td class="media-row">
+                                    <?php if (isset($leiturasOrganizadas[21][$ponto])): ?>
+                                        <?= number_format($leiturasOrganizadas[21][$ponto]['deflexao'], 2, ',', '.') ?>
+                                    <?php else: ?>
+                                        <span style="color: #92400e;">-</span>
+                                    <?php endif; ?>
+                                </td>
                             <?php endfor; ?>
                         </tr>
                     </tbody>
@@ -680,146 +711,146 @@ $isAtivo = $calculoKPC['ID_SITUACAO'] == 1;
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
 <script>
-// ============================================
-// Dados para o Gráfico - Curva de Velocidade
-// ============================================
-// Coletar médias das deflexões por ponto
-const dadosGrafico = [];
-<?php
-// Percorre os 11 pontos e pega a média de cada um (linha 21)
-for ($ponto = 1; $ponto <= 11; $ponto++) {
-    if (isset($leiturasOrganizadas[21][$ponto])) {
-        $posicao = $posicoesCalculadas[$ponto];
-        $deflexao = $leiturasOrganizadas[21][$ponto]['deflexao'];
-        echo "dadosGrafico.push({ posicao: {$posicao}, deflexao: {$deflexao} });\n";
+    // ============================================
+    // Dados para o Gráfico - Curva de Velocidade
+    // ============================================
+    // Coletar médias das deflexões por ponto
+    const dadosGrafico = [];
+    <?php
+    // Percorre os 11 pontos e pega a média de cada um (linha 21)
+    for ($ponto = 1; $ponto <= 11; $ponto++) {
+        if (isset($leiturasOrganizadas[21][$ponto])) {
+            $posicao = $posicoesCalculadas[$ponto];
+            $deflexao = $leiturasOrganizadas[21][$ponto]['deflexao'];
+            echo "dadosGrafico.push({ posicao: {$posicao}, deflexao: {$deflexao} });\n";
+        }
     }
-}
-?>
+    ?>
 
-// Ordenar por posição (para garantir curva correta)
-dadosGrafico.sort((a, b) => a.posicao - b.posicao);
+    // Ordenar por posição (para garantir curva correta)
+    dadosGrafico.sort((a, b) => a.posicao - b.posicao);
 
-// Calcular limites dinâmicos dos eixos
-const maxPosicao = Math.max(...dadosGrafico.map(d => d.posicao));
-const maxDeflexao = Math.max(...dadosGrafico.map(d => d.deflexao));
+    // Calcular limites dinâmicos dos eixos
+    const maxPosicao = Math.max(...dadosGrafico.map(d => d.posicao));
+    const maxDeflexao = Math.max(...dadosGrafico.map(d => d.deflexao));
 
-// Arredondar para cima para ter margem
-const limiteY = Math.ceil(maxPosicao / 10) * 10 + 10;
-const limiteX = Math.ceil(maxDeflexao / 10) * 10 + 10;
+    // Arredondar para cima para ter margem
+    const limiteY = Math.ceil(maxPosicao / 10) * 10 + 10;
+    const limiteX = Math.ceil(maxDeflexao / 10) * 10 + 10;
 
-// Registrar plugin de datalabels
-Chart.register(ChartDataLabels);
+    // Registrar plugin de datalabels
+    Chart.register(ChartDataLabels);
 
-// Criar gráfico Scatter com linha e labels nos pontos
-const ctx = document.getElementById('graficoVelocidade').getContext('2d');
-new Chart(ctx, {
-    type: 'scatter',
-    data: {
-        datasets: [{
-            label: 'Curva de Velocidade',
-            data: dadosGrafico.map(d => ({ x: d.deflexao, y: d.posicao })),
-            borderColor: '#c9a227',
-            backgroundColor: '#c9a227',
-            showLine: true,
-            tension: 0.4,
-            pointRadius: 5,
-            pointBackgroundColor: '#c9a227',
-            pointBorderColor: '#ffffff',
-            pointBorderWidth: 2,
-            pointHoverRadius: 8
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: {
-            padding: {
-                top: 20,
-                right: 100,
-                bottom: 20,
-                left: 20
-            }
+    // Criar gráfico Scatter com linha e labels nos pontos
+    const ctx = document.getElementById('graficoVelocidade').getContext('2d');
+    new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Curva de Velocidade',
+                data: dadosGrafico.map(d => ({ x: d.deflexao, y: d.posicao })),
+                borderColor: '#c9a227',
+                backgroundColor: '#c9a227',
+                showLine: true,
+                tension: 0.4,
+                pointRadius: 5,
+                pointBackgroundColor: '#c9a227',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 8
+            }]
         },
-        plugins: {
-            legend: {
-                display: false
-            },
-            title: {
-                display: true,
-                text: 'Curva de Velocidade',
-                font: {
-                    size: 16,
-                    weight: 'bold'
-                }
-            },
-            subtitle: {
-                display: true,
-                text: 'Deflexão Média (mm)',
-                font: {
-                    size: 12
-                }
-            },
-            tooltip: {
-                enabled: false
-            },
-            datalabels: {
-                display: true,
-                align: 'right',
-                anchor: 'end',
-                offset: 6,
-                color: '#666',
-                font: {
-                    size: 10,
-                    weight: 'bold'
-                },
-                formatter: function(value, context) {
-                    // Formato: "posição: deflexão"
-                    return value.y.toFixed(0) + ': ' + value.x.toFixed(4);
-                },
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                borderRadius: 3,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
                 padding: {
-                    top: 2,
-                    bottom: 2,
-                    left: 4,
-                    right: 4
+                    top: 20,
+                    right: 100,
+                    bottom: 20,
+                    left: 20
                 }
-            }
-        },
-        scales: {
-            x: {
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
                 title: {
+                    display: true,
+                    text: 'Curva de Velocidade',
+                    font: {
+                        size: 16,
+                        weight: 'bold'
+                    }
+                },
+                subtitle: {
                     display: true,
                     text: 'Deflexão Média (mm)',
                     font: {
-                        size: 12,
-                        weight: 'bold'
+                        size: 12
                     }
                 },
-                min: 0,
-                max: limiteX,
-                grid: {
-                    color: '#e5e7eb'
+                tooltip: {
+                    enabled: false
+                },
+                datalabels: {
+                    display: true,
+                    align: 'right',
+                    anchor: 'end',
+                    offset: 6,
+                    color: '#666',
+                    font: {
+                        size: 10,
+                        weight: 'bold'
+                    },
+                    formatter: function (value, context) {
+                        // Formato: "posição: deflexão"
+                        return value.y.toFixed(0) + ': ' + value.x.toFixed(4);
+                    },
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                    borderRadius: 3,
+                    padding: {
+                        top: 2,
+                        bottom: 2,
+                        left: 4,
+                        right: 4
+                    }
                 }
             },
-            y: {
-                title: {
-                    display: true,
-                    text: 'Posição (mm)',
-                    font: {
-                        size: 12,
-                        weight: 'bold'
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Deflexão Média (mm)',
+                        font: {
+                            size: 12,
+                            weight: 'bold'
+                        }
+                    },
+                    min: 0,
+                    max: limiteX,
+                    grid: {
+                        color: '#e5e7eb'
                     }
                 },
-                min: 0,
-                max: limiteY,
-                grid: {
-                    color: '#e5e7eb'
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Posição (mm)',
+                        font: {
+                            size: 12,
+                            weight: 'bold'
+                        }
+                    },
+                    min: 0,
+                    max: limiteY,
+                    grid: {
+                        color: '#e5e7eb'
+                    }
                 }
             }
         }
-    }
-});
+    });
 </script>
 
 <?php include_once 'includes/footer.inc.php'; ?>

@@ -47,846 +47,7 @@ $metodos = [
 <!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
-<style>
-    /* ============================================
-       Select2 Customização (igual pontoMedicao.php)
-       ============================================ */
-    .select2-container {
-        width: 100% !important;
-    }
-
-    .select2-container--default .select2-selection--single {
-        height: 44px;
-        padding: 8px 14px;
-        background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        transition: all 0.2s ease;
-    }
-
-    .select2-container--default.select2-container--focus .select2-selection--single,
-    .select2-container--default.select2-container--open .select2-selection--single {
-        background-color: #ffffff;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        color: #334155;
-        font-size: 13px;
-        line-height: 26px;
-        padding-left: 0;
-    }
-
-    .select2-container--default .select2-selection--single .select2-selection__placeholder {
-        color: #94a3b8;
-    }
-
-    .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 42px;
-        right: 10px;
-    }
-
-    .select2-dropdown {
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-        margin-top: 4px;
-        overflow: hidden;
-    }
-
-    .select2-container--default .select2-search--dropdown .select2-search__field {
-        padding: 10px 14px;
-        border: none;
-        border-bottom: 1px solid #f1f5f9;
-        font-size: 13px;
-    }
-
-    .select2-container--default .select2-results__option {
-        padding: 10px 14px;
-        font-size: 13px;
-    }
-
-    .select2-container--default .select2-results__option--highlighted[aria-selected] {
-        background-color: #eff6ff;
-        color: #3b82f6;
-    }
-
-    .select2-container--default .select2-results__option[aria-selected=true] {
-        background-color: #3b82f6;
-        color: white;
-    }
-
-    /* ============================================
-       Page Container
-       ============================================ */
-    .page-container {
-        padding: 24px;
-        max-width: 1800px;
-        margin: 0 auto;
-    }
-
-    /* ============================================
-       Page Header
-       ============================================ */
-    .page-header {
-        background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
-        border-radius: 16px;
-        padding: 28px 32px;
-        margin-bottom: 24px;
-        color: white;
-    }
-
-    .page-header-content {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 16px;
-    }
-
-    .page-header-info {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-
-    .page-header-icon {
-        width: 52px;
-        height: 52px;
-        background: rgba(255, 255, 255, 0.15);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-    }
-
-    .page-header h1 {
-        font-size: 22px;
-        font-weight: 700;
-        margin: 0 0 4px 0;
-        color: white;
-    }
-
-    .page-header-subtitle {
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.7);
-        margin: 0;
-    }
-
-    .btn-novo {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 20px;
-        background: white;
-        color: #1e3a5f;
-        border: none;
-        border-radius: 10px;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-decoration: none;
-    }
-
-    .btn-novo:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-
-    .btn-novo ion-icon {
-        font-size: 18px;
-    }
-
-    /* ============================================
-       Filters Card
-       ============================================ */
-    .filters-card {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 16px;
-        padding: 24px;
-        margin-bottom: 24px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    }
-
-    .filters-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 20px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid #f1f5f9;
-    }
-
-    .filters-title {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 14px;
-        font-weight: 600;
-        color: #334155;
-    }
-
-    .filters-title ion-icon {
-        font-size: 18px;
-        color: #3b82f6;
-    }
-
-    .btn-clear-filters {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 14px;
-        background: #f8fafc;
-        color: #64748b;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .btn-clear-filters:hover {
-        background: #f1f5f9;
-        color: #475569;
-    }
-
-    .filters-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
-    }
-
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .form-label {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 11px;
-        font-weight: 600;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-    }
-
-    .form-label ion-icon {
-        font-size: 14px;
-        color: #94a3b8;
-    }
-
-    .form-control {
-        width: 100%;
-        height: 44px;
-        padding: 10px 14px;
-        background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        font-family: inherit;
-        font-size: 13px;
-        color: #334155;
-        transition: all 0.2s ease;
-        box-sizing: border-box;
-    }
-
-    .form-control:focus {
-        outline: none;
-        background-color: #ffffff;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    .form-control::placeholder {
-        color: #94a3b8;
-    }
-
-    .filters-actions {
-        display: flex;
-        gap: 12px;
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid #e2e8f0;
-    }
-
-    .btn-buscar {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 24px;
-        background: #3b82f6;
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .btn-buscar:hover {
-        background: #2563eb;
-    }
-
-    .btn-buscar ion-icon {
-        font-size: 18px;
-    }
-
-    .btn-limpar {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 24px;
-        background: #f1f5f9;
-        color: #475569;
-        border: none;
-        border-radius: 10px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .btn-limpar:hover {
-        background: #e2e8f0;
-    }
-
-    /* ============================================
-       Autocomplete Ponto de Medição
-       ============================================ */
-    .autocomplete-container {
-        position: relative;
-    }
-
-    .autocomplete-container input.form-control {
-        padding-right: 35px;
-    }
-
-    .autocomplete-dropdown {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: white;
-        border: 1px solid #e2e8f0;
-        border-top: none;
-        border-radius: 0 0 10px 10px;
-        max-height: 250px;
-        overflow-y: auto;
-        z-index: 1000;
-        display: none;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    .autocomplete-dropdown.active {
-        display: block;
-    }
-
-    .autocomplete-item {
-        padding: 10px 14px;
-        cursor: pointer;
-        border-bottom: 1px solid #f1f5f9;
-        font-size: 13px;
-    }
-
-    .autocomplete-item:last-child {
-        border-bottom: none;
-    }
-
-    .autocomplete-item:hover,
-    .autocomplete-item.highlighted {
-        background-color: #3b82f6;
-        color: white;
-    }
-
-    .autocomplete-item .item-code {
-        font-family: 'SF Mono', Monaco, monospace;
-        font-size: 12px;
-        color: #64748b;
-    }
-
-    .autocomplete-item:hover .item-code,
-    .autocomplete-item.highlighted .item-code {
-        color: rgba(255, 255, 255, 0.8);
-    }
-
-    .autocomplete-item .item-name {
-        display: block;
-        margin-top: 2px;
-    }
-
-    .autocomplete-loading,
-    .autocomplete-empty {
-        padding: 12px;
-        text-align: center;
-        color: #94a3b8;
-        font-size: 13px;
-    }
-
-    .btn-limpar-autocomplete {
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        background: none;
-        border: none;
-        color: #94a3b8;
-        cursor: pointer;
-        padding: 4px;
-        display: none;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .btn-limpar-autocomplete:hover {
-        color: #ef4444;
-    }
-
-    .btn-limpar-autocomplete ion-icon {
-        font-size: 18px;
-    }
-
-    /* ============================================
-       Tabela de Dados
-       ============================================ */
-    .table-card {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    }
-
-    .table-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 16px 24px;
-        background: #f8fafc;
-        border-bottom: 1px solid #e2e8f0;
-    }
-
-    .table-info {
-        font-size: 13px;
-        color: #64748b;
-    }
-
-    .table-info strong {
-        color: #1e293b;
-    }
-
-    .table-actions {
-        display: flex;
-        gap: 8px;
-    }
-
-    .btn-cancelar-selecionados {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 14px;
-        background: #fef2f2;
-        color: #dc2626;
-        border: 1px solid #fecaca;
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .btn-cancelar-selecionados:hover {
-        background: #fee2e2;
-    }
-
-    .btn-cancelar-selecionados:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    .table-container {
-        overflow-x: auto;
-    }
-
-    .data-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    .data-table th {
-        padding: 14px 16px;
-        background: #f8fafc;
-        border-bottom: 2px solid #e2e8f0;
-        text-align: left;
-        font-size: 11px;
-        font-weight: 700;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-        white-space: nowrap;
-    }
-
-    .data-table td {
-        padding: 14px 16px;
-        border-bottom: 1px solid #f1f5f9;
-        font-size: 13px;
-        color: #334155;
-        vertical-align: middle;
-    }
-
-    .data-table tbody tr:hover {
-        background: #f8fafc;
-    }
-
-    .data-table tbody tr.cancelado {
-        background: #fef2f2;
-        color: #991b1b;
-    }
-
-    .data-table tbody tr.cancelado td {
-        color: #991b1b;
-    }
-
-    .data-table th:first-child,
-    .data-table td:first-child {
-        width: 40px;
-        text-align: center;
-    }
-
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-    }
-
-    .badge-ativo {
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    .badge-cancelado {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .badge-metodo {
-        background: #e0e7ff;
-        color: #3730a3;
-    }
-
-    .acoes-cell {
-        display: flex;
-        gap: 6px;
-    }
-
-    .btn-acao {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s;
-        text-decoration: none;
-    }
-
-    .btn-acao.visualizar {
-        background: #eff6ff;
-        color: #3b82f6;
-    }
-
-    .btn-acao.visualizar:hover {
-        background: #dbeafe;
-    }
-
-    .btn-acao.editar {
-        background: #fef3c7;
-        color: #d97706;
-    }
-
-    .btn-acao.editar:hover {
-        background: #fde68a;
-    }
-
-    /* ============================================
-       Paginação
-       ============================================ */
-    .pagination-container {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 16px 24px;
-        border-top: 1px solid #e2e8f0;
-    }
-
-    .pagination-info {
-        font-size: 13px;
-        color: #64748b;
-    }
-
-    .pagination {
-        display: flex;
-        gap: 4px;
-    }
-
-    .pagination button {
-        padding: 8px 12px;
-        border: 1px solid #e2e8f0;
-        background: #fff;
-        border-radius: 8px;
-        font-size: 13px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .pagination button:hover:not(:disabled) {
-        background: #f8fafc;
-        border-color: #3b82f6;
-        color: #3b82f6;
-    }
-
-    .pagination button.active {
-        background: #3b82f6;
-        color: white;
-        border-color: #3b82f6;
-    }
-
-    .pagination button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    /* ============================================
-       Loading e Empty States
-       ============================================ */
-    .loading-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(255, 255, 255, 0.8);
-        z-index: 9999;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .loading-overlay.active {
-        display: flex;
-    }
-
-    .loading-spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid #e2e8f0;
-        border-top-color: #3b82f6;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-        color: #64748b;
-    }
-
-    .empty-state ion-icon {
-        font-size: 48px;
-        color: #cbd5e1;
-        margin-bottom: 16px;
-    }
-
-    .empty-state h3 {
-        font-size: 16px;
-        color: #475569;
-        margin: 0 0 8px 0;
-    }
-
-    .empty-state p {
-        font-size: 13px;
-        margin: 0;
-    }
-
-    /* ============================================
-       Responsivo
-       ============================================ */
-    @media (max-width: 1200px) {
-        .filters-grid {
-            grid-template-columns: repeat(3, 1fr);
-        }
-    }
-
-    @media (max-width: 900px) {
-        .filters-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-
-    @media (max-width: 768px) {
-        .page-container {
-            padding: 16px;
-        }
-
-        .page-header {
-            padding: 20px;
-        }
-
-        .page-header-content {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .btn-novo {
-            width: 100%;
-            justify-content: center;
-        }
-
-        .filters-card {
-            padding: 16px;
-        }
-
-        .filters-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .filters-actions {
-            flex-direction: column;
-        }
-
-        .btn-buscar,
-        .btn-limpar {
-            width: 100%;
-            justify-content: center;
-        }
-
-        .table-header {
-            flex-direction: column;
-            gap: 12px;
-            align-items: stretch;
-        }
-
-        .pagination-container {
-            flex-direction: column;
-            gap: 12px;
-            text-align: center;
-        }
-    }
-
-    /* ============================================
-       Toast Styles
-       ============================================ */
-    .toast-container {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 9999;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .toast {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 14px 16px;
-        background: #fff;
-        border-radius: 10px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        min-width: 300px;
-        max-width: 400px;
-        transform: translateX(120%);
-        transition: transform 0.3s ease;
-    }
-
-    .toast.show {
-        transform: translateX(0);
-    }
-
-    .toast-icon {
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-    }
-
-    .toast.sucesso {
-        border-left: 4px solid #10b981;
-    }
-
-    .toast.sucesso .toast-icon {
-        color: #10b981;
-    }
-
-    .toast.erro {
-        border-left: 4px solid #ef4444;
-    }
-
-    .toast.erro .toast-icon {
-        color: #ef4444;
-    }
-
-    .toast.alerta {
-        border-left: 4px solid #f59e0b;
-    }
-
-    .toast.alerta .toast-icon {
-        color: #f59e0b;
-    }
-
-    .toast.info {
-        border-left: 4px solid #3b82f6;
-    }
-
-    .toast.info .toast-icon {
-        color: #3b82f6;
-    }
-
-    .toast-content {
-        flex: 1;
-    }
-
-    .toast-message {
-        margin: 0;
-        font-size: 14px;
-        color: #1e293b;
-    }
-
-    .toast-close {
-        background: none;
-        border: none;
-        padding: 4px;
-        cursor: pointer;
-        color: #94a3b8;
-        font-size: 18px;
-    }
-
-    .toast-close:hover {
-        color: #475569;
-    }
-</style>
+<link rel="stylesheet" href="/style/css/calculoKPC.css" />
 
 <div class="page-container">
     <!-- Header da Página -->
@@ -959,7 +120,7 @@ $metodos = [
                 </label>
                 <div class="autocomplete-container">
                     <input type="text" class="form-control" id="filtroPontoMedicaoInput"
-                        placeholder="Digite para buscar..." autocomplete="off">
+                        placeholder="Clique ou digite para buscar..." autocomplete="off">
                     <input type="hidden" id="filtroPontoMedicao">
                     <button type="button" class="btn-limpar-autocomplete" id="btnLimparPonto"
                         onclick="limparPontoMedicao()">
@@ -969,34 +130,49 @@ $metodos = [
                 </div>
             </div>
 
-            <!-- Situação -->
+            <!-- Situação (Radio Button) -->
             <div class="form-group">
                 <label class="form-label">
                     <ion-icon name="checkmark-circle-outline"></ion-icon>
                     Situação
                 </label>
-                <select id="filtroSituacao" class="form-control select2-default">
-                    <option value="">Todas</option>
+                <div class="radio-group">
+                    <label class="radio-item">
+                        <input type="radio" name="filtroSituacao" value="" checked>
+                        <span class="radio-label">Todas</span>
+                    </label>
                     <?php foreach ($situacoes as $id => $nome): ?>
-                        <option value="<?= $id ?>"><?= $nome ?></option>
+                        <label class="radio-item">
+                            <input type="radio" name="filtroSituacao" value="<?= $id ?>">
+                            <span class="radio-label"><?= $nome ?></span>
+                        </label>
                     <?php endforeach; ?>
-                </select>
+                </div>
             </div>
 
-            <!-- Método -->
+            <!-- Método (Radio Button) -->
             <div class="form-group">
                 <label class="form-label">
                     <ion-icon name="options-outline"></ion-icon>
                     Método
                 </label>
-                <select id="filtroMetodo" class="form-control select2-default">
-                    <option value="">Todos</option>
+                <div class="radio-group">
+                    <label class="radio-item">
+                        <input type="radio" name="filtroMetodo" value="" checked>
+                        <span class="radio-label">Todos</span>
+                    </label>
                     <?php foreach ($metodos as $id => $nome): ?>
-                        <option value="<?= $id ?>"><?= $nome ?></option>
+                        <label class="radio-item">
+                            <input type="radio" name="filtroMetodo" value="<?= $id ?>">
+                            <span class="radio-label"><?= $nome ?></span>
+                        </label>
                     <?php endforeach; ?>
-                </select>
+                </div>
             </div>
+        </div>
 
+        <!-- Segunda linha: Códigos, Anos e Datas -->
+        <div class="filters-grid-row2">
             <!-- Código Inicial -->
             <div class="form-group">
                 <label class="form-label">
@@ -1052,16 +228,7 @@ $metodos = [
             </div>
         </div>
 
-        <div class="filters-actions">
-            <button type="button" class="btn-limpar" onclick="limparFiltros()">
-                <ion-icon name="refresh-outline"></ion-icon>
-                Limpar
-            </button>
-            <button type="button" class="btn-buscar" onclick="filtrar()">
-                <ion-icon name="search-outline"></ion-icon>
-                Buscar
-            </button>
-        </div>
+        
     </div>
 
     <!-- Tabela de Dados -->
@@ -1092,6 +259,7 @@ $metodos = [
                         <th>Situação</th>
                         <th>Data Leitura</th>
                         <th>Método</th>
+                        <th>DN (mm)</th>
                         <th>KPC</th>
                         <th>Vazão (L/s)</th>
                         <th>Ações</th>
@@ -1132,9 +300,94 @@ $metodos = [
     let totalRegistros = 0;
     const podeEditar = <?= $podeEditar ? 'true' : 'false' ?>;
     let buscaPontoTimeout;
+    let filtroTimeout;
+    
+    // Chave para localStorage
+    const STORAGE_KEY_FILTROS = 'calculoKPC_filtros_state';
 
     // ============================================
-    // Inicialização Select2 (igual pontoMedicao.php)
+    // Persistência de Filtros (localStorage)
+    // ============================================
+    function salvarFiltros() {
+        const state = {
+            unidade: $('#selectUnidade').val() || '',
+            localidade: $('#selectLocalidade').val() || '',
+            ponto: document.getElementById('filtroPontoMedicao').value || '',
+            pontoLabel: document.getElementById('filtroPontoMedicaoInput').value || '',
+            situacao: $('input[name="filtroSituacao"]:checked').val() || '',
+            metodo: $('input[name="filtroMetodo"]:checked').val() || '',
+            codigoInicial: document.getElementById('filtroCodigoInicial').value || '',
+            anoInicial: document.getElementById('filtroAnoInicial').value || '',
+            codigoFinal: document.getElementById('filtroCodigoFinal').value || '',
+            anoFinal: document.getElementById('filtroAnoFinal').value || '',
+            dataInicial: document.getElementById('filtroDataInicial').value || '',
+            dataFinal: document.getElementById('filtroDataFinal').value || '',
+            pagina: paginaAtualKPC
+        };
+        
+        localStorage.setItem(STORAGE_KEY_FILTROS, JSON.stringify(state));
+    }
+
+    function restaurarFiltros() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY_FILTROS);
+            if (!saved) return false;
+            
+            const state = JSON.parse(saved);
+            
+            // Unidade
+            if (state.unidade) {
+                $('#selectUnidade').val(state.unidade).trigger('change.select2');
+                
+                // Carrega localidades e restaura a selecionada
+                carregarLocalidadesComCallback(state.unidade, function() {
+                    if (state.localidade) {
+                        $('#selectLocalidade').val(state.localidade).trigger('change.select2');
+                    }
+                });
+            }
+            
+            // Ponto de Medição
+            if (state.ponto && state.pontoLabel) {
+                document.getElementById('filtroPontoMedicao').value = state.ponto;
+                document.getElementById('filtroPontoMedicaoInput').value = state.pontoLabel;
+                document.getElementById('btnLimparPonto').style.display = 'flex';
+            }
+            
+            // Situação (radio)
+            if (state.situacao !== undefined) {
+                $('input[name="filtroSituacao"][value="' + state.situacao + '"]').prop('checked', true);
+            }
+            
+            // Método (radio)
+            if (state.metodo !== undefined) {
+                $('input[name="filtroMetodo"][value="' + state.metodo + '"]').prop('checked', true);
+            }
+            
+            // Campos de texto
+            if (state.codigoInicial) document.getElementById('filtroCodigoInicial').value = state.codigoInicial;
+            if (state.anoInicial) document.getElementById('filtroAnoInicial').value = state.anoInicial;
+            if (state.codigoFinal) document.getElementById('filtroCodigoFinal').value = state.codigoFinal;
+            if (state.anoFinal) document.getElementById('filtroAnoFinal').value = state.anoFinal;
+            if (state.dataInicial) document.getElementById('filtroDataInicial').value = state.dataInicial;
+            if (state.dataFinal) document.getElementById('filtroDataFinal').value = state.dataFinal;
+            
+            // Página
+            if (state.pagina) paginaAtualKPC = parseInt(state.pagina);
+            
+            return true;
+        } catch (e) {
+            console.error('Erro ao restaurar filtros:', e);
+            return false;
+        }
+    }
+
+    function limparFiltrosSalvos() {
+        localStorage.removeItem(STORAGE_KEY_FILTROS);
+    }
+
+    // ============================================
+    // Inicialização
     // ============================================
     $(document).ready(function () {
         // Select2 para Unidade
@@ -1156,38 +409,83 @@ $metodos = [
             }
         });
 
-        // Select2 para dropdowns simples
-        $('.select2-default').select2({
-            minimumResultsForSearch: Infinity
-        });
-
-        // Events
-        $('#selectUnidade').on('change', function () {
-            carregarLocalidades($(this).val());
-            limparPontoMedicao();
-        });
-
-        $('#selectLocalidade').on('change', function () {
-            limparPontoMedicao();
-        });
-
         // Inicializa autocomplete de Ponto de Medição
         initAutocompletePontoMedicao();
+
+        // Restaurar filtros salvos
+        const temFiltrosSalvos = restaurarFiltros();
+
+        // ============================================
+        // Eventos de Filtro Automático
+        // ============================================
+        
+        // Unidade - carrega localidades e filtra
+        $('#selectUnidade').on('change', function () {
+            const val = $(this).val();
+            carregarLocalidades(val);
+            limparPontoMedicao();
+            paginaAtualKPC = 1;
+            salvarFiltros();
+            filtrar();
+        });
+
+        // Localidade - filtra
+        $('#selectLocalidade').on('change', function () {
+            limparPontoMedicao();
+            paginaAtualKPC = 1;
+            salvarFiltros();
+            filtrar();
+        });
+
+        // Radio buttons - Situação e Método
+        $('input[name="filtroSituacao"]').on('change', function () {
+            paginaAtualKPC = 1;
+            salvarFiltros();
+            filtrar();
+        });
+
+        $('input[name="filtroMetodo"]').on('change', function () {
+            paginaAtualKPC = 1;
+            salvarFiltros();
+            filtrar();
+        });
+
+        // Campos de texto com debounce (Código e Ano)
+        $('#filtroCodigoInicial, #filtroCodigoFinal, #filtroAnoInicial, #filtroAnoFinal').on('input', function () {
+            clearTimeout(filtroTimeout);
+            filtroTimeout = setTimeout(function () {
+                paginaAtualKPC = 1;
+                salvarFiltros();
+                filtrar();
+            }, 500);
+        });
+
+        // Campos de data
+        $('#filtroDataInicial, #filtroDataFinal').on('change', function () {
+            paginaAtualKPC = 1;
+            salvarFiltros();
+            filtrar();
+        });
 
         // Carrega dados iniciais
         filtrar();
     });
 
     // ============================================
-    // Carregar Localidades via AJAX (igual pontoMedicao.php)
+    // Carregar Localidades via AJAX
     // ============================================
     function carregarLocalidades(cdUnidade) {
+        carregarLocalidadesComCallback(cdUnidade, null);
+    }
+
+    function carregarLocalidadesComCallback(cdUnidade, callback) {
         const select = $('#selectLocalidade');
 
         if (!cdUnidade) {
             select.prop('disabled', true);
             select.html('<option value="">Selecione uma Unidade primeiro</option>');
-            select.trigger('change');
+            select.trigger('change.select2');
+            if (callback) callback();
             return;
         }
 
@@ -1204,17 +502,20 @@ $metodos = [
 
                 if (response.success && response.data.length > 0) {
                     response.data.forEach(function (item) {
-                        options += `<option value="${item.CD_CHAVE}">${item.CD_LOCALIDADE} - ${item.DS_NOME}</option>`;
+                        options += '<option value="' + item.CD_CHAVE + '">' + item.CD_LOCALIDADE + ' - ' + item.DS_NOME + '</option>';
                     });
                 }
 
                 select.html(options);
                 select.prop('disabled', false);
                 select.trigger('change.select2');
+                
+                if (callback) callback();
             },
             error: function () {
                 select.html('<option value="">Erro ao carregar</option>');
                 showToast('Erro ao carregar localidades', 'erro');
+                if (callback) callback();
             }
         });
     }
@@ -1224,29 +525,32 @@ $metodos = [
     // ============================================
     function initAutocompletePontoMedicao() {
         const input = document.getElementById('filtroPontoMedicaoInput');
+        const hidden = document.getElementById('filtroPontoMedicao');
         const dropdown = document.getElementById('filtroPontoMedicaoDropdown');
+        const btnLimpar = document.getElementById('btnLimparPonto');
         let highlightedIndex = -1;
 
-        input.addEventListener('input', function () {
-            clearTimeout(buscaPontoTimeout);
-            const termo = this.value.trim();
-
-            if (termo.length < 2) {
-                dropdown.classList.remove('active');
-                return;
+        // Ao focar no campo, carrega os pontos (mesmo sem digitar)
+        input.addEventListener('focus', function () {
+            if (!hidden.value) {
+                buscarPontosMedicaoAutocomplete('');
             }
+        });
 
-            buscaPontoTimeout = setTimeout(() => {
+        // Ao digitar, busca com debounce
+        input.addEventListener('input', function () {
+            const termo = this.value.trim();
+            hidden.value = '';
+            btnLimpar.style.display = 'none';
+            highlightedIndex = -1;
+
+            clearTimeout(buscaPontoTimeout);
+            buscaPontoTimeout = setTimeout(function () {
                 buscarPontosMedicaoAutocomplete(termo);
             }, 300);
         });
 
-        input.addEventListener('focus', function () {
-            if (this.value.trim().length >= 2) {
-                dropdown.classList.add('active');
-            }
-        });
-
+        // Navegação por teclado
         input.addEventListener('keydown', function (e) {
             const items = dropdown.querySelectorAll('.autocomplete-item');
 
@@ -1258,13 +562,10 @@ $metodos = [
                 e.preventDefault();
                 highlightedIndex = Math.max(highlightedIndex - 1, 0);
                 updateHighlight(items);
-            } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+            } else if (e.key === 'Enter') {
                 e.preventDefault();
-                if (items[highlightedIndex]) {
-                    selecionarPontoMedicao(
-                        items[highlightedIndex].dataset.value,
-                        items[highlightedIndex].dataset.label
-                    );
+                if (highlightedIndex >= 0 && items[highlightedIndex]) {
+                    items[highlightedIndex].click();
                 }
             } else if (e.key === 'Escape') {
                 dropdown.classList.remove('active');
@@ -1293,46 +594,39 @@ $metodos = [
         dropdown.innerHTML = '<div class="autocomplete-loading">Buscando...</div>';
         dropdown.classList.add('active');
 
-        // Mapeamento de letras por tipo de medidor
         const letrasTipoMedidor = {
-            1: 'M', // Macromedidor
-            2: 'E', // Estação Pitométrica
-            4: 'P', // Medidor Pressão
-            6: 'R', // Nível Reservatório
-            8: 'H'  // Hidrômetro
+            1: 'M',
+            2: 'E',
+            4: 'P',
+            6: 'R',
+            8: 'H'
         };
 
-        // Usa o endpoint buscarPontosMedicao.php (mesmo das outras telas)
-        const params = new URLSearchParams({ busca: termo });
-        if (cdUnidade) params.append('cd_unidade', cdUnidade);
-        if (cdLocalidade) params.append('cd_localidade', cdLocalidade);
+        // Monta os parâmetros
+        let url = 'bd/pontoMedicao/buscarPontosMedicao.php?limite=50';
+        if (termo) url += '&busca=' + encodeURIComponent(termo);
+        if (cdUnidade) url += '&cd_unidade=' + cdUnidade;
+        if (cdLocalidade) url += '&cd_localidade=' + cdLocalidade;
 
-        fetch('bd/pontoMedicao/buscarPontosMedicao.php?' + params)
-            .then(function (response) { return response.json(); })
-            .then(function (data) {
-                if (data.success && data.data && data.data.length > 0) {
-                    let html = '';
-                    data.data.forEach(function (item) {
-                        const letraTipo = letrasTipoMedidor[item.ID_TIPO_MEDIDOR] || 'X';
-                        const codigoPonto = item.CD_LOCALIDADE + '-' +
-                            String(item.CD_PONTO_MEDICAO).padStart(6, '0') + '-' +
-                            letraTipo + '-' +
-                            (item.CD_UNIDADE_CODIGO || item.CD_UNIDADE);
-                        html += '<div class="autocomplete-item" ' +
-                            'data-value="' + item.CD_PONTO_MEDICAO + '" ' +
-                            'data-label="' + codigoPonto + ' - ' + item.DS_NOME + '">' +
-                            '<span class="item-code">' + codigoPonto + '</span>' +
-                            '<span class="item-name">' + item.DS_NOME + '</span>' +
+        fetch(url)
+            .then(response => response.json())
+            .then(response => {
+                const data = response.data || response;
+                
+                if (data && data.length > 0) {
+                    dropdown.innerHTML = data.map(function (ponto) {
+                        const letra = letrasTipoMedidor[ponto.ID_TIPO_MEDIDOR] || 'X';
+                        const codigoFormatado = ponto.CD_LOCALIDADE + '-' +
+                            String(ponto.CD_PONTO_MEDICAO).padStart(6, '0') + '-' +
+                            letra + '-' + ponto.CD_UNIDADE_CODIGO;
+                        const label = codigoFormatado + ' | ' + ponto.DS_NOME;
+
+                        return '<div class="autocomplete-item" onclick="selecionarPontoMedicao(\'' +
+                            ponto.CD_PONTO_MEDICAO + '\', \'' + label.replace(/'/g, "\\'") + '\')">' +
+                            '<span class="item-code">' + codigoFormatado + '</span>' +
+                            '<span class="item-name">' + ponto.DS_NOME + '</span>' +
                             '</div>';
-                    });
-                    dropdown.innerHTML = html;
-
-                    // Adiciona eventos de clique
-                    dropdown.querySelectorAll('.autocomplete-item').forEach(function (item) {
-                        item.addEventListener('click', function () {
-                            selecionarPontoMedicao(this.dataset.value, this.dataset.label);
-                        });
-                    });
+                    }).join('');
                 } else {
                     dropdown.innerHTML = '<div class="autocomplete-empty">Nenhum ponto encontrado</div>';
                 }
@@ -1353,6 +647,11 @@ $metodos = [
         hidden.value = value;
         dropdown.classList.remove('active');
         btnLimpar.style.display = 'flex';
+        
+        // Salva e filtra automaticamente
+        paginaAtualKPC = 1;
+        salvarFiltros();
+        filtrar();
     }
 
     function limparPontoMedicao() {
@@ -1365,11 +664,13 @@ $metodos = [
     // Funções de Filtro
     // ============================================
     function limparFiltros() {
-        $('#selectUnidade').val('').trigger('change');
-        $('#selectLocalidade').prop('disabled', true).html('<option value="">Selecione uma Unidade primeiro</option>').trigger('change');
+        $('#selectUnidade').val('').trigger('change.select2');
+        $('#selectLocalidade').prop('disabled', true).html('<option value="">Selecione uma Unidade primeiro</option>').trigger('change.select2');
         limparPontoMedicao();
-        $('#filtroSituacao').val('').trigger('change');
-        $('#filtroMetodo').val('').trigger('change');
+
+        // Radio buttons - marcar "Todas/Todos"
+        $('input[name="filtroSituacao"][value=""]').prop('checked', true);
+        $('input[name="filtroMetodo"][value=""]').prop('checked', true);
 
         document.getElementById('filtroCodigoInicial').value = '';
         document.getElementById('filtroAnoInicial').value = '';
@@ -1379,11 +680,15 @@ $metodos = [
         document.getElementById('filtroDataFinal').value = '';
 
         paginaAtualKPC = 1;
+        
+        // Limpa localStorage
+        limparFiltrosSalvos();
+        
         filtrar();
     }
 
     // ============================================
-    // Função Principal de Filtrar
+    // Função Principal de Filtrar (AJAX)
     // ============================================
     function filtrar() {
         mostrarLoading(true);
@@ -1394,8 +699,8 @@ $metodos = [
             unidade: $('#selectUnidade').val() || '',
             localidade: $('#selectLocalidade').val() || '',
             ponto: document.getElementById('filtroPontoMedicao').value || '',
-            situacao: $('#filtroSituacao').val() || '',
-            metodo: $('#filtroMetodo').val() || '',
+            situacao: $('input[name="filtroSituacao"]:checked').val() || '',
+            metodo: $('input[name="filtroMetodo"]:checked').val() || '',
             codigoInicial: document.getElementById('filtroCodigoInicial').value,
             anoInicial: document.getElementById('filtroAnoInicial').value,
             codigoFinal: document.getElementById('filtroCodigoFinal').value,
@@ -1405,7 +710,7 @@ $metodos = [
         });
 
         $.ajax({
-            url: `bd/calculoKPC/listarCalculoKPC.php?${params}`,
+            url: 'bd/calculoKPC/listarCalculoKPC.php?' + params.toString(),
             type: 'GET',
             dataType: 'json',
             success: function (data) {
@@ -1427,7 +732,7 @@ $metodos = [
     }
 
     // ============================================
-    // Renderização da Tabela (ATUALIZADA)
+    // Renderização da Tabela
     // ============================================
     function renderizarTabela(dados) {
         const tbody = document.getElementById('tabelaBody');
@@ -1436,7 +741,7 @@ $metodos = [
         if (!dados || dados.length === 0) {
             tbody.innerHTML = `
             <tr>
-                <td colspan="11">
+                <td colspan="12">
                     <div class="empty-state">
                         <ion-icon name="document-outline"></ion-icon>
                         <h3>Nenhum registro encontrado</h3>
@@ -1454,10 +759,11 @@ $metodos = [
             const metodo = item.ID_METODO == 1 ? 'Digital' : (item.ID_METODO == 2 ? 'Convencional' : '-');
             const codigo = item.CD_CODIGO + '-' + item.CD_ANO;
             const dataLeitura = item.DT_LEITURA ? formatarData(item.DT_LEITURA) : '-';
+            const diametroNominal = item.VL_DIAMETRO_NOMINAL ? parseFloat(item.VL_DIAMETRO_NOMINAL).toFixed(0) : '-';
             const kpc = item.VL_KPC ? parseFloat(item.VL_KPC).toFixed(10) : '-';
             const vazao = item.VL_VAZAO ? parseFloat(item.VL_VAZAO).toFixed(2) : '-';
 
-            // MUDANÇA: Construir código composto do ponto (LOCALIDADE-CD_PONTO-LETRA-CD_UNIDADE)
+            // Código composto do ponto
             const letrasTipo = { 1: 'M', 2: 'E', 4: 'P', 6: 'R', 8: 'H' };
             const letraTipo = letrasTipo[item.ID_TIPO_MEDIDOR] || 'X';
             const codigoPonto = item.CD_LOCALIDADE + '-' +
@@ -1482,6 +788,7 @@ $metodos = [
                 </td>
                 <td>${dataLeitura}</td>
                 <td>${metodo}</td>
+                <td>${diametroNominal}</td>
                 <td>${kpc}</td>
                 <td>${vazao}</td>
                 <td>
@@ -1518,9 +825,8 @@ $metodos = [
         const paginacao = document.getElementById('paginacao');
         let html = '';
 
-        html += `<button onclick="irParaPagina(${paginaAtualKPC - 1})" ${paginaAtualKPC === 1 ? 'disabled' : ''}>
-        <ion-icon name="chevron-back-outline"></ion-icon>
-    </button>`;
+        html += '<button onclick="irParaPagina(' + (paginaAtualKPC - 1) + ')" ' + (paginaAtualKPC === 1 ? 'disabled' : '') + '>' +
+            '<ion-icon name="chevron-back-outline"></ion-icon></button>';
 
         const maxPaginas = 5;
         let startPage = Math.max(1, paginaAtualKPC - Math.floor(maxPaginas / 2));
@@ -1531,22 +837,22 @@ $metodos = [
         }
 
         if (startPage > 1) {
-            html += `<button onclick="irParaPagina(1)">1</button>`;
-            if (startPage > 2) html += `<button disabled>...</button>`;
+            html += '<button onclick="irParaPagina(1)">1</button>';
+            if (startPage > 2) html += '<button disabled>...</button>';
         }
 
         for (let i = startPage; i <= endPage; i++) {
-            html += `<button onclick="irParaPagina(${i})" class="${i === paginaAtualKPC ? 'active' : ''}">${i}</button>`;
+            html += '<button onclick="irParaPagina(' + i + ')" class="' + (i === paginaAtualKPC ? 'active' : '') + '">' + i + '</button>';
         }
 
         if (endPage < totalPaginas) {
-            if (endPage < totalPaginas - 1) html += `<button disabled>...</button>`;
-            html += `<button onclick="irParaPagina(${totalPaginas})">${totalPaginas}</button>`;
+            if (endPage < totalPaginas - 1) html += '<button disabled>...</button>';
+            html += '<button onclick="irParaPagina(' + totalPaginas + ')">' + totalPaginas + '</button>';
         }
 
-        html += `<button onclick="irParaPagina(${paginaAtualKPC + 1})" ${paginaAtualKPC === totalPaginas || totalPaginas === 0 ? 'disabled' : ''}>
-        <ion-icon name="chevron-forward-outline"></ion-icon>
-    </button>`;
+        html += '<button onclick="irParaPagina(' + (paginaAtualKPC + 1) + ')" ' + 
+            (paginaAtualKPC === totalPaginas || totalPaginas === 0 ? 'disabled' : '') + '>' +
+            '<ion-icon name="chevron-forward-outline"></ion-icon></button>';
 
         paginacao.innerHTML = html;
     }
@@ -1555,6 +861,7 @@ $metodos = [
         const totalPaginas = Math.ceil(totalRegistros / registrosPorPagina);
         if (pagina >= 1 && pagina <= totalPaginas) {
             paginaAtualKPC = pagina;
+            salvarFiltros();
             filtrar();
         }
     }

@@ -3524,3 +3524,33 @@ input[type="date"].form-control {
 #validacaoTabelaBody tr.tratado.completude-vermelho {
     border-left: 3px solid #ef4444;
 }
+
+/* Indicador de dados do Historiador CCO */
+.indicador-historiador {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border-radius: 6px;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.indicador-historiador ion-icon {
+    font-size: 16px;
+    animation: pulse-icon 1.5s ease-in-out infinite;
+}
+
+.indicador-historiador strong {
+    font-family: 'Consolas', 'Monaco', monospace;
+    background: rgba(255,255,255,0.2);
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+@keyframes pulse-icon {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}

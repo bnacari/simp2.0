@@ -405,7 +405,7 @@ $letrasTipoMedidor = [
                     <span class="legenda-item"><span class="legenda-cor"
                             style="background:rgba(239, 68, 68, 0.3);"></span> &lt;50% reg. (&lt;30)</span>
                 </div>
-              
+
                 <!-- Controles do Gráfico -->
                 <div class="grafico-controles" id="graficoControles">
                     <span class="grafico-controles-titulo">Exibir:</span>
@@ -436,6 +436,12 @@ $letrasTipoMedidor = [
                         <input type="checkbox" id="chkMediaDiaria" checked onchange="toggleLinhaGrafico('mediadiaria')">
                         <span class="controle-cor mediadiaria"></span>
                         <span class="controle-label">Média Diária</span>
+                    </label>
+                    <!-- Controle Historiador CCO (oculto por padrão, mostrado via JS quando há dados) -->
+                    <label class="grafico-controle-item" id="controleHistoriador" style="display: none;">
+                        <input type="checkbox" checked onchange="toggleGraficoControle('historiador')">
+                        <span class="controle-cor" style="background: #10b981;"></span>
+                        Historiador CCO
                     </label>
                 </div>
 
@@ -669,11 +675,11 @@ $letrasTipoMedidor = [
         errorbars: true,
         sugeridos: true,
         excluidos: true,
-        mediadiaria: true  // Controle para linha de média diária
-
+        mediadiaria: true,
+        historiador: true  // NOVO: controle para linha do Historiador CCO
     };
     let errorBarsPluginAtivo = true;
-
+    let dadosHistoriadorAtual = null;
     // Mapeamento de letras por tipo de medidor
     const letrasTipoMedidor = <?= json_encode($letrasTipoMedidor) ?>;
 
@@ -2375,6 +2381,10 @@ $letrasTipoMedidor = [
     function fecharModalValidacao() {
         document.getElementById('modalValidacao').classList.remove('active');
 
+        dadosHistoriadorAtual = null;
+        removerIndicadorHistoriador();
+        ocultarControleHistoriador();
+
         // Destruir gráfico
         if (validacaoGrafico) {
             validacaoGrafico.destroy();
@@ -2444,6 +2454,8 @@ $letrasTipoMedidor = [
                     validacaoUnidadeAtual = data.unidade;
                     renderizarTabelaHoraria(data.dados, data.unidade);
                     renderizarGraficoValidacao(data.dados, data.unidade);
+                    // Carregar dados do Historiador CCO (apenas dia atual)
+                    carregarDadosHistoriador();
                     atualizarResumoDia(data.dados, data.unidade);
 
                     // Carregar dados históricos da IA automaticamente
@@ -2667,6 +2679,8 @@ $letrasTipoMedidor = [
         const tratados = [];
         const valoresSugeridos = []; // Array para valores sugeridos (histórico)
         const valoresInativos = []; // Array para dados inativos (id_situacao = 2)
+        const valoresHistoriador = []; // Array para dados do Historiador CCO
+        let temDadosHistoriador = false;
 
         // Mapear dados por hora para acesso rápido
         const horasMap = {};
@@ -2738,6 +2752,17 @@ $letrasTipoMedidor = [
                     valoresSugeridos.push(dadosHora.valor_sugerido);
                 } else {
                     valoresSugeridos.push(null);
+                }
+            }
+
+            // ADICIONAR: Valores do Historiador CCO (apenas dia atual)
+            if (dadosHistoriadorAtual && dadosHistoriadorAtual.dados) {
+                temDadosHistoriador = true;
+                const dadosHoraHist = dadosHistoriadorAtual.dados.find(d => d.hora === h);
+                if (dadosHoraHist && dadosHoraHist.media !== null) {
+                    valoresHistoriador.push(dadosHoraHist.media);
+                } else {
+                    valoresHistoriador.push(null);
                 }
             }
         }
@@ -2872,6 +2897,24 @@ $letrasTipoMedidor = [
                         tension: 0,
                         spanGaps: true,
                         fill: false
+                    }] : []),
+                    // ADICIONAR: Dataset Historiador CCO (linha verde tracejada)
+                    ...(temDadosHistoriador ? [{
+                        label: 'Historiador CCO',
+                        data: valoresHistoriador,
+                        borderColor: '#10b981',  // Verde esmeralda
+                        backgroundColor: 'transparent',
+                        borderWidth: 2.5,
+                        borderDash: [6, 4],  // Linha tracejada
+                        pointRadius: 3,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 1,
+                        pointHoverRadius: 5,
+                        tension: 0.1,
+                        spanGaps: false,
+                        fill: false,
+                        order: 0  // Renderizar por cima das outras linhas
                     }] : [])
                 ]
             },
@@ -2915,6 +2958,8 @@ $letrasTipoMedidor = [
                                         lines.push('Sugerido: ' + formatarNumero(context.raw) + ' ' + unidade);
                                     } else if (datasetLabel === 'Excluídos') {
                                         lines.push('Excluído: ' + formatarNumero(context.raw) + ' ' + unidade);
+                                    } else if (datasetLabel === 'Historiador CCO') {
+                                        lines.push('Historiador CCO: ' + formatarNumero(context.raw) + ' ' + unidade);
                                     } else {
                                         // Dataset principal (Média ou Máximo)
                                         lines.push((isTipoNivel ? 'Máx: ' : 'Média: ') + formatarNumero(context.raw) + ' ' + unidade);
@@ -3037,6 +3082,11 @@ $letrasTipoMedidor = [
             const datasetIndex = validacaoGrafico.data.datasets.findIndex(ds => ds.label === labelBusca);
             if (datasetIndex > -1) {
                 validacaoGrafico.data.datasets[datasetIndex].hidden = !graficoControlesEstado[tipo];
+            }
+        } else if (tipo === 'historiador') {
+            const datasetIndex = validacaoGrafico.data.datasets.findIndex(ds => ds.label === 'Historiador CCO');
+            if (datasetIndex > -1) {
+                validacaoGrafico.data.datasets[datasetIndex].hidden = !graficoControlesEstado.historiador;
             }
         }
 
@@ -5358,6 +5408,117 @@ $letrasTipoMedidor = [
             return 'completude-amarelo';  // >= 30 e < 48 registros
         } else {
             return 'completude-vermelho'; // < 30 registros
+        }
+    }
+
+    // ============================================================
+    // INTEGRAÇÃO COM HISTORIADOR CCO
+    // ============================================================
+
+    /**
+     * Carrega dados do Historiador CCO para o dia atual
+     * Chamado automaticamente após carregar dados horários
+     */
+    function carregarDadosHistoriador() {
+        if (!validacaoPontoAtual || !validacaoDataAtual) {
+            return;
+        }
+
+        // Verificar se é o dia atual
+        const hoje = new Date().toISOString().split('T')[0];
+        if (validacaoDataAtual !== hoje) {
+            dadosHistoriadorAtual = null;
+            ocultarControleHistoriador();
+            return;
+        }
+
+        const url = `bd/operacoes/getDadosHistoriador.php?cdPonto=${validacaoPontoAtual}&data=${validacaoDataAtual}`;
+
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.is_dia_atual && data.dados && data.dados.length > 0) {
+                    // Verificar se há pelo menos um valor não nulo
+                    const temValores = data.dados.some(d => d.media !== null);
+
+                    if (temValores) {
+                        dadosHistoriadorAtual = data;
+                        mostrarIndicadorHistoriador(data.tag, data.total_registros);
+                        mostrarControleHistoriador();
+
+                        // Re-renderizar gráfico com linha do historiador
+                        if (validacaoDadosAtuais) {
+                            renderizarGraficoValidacao(validacaoDadosAtuais.dados, validacaoDadosAtuais.unidade);
+                        }
+                    } else {
+                        dadosHistoriadorAtual = null;
+                        ocultarControleHistoriador();
+                    }
+                } else {
+                    dadosHistoriadorAtual = null;
+                    ocultarControleHistoriador();
+                }
+            })
+            .catch(error => {
+                console.log('Historiador não disponível:', error);
+                dadosHistoriadorAtual = null;
+                ocultarControleHistoriador();
+            });
+    }
+
+    /**
+     * Mostra/oculta controle do historiador no painel de controles do gráfico
+     */
+    function mostrarControleHistoriador() {
+        const controle = document.getElementById('controleHistoriador');
+        if (controle) {
+            controle.style.display = 'flex';
+        }
+    }
+
+    function ocultarControleHistoriador() {
+        const controle = document.getElementById('controleHistoriador');
+        if (controle) {
+            controle.style.display = 'none';
+        }
+    }
+
+    /**
+     * Mostra indicador visual de que há dados do historiador disponíveis
+     */
+    function mostrarIndicadorHistoriador(tagName, totalRegistros) {
+        let indicador = document.getElementById('indicadorHistoriador');
+        if (!indicador) {
+            const headerInfo = document.querySelector('.validacao-info');
+            if (headerInfo) {
+                indicador = document.createElement('div');
+                indicador.id = 'indicadorHistoriador';
+                indicador.className = 'indicador-historiador';
+                headerInfo.parentNode.insertBefore(indicador, headerInfo.nextSibling);
+            }
+        }
+
+        if (indicador) {
+            indicador.innerHTML = `
+                <ion-icon name="pulse-outline"></ion-icon>
+                <span>Telemetria CCO: <strong>${tagName}</strong> (${totalRegistros} registros hoje)</span>
+            `;
+            indicador.style.display = 'flex';
+        }
+    }
+
+    /**
+     * Remove indicador do historiador ao fechar modal
+     */
+    function removerIndicadorHistoriador() {
+        const indicador = document.getElementById('indicadorHistoriador');
+        if (indicador) {
+            indicador.style.display = 'none';
         }
     }
 </script>

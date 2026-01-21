@@ -1322,7 +1322,7 @@ if ($isEdicao) {
         <div class="modal-grafico-footer">
             <span class="grafico-legenda">
                 <span class="legenda-ponto"></span>
-                Deflexão Média × Posição
+                Posição x Deflexão Média
             </span>
             <button type="button" class="btn btn-secondary" onclick="fecharModalGrafico()">
                 Fechar

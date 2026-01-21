@@ -127,6 +127,7 @@ try {
             CK.VL_TEMPERATURA,
             CK.ID_METODO,
             CK.DS_OBSERVACAO,
+            CK.VL_DIAMETRO_NOMINAL,
             PM.DS_NOME AS DS_PONTO_MEDICAO,
             PM.ID_TIPO_MEDIDOR,
             L.CD_LOCALIDADE,
