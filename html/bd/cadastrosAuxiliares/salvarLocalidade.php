@@ -25,12 +25,32 @@ try {
         $stmt = $pdoSIMP->prepare($sql);
         $stmt->execute([':unidade' => $cdUnidade, ':codigo' => $cdLocalidade, ':nome' => $nome, ':id' => $id]);
         $msg = 'Localidade atualizada com sucesso!';
+        
+        // Log (isolado)
+        try {
+            @include_once '../logHelper.php';
+            if (function_exists('registrarLogUpdate')) {
+                registrarLogUpdate('Cadastros Auxiliares', 'Localidade', $id, "$cdLocalidade - $nome", 
+                    ['CD_UNIDADE' => $cdUnidade, 'CD_LOCALIDADE' => $cdLocalidade, 'DS_NOME' => $nome], $cdUnidade);
+            }
+        } catch (Exception $logEx) {}
     } else {
         $sql = "INSERT INTO SIMP.dbo.LOCALIDADE (CD_UNIDADE, CD_LOCALIDADE, DS_NOME) 
                 VALUES (:unidade, :codigo, :nome)";
         $stmt = $pdoSIMP->prepare($sql);
         $stmt->execute([':unidade' => $cdUnidade, ':codigo' => $cdLocalidade, ':nome' => $nome]);
         $msg = 'Localidade cadastrada com sucesso!';
+        
+        // Log (isolado)
+        try {
+            @include_once '../logHelper.php';
+            if (function_exists('registrarLogInsert')) {
+                $stmtId = $pdoSIMP->query("SELECT SCOPE_IDENTITY() AS ID");
+                $novoId = $stmtId->fetch(PDO::FETCH_ASSOC)['ID'];
+                registrarLogInsert('Cadastros Auxiliares', 'Localidade', $novoId, "$cdLocalidade - $nome",
+                    ['CD_UNIDADE' => $cdUnidade, 'CD_LOCALIDADE' => $cdLocalidade, 'DS_NOME' => $nome], $cdUnidade);
+            }
+        } catch (Exception $logEx) {}
     }
     
     echo json_encode(['success' => true, 'message' => $msg]);

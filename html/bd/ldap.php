@@ -2,29 +2,22 @@
 /**
  * SIMP - Sistema Integrado de Macromedição e Pitometria
  * Validação de Login via Active Directory (LDAP)
+ * 
+ * VERSÃO COM REGISTRO DE LOG DE ATIVIDADES
  */
 
-// Habilita exibição de erros para debug (REMOVER EM PRODUÇÃO)
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
+error_reporting(0);
 
 session_start();
 
 // ============================================
-// CONEXÃO - AJUSTE CONFORME SEU ARQUIVO
+// CONEXÃO COM BANCO DE DADOS
 // ============================================
 include_once 'conexao.php';
+include_once 'logHelper.php';  // <<< HELPER DE LOG
 
-// IMPORTANTE: Ajuste o nome da variável PDO conforme seu conexao.php
-// Exemplos comuns: $pdo, $pdoCAT, $conn, $conexao
-// Descomente a linha correta ou ajuste:
-
-// $pdo = $pdoCAT;  // Se você usa $pdoCAT
-// $pdo = $conn;    // Se você usa $conn
-// $pdo = $conexao; // Se você usa $conexao
-
-// Por enquanto, vou assumir que é $pdoCAT (igual ao sistema anterior)
 $pdo = $pdoSIMP;
 
 // ============================================
@@ -69,12 +62,17 @@ try {
     $stmt->execute([':login' => $login]);
     $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    // Debug: mostra o erro (REMOVER EM PRODUÇÃO)
-    die("Erro na consulta do usuário: " . $e->getMessage());
+    $_SESSION['sucesso'] = 0;
+    $_SESSION['msg'] = 'Erro ao consultar usuário. Tente novamente.';
+    header('Location: ../index.php');
+    exit();
 }
 
 // Usuário não cadastrado no sistema
 if (!$usuario) {
+    // <<< REGISTRAR LOG DE FALHA >>>
+    registrarLogLogin(null, $login, 'LDAP', false, 'Usuário não cadastrado no sistema');
+    
     $_SESSION['sucesso'] = 0;
     $_SESSION['msg'] = 'Usuário não cadastrado no sistema. Entre em contato com o administrador.';
     header('Location: ../index.php');
@@ -83,6 +81,9 @@ if (!$usuario) {
 
 // Usuário bloqueado
 if ($usuario['OP_BLOQUEADO'] == 1 || strtoupper($usuario['OP_BLOQUEADO']) == 'S') {
+    // <<< REGISTRAR LOG DE FALHA >>>
+    registrarLogLogin($usuario['CD_USUARIO'], $login, 'LDAP', false, 'Usuário bloqueado');
+    
     $_SESSION['sucesso'] = 0;
     $_SESSION['msg'] = 'Usuário bloqueado. Entre em contato com o administrador.';
     header('Location: ../index.php');
@@ -113,6 +114,9 @@ ldap_set_option($ldapcon, LDAP_OPT_REFERRALS, 0);
 $bind = @ldap_bind($ldapcon, $login . $dominio, $senha);
 
 if (!$bind) {
+    // <<< REGISTRAR LOG DE FALHA >>>
+    registrarLogLogin($usuario['CD_USUARIO'], $login, 'LDAP', false, 'Senha inválida');
+    
     $_SESSION['sucesso'] = 0;
     $_SESSION['msg'] = 'Usuário ou senha inválidos.';
     header('Location: ../index.php');
@@ -135,13 +139,10 @@ try {
     $stmtFunc->execute([':cdGrupo' => $usuario['CD_GRUPO_USUARIO']]);
     $funcionalidades = $stmtFunc->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    // Debug: mostra o erro (REMOVER EM PRODUÇÃO)
-    die("Erro na consulta de funcionalidades: " . $e->getMessage());
+    $funcionalidades = [];
 }
 
-// Monta arrays de permissões:
-// - Por código: [CD_FUNCIONALIDADE => ID_TIPO_ACESSO]
-// - Por nome: [DS_NOME => ['cd' => CD_FUNCIONALIDADE, 'acesso' => ID_TIPO_ACESSO]]
+// Monta arrays de permissões
 $permissoes = [];
 $permissoesPorNome = [];
 foreach ($funcionalidades as $func) {
@@ -170,6 +171,11 @@ $_SESSION['cd_grupo'] = $usuario['CD_GRUPO_USUARIO'];
 $_SESSION['grupo'] = $usuario['DS_GRUPO'];
 $_SESSION['permissoes'] = $permissoes;
 $_SESSION['permissoes_nome'] = $permissoesPorNome;
+
+// ============================================
+// 5.1 REGISTRAR LOG DE LOGIN BEM-SUCEDIDO
+// ============================================
+registrarLogLogin($usuario['CD_USUARIO'], $usuario['DS_LOGIN'], 'LDAP', true);
 
 // Fecha conexão LDAP
 @ldap_close($ldapcon);

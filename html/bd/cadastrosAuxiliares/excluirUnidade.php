@@ -1,29 +1,45 @@
 <?php
-// bd/cadastrosAuxiliares/excluirUnidade.php
-header('Content-Type: application/json');
-session_start();
+/**
+ * SIMP - Excluir Unidade (com Log)
+ */
+header('Content-Type: application/json; charset=utf-8');
+ini_set('display_errors', 0);
+error_reporting(0);
+
+require_once '../verificarAuth.php';
+require_once '../logHelper.php';
+
+verificarPermissaoAjax('CADASTRO', ACESSO_ESCRITA);
+
 include_once '../conexao.php';
 
 try {
     $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
     
-    if ($id <= 0) {
-        echo json_encode(['success' => false, 'message' => 'ID não informado']);
-        exit;
+    if (!$id) {
+        throw new Exception('ID não informado');
     }
     
-    // Verificar se existem localidades vinculadas
-    $sqlCheck = "SELECT COUNT(*) as total FROM SIMP.dbo.LOCALIDADE WHERE CD_UNIDADE = :id";
-    $stmtCheck = $pdoSIMP->prepare($sqlCheck);
-    $stmtCheck->execute([':id' => $id]);
-    $totalVinculados = $stmtCheck->fetch(PDO::FETCH_ASSOC)['total'];
+    // Buscar dados antes de excluir
+    $sqlBusca = "SELECT * FROM SIMP.dbo.UNIDADE WHERE CD_UNIDADE = :id";
+    $stmtBusca = $pdoSIMP->prepare($sqlBusca);
+    $stmtBusca->execute([':id' => $id]);
+    $dadosExcluidos = $stmtBusca->fetch(PDO::FETCH_ASSOC);
     
-    if ($totalVinculados > 0) {
-        echo json_encode([
-            'success' => false, 
-            'message' => "Não é possível excluir. Existem {$totalVinculados} localidade(s) vinculada(s) a esta unidade."
-        ]);
-        exit;
+    if (!$dadosExcluidos) {
+        throw new Exception('Registro não encontrado');
+    }
+    
+    $identificador = ($dadosExcluidos['CD_CODIGO'] ?? '') . ' - ' . ($dadosExcluidos['DS_NOME'] ?? "ID: $id");
+    
+    // Verificar dependências (localidades)
+    $sqlDep = "SELECT COUNT(*) AS QTD FROM SIMP.dbo.LOCALIDADE WHERE CD_UNIDADE = :id";
+    $stmtDep = $pdoSIMP->prepare($sqlDep);
+    $stmtDep->execute([':id' => $id]);
+    $dependencias = $stmtDep->fetch(PDO::FETCH_ASSOC)['QTD'];
+    
+    if ($dependencias > 0) {
+        throw new Exception("Não é possível excluir: existem $dependencias localidade(s) vinculada(s)");
     }
     
     // Excluir
@@ -31,15 +47,11 @@ try {
     $stmt = $pdoSIMP->prepare($sql);
     $stmt->execute([':id' => $id]);
     
-    if ($stmt->rowCount() > 0) {
-        echo json_encode(['success' => true, 'message' => 'Unidade excluída com sucesso!']);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Registro não encontrado']);
-    }
-
-} catch (PDOException $e) {
-    echo json_encode([
-        'success' => false,
-        'message' => 'Erro ao excluir unidade: ' . $e->getMessage()
-    ]);
+    registrarLogDelete('Cadastros Auxiliares', 'Unidade', $id, $identificador, $dadosExcluidos);
+    
+    echo json_encode(['success' => true, 'message' => 'Registro excluído com sucesso!']);
+    
+} catch (Exception $e) {
+    registrarLogErro('Cadastros Auxiliares', 'DELETE', $e->getMessage(), ['id' => $id ?? null]);
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }
