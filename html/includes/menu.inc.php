@@ -11,15 +11,27 @@ if (session_status() === PHP_SESSION_NONE) {
 
 $paginaAtual = basename($_SERVER['PHP_SELF'], '.php');
 
-// Determina ambiente baseado no servidor de banco de dados
-// Inclui conexão se não existir $serverName
-if (!isset($serverName)) {
-    require_once __DIR__ . '/../bd/conexao.php';
+// Verifica se o usuário é desenvolvedor
+$isDesenvolvedor = temPermissaoTela('Desenvolvedor', ACESSO_LEITURA);
+
+// Processa alteração de ambiente via POST (apenas desenvolvedores)
+if ($isDesenvolvedor && isset($_POST['alternar_ambiente'])) {
+    $_SESSION['ambiente_forcado'] = $_POST['alternar_ambiente'];
+    header("Location: " . $_SERVER['REQUEST_URI']);
+    exit;
 }
-if (strpos($serverName, 'sgbd-hom-') !== false) {
-    $ambiente = "HOMOLOGAÇÃO";
+
+// Determina ambiente baseado no servidor de banco de dados
+$dbHost = getenv('DB_HOST') ?: '';
+$ambienteReal = (strpos($dbHost, 'sgbd-hom-') !== false) ? "HOMOLOGAÇÃO" : "PRODUÇÃO";
+
+// Se desenvolvedor forçou um ambiente, usa o forçado
+if ($isDesenvolvedor && isset($_SESSION['ambiente_forcado'])) {
+    $ambiente = $_SESSION['ambiente_forcado'];
+    $ambienteAlterado = ($ambiente !== $ambienteReal);
 } else {
-    $ambiente = "PRODUÇÃO";
+    $ambiente = $ambienteReal;
+    $ambienteAlterado = false;
 }
 
 if (isset($_SESSION['msg'])) {
@@ -765,6 +777,93 @@ if (isset($_SESSION['msg'])) {
     #check {
         display: none !important;
     }
+
+    /* Seletor de Ambiente - Desenvolvedor */
+    .ambiente-selector {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: 16px;
+    }
+
+    .ambiente-radio-group {
+        display: flex;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 3px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .ambiente-radio {
+        cursor: pointer;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.6);
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+    }
+
+    .ambiente-radio input[type="radio"] {
+        display: none;
+    }
+
+    .ambiente-radio:hover {
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .ambiente-radio.active {
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+    }
+
+    .ambiente-radio.active:first-child {
+        background: #fbbf24;
+        color: #0f172a;
+    }
+
+    .ambiente-radio.active:last-child {
+        background: #22c55e;
+        color: #fff;
+    }
+
+    .ambiente-aviso {
+        color: #f97316;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        animation: pulse 2s infinite;
+    }
+
+    .ambiente-badge.alterado {
+        animation: pulse 2s infinite;
+        box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.6;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .ambiente-selector {
+            margin-left: 8px;
+        }
+
+        .ambiente-radio {
+            padding: 3px 6px;
+            font-size: 9px;
+        }
+    }
 </style>
 
 <!-- Overlay para mobile -->
@@ -782,12 +881,36 @@ if (isset($_SESSION['msg'])) {
             <div class="modern-header-title">
                 <span class="brand-name">
                     SIMP
-                    <span
-                        class="ambiente-badge <?= $ambiente === 'PRODUÇÃO' ? 'producao' : '' ?>"><?= $ambiente ?></span>
+                    <span class="ambiente-badge <?= $ambiente === 'PRODUÇÃO' ? 'producao' : '' ?> <?= $ambienteAlterado ? 'alterado' : '' ?>"><?= $ambiente ?></span>
                 </span>
                 <span class="system-fullname">Sistema Integrado de Macromedição e Pitometria</span>
             </div>
         </a>
+
+        <?php if ($isDesenvolvedor): ?>
+            <!-- Seletor de Ambiente (Desenvolvedor) -->
+            <form method="POST" class="ambiente-selector" id="formAmbiente">
+                <div class="ambiente-radio-group">
+                    <label class="ambiente-radio <?= $ambiente === 'HOMOLOGAÇÃO' ? 'active' : '' ?>">
+                        <input type="radio" name="alternar_ambiente" value="HOMOLOGAÇÃO"
+                            <?= $ambiente === 'HOMOLOGAÇÃO' ? 'checked' : '' ?>
+                            onchange="document.getElementById('formAmbiente').submit()">
+                        <span class="radio-label">HOM</span>
+                    </label>
+                    <label class="ambiente-radio <?= $ambiente === 'PRODUÇÃO' ? 'active' : '' ?>">
+                        <input type="radio" name="alternar_ambiente" value="PRODUÇÃO"
+                            <?= $ambiente === 'PRODUÇÃO' ? 'checked' : '' ?>
+                            onchange="document.getElementById('formAmbiente').submit()">
+                        <span class="radio-label">PROD</span>
+                    </label>
+                </div>
+                <?php if ($ambienteAlterado): ?>
+                    <span class="ambiente-aviso" title="Ambiente forçado diferente do real (<?= $ambienteReal ?>)">
+                        <ion-icon name="warning-outline"></ion-icon>
+                    </span>
+                <?php endif; ?>
+            </form>
+        <?php endif; ?>
     </div>
 
     <div class="modern-header-right">

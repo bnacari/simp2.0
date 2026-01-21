@@ -1,24 +1,27 @@
 <?php
-// captura o host e a URL request (fallbacks)
-$currentHost = $_SERVER['HTTP_HOST'] ?? '';
-$requestUri  = $_SERVER['REQUEST_URI'] ?? '';
+// Inicia sessão se necessário
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-// verificar se contém o domínio de homologação
-// alternativa compatível com PHP < 8.0:
-// $isHomologacao = (strpos($currentHost, 'vdeskadds007.cesan.com.br') !== false);
-$isHomologacao = (strpos($currentHost, '') !== false); //PRODUÇÃO
+// Verifica se desenvolvedor forçou ambiente
+$ambienteForcado = $_SESSION['ambiente_forcado'] ?? null;
 
-// se quiser checar a URL completa (protocolo + host + URI)
-$urlCompleta = (isset($_SERVER['REQUEST_SCHEME']) ? $_SERVER['REQUEST_SCHEME'] : 'http') . "://{$currentHost}{$requestUri}";
-$isHomologacaoByUrl = (strpos($urlCompleta, 'http://vdeskadds007.cesan.com.br/') === 0);
-
-// escolher a lógica que preferir (host ou url)
-if ($isHomologacao || $isHomologacaoByUrl) {
+// Determina qual banco usar
+if ($ambienteForcado === 'HOMOLOGAÇÃO') {
+    // Forçar homologação
     $serverName = "sgbd-hom-simp.sistemas.cesan.com.br\corporativo";
     $database   = "simp";
     $uid        = "simp";
     $pwd        = "wzJirU9kWK1LWzwFruGE";
+} elseif ($ambienteForcado === 'PRODUÇÃO') {
+    // Forçar produção
+    $serverName = "sgbd-simp.sistemas.cesan.com.br\corporativo";
+    $database   = "simp";
+    $uid        = "simp";
+    $pwd        = "cesan";
 } else {
+    // Comportamento automático original
     $serverName = getenv('DB_HOST');
     $database   = getenv('DB_NAME');
     $uid        = getenv('DB_USER');
