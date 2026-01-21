@@ -1182,7 +1182,28 @@ try {
     function initFiltros() {
         const inputBusca = document.getElementById('filtroBusca');
         const btnLimpar = document.getElementById('btnLimparBusca');
-        
+
+        // Evento de digitação na busca
+        inputBusca.addEventListener('input', function () {
+            const termo = this.value.trim();
+            btnLimpar.style.display = termo ? 'flex' : 'none';
+
+            clearTimeout(filtroTimeout);
+            filtroTimeout = setTimeout(() => {
+                aplicarFiltros();
+                saveFiltrosState();
+            }, 300);
+        });
+
+        // Evento de mudança no filtro de descarte
+        const radiosDescarte = document.querySelectorAll('input[name="filtroDescarte"]');
+        radiosDescarte.forEach(radio => {
+            radio.addEventListener('change', function () {
+                aplicarFiltros();
+                saveFiltrosState();
+            });
+        });
+
         // Evento de mudança no filtro de favoritos
         const radiosFavoritos = document.querySelectorAll('input[name="filtroFavoritos"]');
         radiosFavoritos.forEach(radio => {
@@ -1190,23 +1211,6 @@ try {
                 aplicarFiltros();
                 saveFiltrosState();
             });
-        });
-
-        // Evento de digitação na busca
-        inputBusca.addEventListener('input', function () {
-            const termo = this.value.trim();
-            btnLimpar.style.display = termo ? 'flex' : 'none';
-
-            // Debounce
-            clearTimeout(filtroTimeout);
-            filtroTimeout = setTimeout(() => {
-                aplicarFiltros();
-            }, 300);
-        });
-
-        // Eventos dos radio buttons de descarte
-        radiosDescarte.forEach(radio => {
-            radio.addEventListener('change', aplicarFiltros);
         });
     }
 
@@ -1218,7 +1222,7 @@ try {
             .replace(/[\u0300-\u036f]/g, '');
     }
 
-   function aplicarFiltros() {
+    function aplicarFiltros() {
         const termoBusca = normalizarTexto(document.getElementById('filtroBusca').value);
         const filtroDescarte = document.querySelector('input[name="filtroDescarte"]:checked')?.value || 'todos';
         const filtroFavoritos = document.querySelector('input[name="filtroFavoritos"]:checked')?.value || 'todos';
@@ -1246,8 +1250,8 @@ try {
                 return;
             }
 
-            // Se não há busca textual e não há filtro de favoritos, mostrar tudo
-            if (!termoBusca && filtroFavoritos === 'todos') {
+            // Se não há busca textual e não há filtro de favoritos, mostrar tipo e processar valores
+            if (!termoBusca && filtroFavoritos === 'todos' && filtroDescarte === 'todos') {
                 tipoCard.classList.remove('filtro-oculto', 'filtro-match');
                 totalTiposVisiveis++;
 
@@ -1352,8 +1356,8 @@ try {
                     tipoCard.classList.remove('filtro-match');
                 }
 
-                // Expandir tipo se tem valor com match
-                if (tipoTemFilhoVisivel || termoBusca) {
+                // Expandir tipo se tem valor visível
+                if (tipoTemFilhoVisivel) {
                     tipoCard.classList.add('expanded');
                 }
             } else {
