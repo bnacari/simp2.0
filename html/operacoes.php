@@ -1,4 +1,5 @@
 ﻿<?php
+
 /**
  * SIMP - Operações
  * Visualização de dados de medição por unidade operacional
@@ -149,7 +150,7 @@ $letrasTipoMedidor = [
                     <?php
                     $anoAtual = date('Y');
                     for ($ano = $anoAtual; $ano >= $anoAtual - 10; $ano--):
-                        ?>
+                    ?>
                         <option value="<?= $ano ?>" <?= $ano == $anoGet ? 'selected' : '' ?>><?= $ano ?></option>
                     <?php endfor; ?>
                 </select>
@@ -676,7 +677,7 @@ $letrasTipoMedidor = [
         sugeridos: true,
         excluidos: true,
         mediadiaria: true,
-        historiador: true  // NOVO: controle para linha do Historiador CCO
+        historiador: true // NOVO: controle para linha do Historiador CCO
     };
     let errorBarsPluginAtivo = true;
     let dadosHistoriadorAtual = null;
@@ -702,7 +703,7 @@ $letrasTipoMedidor = [
     // ============================================
     // Inicialização
     // ============================================
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
         initChoices();
         initAutocompletePontoMedicao();
 
@@ -752,7 +753,7 @@ $letrasTipoMedidor = [
         // Não precisa setar via JavaScript, pois o PHP já coloca o 'selected' correto
 
         // Buscar informações do ponto de medição e preencher autocomplete
-        buscarEPreencherPontoAutocomplete(cdPonto, function (pontoInfo) {
+        buscarEPreencherPontoAutocomplete(cdPonto, function(pontoInfo) {
             // Buscar dados após preencher o ponto
             buscarDados();
 
@@ -835,7 +836,9 @@ $letrasTipoMedidor = [
         const btnLimpar = document.getElementById('btnLimparPonto');
 
         // Buscar informações detalhadas do ponto
-        $.get('bd/pontoMedicao/getDadosMedidor.php', { cd_ponto_medicao: cdPonto }, function (response) {
+        $.get('bd/pontoMedicao/getDadosMedidor.php', {
+            cd_ponto_medicao: cdPonto
+        }, function(response) {
             if (response.success && response.data) {
                 const ponto = response.data;
                 const pontoCodigo = ponto.CD_CODIGO_FORMATADO || cdPonto;
@@ -870,7 +873,7 @@ $letrasTipoMedidor = [
                     });
                 }
             }
-        }, 'json').fail(function () {
+        }, 'json').fail(function() {
             input.value = `Ponto ${cdPonto}`;
             hidden.value = cdPonto;
             if (btnLimpar) {
@@ -926,7 +929,7 @@ $letrasTipoMedidor = [
             searchEnabled: true,
             searchPlaceholderValue: 'Digite para buscar...',
             noResultsText: 'Nenhum resultado encontrado',
-            noChoicesText: 'Selecione o tipo de unidade primeiro',
+            noChoicesText: 'Nenhuma opção disponível',
             itemSelectText: '',
             placeholder: true,
             placeholderValue: 'Selecione a unidade...',
@@ -935,7 +938,7 @@ $letrasTipoMedidor = [
         });
 
         // Event listener para carregar valores
-        document.getElementById('selectTipoEntidade').addEventListener('change', function () {
+        document.getElementById('selectTipoEntidade').addEventListener('change', function() {
             carregarValoresEntidade();
             limparPontoMedicao();
         });
@@ -943,7 +946,7 @@ $letrasTipoMedidor = [
         // Event listener para quando selecionar valor - guardar o valorEntidadeId e buscar
         const selectValorElement = document.getElementById('selectValorEntidade');
 
-        selectValorElement.addEventListener('addItem', function (event) {
+        selectValorElement.addEventListener('addItem', function(event) {
             const selectedValue = event.detail.value;
 
             if (selectedValue && valoresEntidadeMap[selectedValue]) {
@@ -959,7 +962,7 @@ $letrasTipoMedidor = [
         });
 
         // Também ouve o change para limpar quando necessário
-        selectValorElement.addEventListener('change', function () {
+        selectValorElement.addEventListener('change', function() {
             if (!this.value) {
                 valorEntidadeIdSelecionado = '';
                 document.getElementById('valorEntidadeIdHidden').value = '';
@@ -967,13 +970,16 @@ $letrasTipoMedidor = [
         });
 
         // Event listeners para busca automática ao mudar mês ou ano
-        document.getElementById('selectMes').addEventListener('change', function () {
+        document.getElementById('selectMes').addEventListener('change', function() {
             tentarBuscaAutomatica();
         });
 
-        document.getElementById('selectAno').addEventListener('change', function () {
+        document.getElementById('selectAno').addEventListener('change', function() {
             tentarBuscaAutomatica();
         });
+
+        carregarValoresEntidade();
+
     }
 
     // Função para tentar busca automática se filtros estiverem preenchidos
@@ -1012,15 +1018,19 @@ $letrasTipoMedidor = [
         const dropdown = document.getElementById('filtroPontoMedicaoDropdown');
         const btnLimpar = document.getElementById('btnLimparPonto');
 
+        // Selecionar todo o texto ao focar no input
+        input.addEventListener('focus', function() {
+            setTimeout(() => this.select(), 0);
+        });
         // Evento de foco - abre dropdown
-        input.addEventListener('focus', function () {
+        input.addEventListener('focus', function() {
             if (!hidden.value) {
                 buscarPontosMedicaoAutocomplete('');
             }
         });
 
         // Evento de digitação
-        input.addEventListener('input', function () {
+        input.addEventListener('input', function() {
             const termo = this.value.trim();
 
             // Limpa seleção anterior
@@ -1036,7 +1046,7 @@ $letrasTipoMedidor = [
         });
 
         // Navegação por teclado
-        input.addEventListener('keydown', function (e) {
+        input.addEventListener('keydown', function(e) {
             const items = dropdown.querySelectorAll('.autocomplete-item');
 
             if (e.key === 'ArrowDown') {
@@ -1058,14 +1068,14 @@ $letrasTipoMedidor = [
         });
 
         // Fecha ao clicar fora
-        document.addEventListener('click', function (e) {
+        document.addEventListener('click', function(e) {
             if (!e.target.closest('.autocomplete-container')) {
                 dropdown.classList.remove('active');
             }
         });
 
         // Botão limpar
-        btnLimpar.addEventListener('click', function () {
+        btnLimpar.addEventListener('click', function() {
             input.value = '';
             hidden.value = '';
             btnLimpar.style.display = 'none';
@@ -1078,7 +1088,9 @@ $letrasTipoMedidor = [
         items.forEach((item, index) => {
             if (index === autocompletePontoIndex) {
                 item.classList.add('highlighted');
-                item.scrollIntoView({ block: 'nearest' });
+                item.scrollIntoView({
+                    block: 'nearest'
+                });
             } else {
                 item.classList.remove('highlighted');
             }
@@ -1095,7 +1107,9 @@ $letrasTipoMedidor = [
         const valorId = document.getElementById('selectValorEntidade').value;
 
         let url;
-        let params = new URLSearchParams({ busca: termo });
+        let params = new URLSearchParams({
+            busca: termo
+        });
 
         // Se tem valor selecionado, filtra por CD_ENTIDADE_VALOR_ID
         if (valorEntidadeIdSelecionado) {
@@ -1138,7 +1152,7 @@ $letrasTipoMedidor = [
                     dropdown.innerHTML = html;
 
                     dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
-                        item.addEventListener('click', function () {
+                        item.addEventListener('click', function() {
                             selecionarPontoMedicaoAutocomplete(this.dataset.value, this.dataset.label);
                         });
                     });
@@ -1251,29 +1265,54 @@ $letrasTipoMedidor = [
         valoresEntidadeMap = {};
         document.getElementById('valorEntidadeIdHidden').value = '';
 
-        if (!tipoId) {
-            choicesValor.setChoices([{ value: '', label: 'Selecione o tipo de unidade primeiro', selected: true }], 'value', 'label', true);
-            return;
-        }
-
         try {
-            const response = await fetch(`bd/operacoes/getValoresEntidade.php?tipoId=${tipoId}`);
+            // Monta URL - se tiver tipoId, filtra; senão, busca todos
+            let url = 'bd/operacoes/getValoresEntidade.php';
+            if (tipoId) {
+                url += `?tipoId=${tipoId}`;
+            }
+
+            const response = await fetch(url);
             const data = await response.json();
 
             if (data.success && data.valores.length > 0) {
-                let options = [{ value: '', label: 'Selecione a unidade...', selected: true }];
+                let options = [{
+                    value: '',
+                    label: 'Selecione a unidade...',
+                    selected: true
+                }];
+
                 data.valores.forEach(valor => {
                     valoresEntidadeMap[valor.cd] = valor.id;
 
+                    // Se não tem filtro de tipo, inclui o nome do tipo no label
+                    let label;
+                    if (!tipoId && valor.tipo_id) {
+                        label = `${valor.tipo_id} - ${valor.id} - ${valor.nome}`;
+                    } else {
+                        label = valor.id + ' - ' + valor.nome;
+                    }
+
                     options.push({
                         value: valor.cd,
-                        label: valor.id + ' - ' + valor.nome
+                        label: label
                     });
                 });
                 choicesValor.setChoices(options, 'value', 'label', true);
+            } else {
+                choicesValor.setChoices([{
+                    value: '',
+                    label: 'Nenhuma unidade encontrada',
+                    selected: true
+                }], 'value', 'label', true);
             }
         } catch (error) {
-            console.error('Erro:', error);
+            console.error('Erro ao carregar unidades:', error);
+            choicesValor.setChoices([{
+                value: '',
+                label: 'Erro ao carregar unidades',
+                selected: true
+            }], 'value', 'label', true);
         }
     }
 
@@ -1281,7 +1320,9 @@ $letrasTipoMedidor = [
         choicesTipo.setChoiceByValue('');
         choicesValor.clearChoices();
         choicesValor.clearStore();
-        choicesValor.setChoices([{ value: '', label: 'Selecione o tipo de unidade primeiro', selected: true }], 'value', 'label', true);
+
+        carregarValoresEntidade(); // Recarrega todas as unidades
+
         valorEntidadeIdSelecionado = '';
         valoresEntidadeMap = {};
         document.getElementById('valorEntidadeIdHidden').value = '';
@@ -1310,15 +1351,9 @@ $letrasTipoMedidor = [
         const tipoPeriodo = document.querySelector('input[name="tipoPeriodo"]:checked').value;
 
         // Validações - se não tem ponto, exige tipo e valor
-        if (!pontoId) {
-            if (!tipoId) {
-                showToast('Selecione o tipo de unidade operacional ou um ponto de medição', 'alerta');
-                return;
-            }
-            if (!valorId) {
-                showToast('Selecione a unidade operacional ou um ponto de medição', 'alerta');
-                return;
-            }
+        if (!valorId && !pontoId) {
+            showToast('Selecione a unidade operacional ou um ponto de medição', 'alerta');
+            return;
         }
 
         let dataInicio, dataFim;
@@ -1528,7 +1563,9 @@ $letrasTipoMedidor = [
 
         grafico = new Chart(ctx, {
             type: 'line',
-            data: { datasets },
+            data: {
+                datasets
+            },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -1546,7 +1583,7 @@ $letrasTipoMedidor = [
                     },
                     tooltip: {
                         callbacks: {
-                            label: function (context) {
+                            label: function(context) {
                                 return `${context.dataset.label}: ${formatarNumero(context.parsed.y)} ${data.unidade}`;
                             }
                         }
@@ -1633,7 +1670,17 @@ $letrasTipoMedidor = [
 
                 // Acumular valores por dia para calcular média
                 if (!target[pontoKey].valores[dataStr]) {
-                    target[pontoKey].valores[dataStr] = { soma: 0, count: 0, qtd_registros: 0, qtd_tratados: 0, horario_max: null, tipo_medidor: null, valor_min: null, valor_max: null, cd_ponto: item.cd_ponto };
+                    target[pontoKey].valores[dataStr] = {
+                        soma: 0,
+                        count: 0,
+                        qtd_registros: 0,
+                        qtd_tratados: 0,
+                        horario_max: null,
+                        tipo_medidor: null,
+                        valor_min: null,
+                        valor_max: null,
+                        cd_ponto: item.cd_ponto
+                    };
                 }
                 target[pontoKey].valores[dataStr].soma += parseFloat(item.valor) || 0;
                 target[pontoKey].valores[dataStr].count++;
@@ -1894,7 +1941,12 @@ $letrasTipoMedidor = [
             });
 
             if (mediasExibidas.length === 0) {
-                return { media: '-', minimo: '-', maximo: '-', totalM3: '-' };
+                return {
+                    media: '-',
+                    minimo: '-',
+                    maximo: '-',
+                    totalM3: '-'
+                };
             }
 
             const minimo = Math.min(...mediasExibidas);
@@ -2105,7 +2157,7 @@ $letrasTipoMedidor = [
         // Plugin para desenhar as error bars
         const errorBarsPlugin = {
             id: 'errorBars',
-            afterDatasetsDraw: function (chart) {
+            afterDatasetsDraw: function(chart) {
                 const ctx = chart.ctx;
                 const meta = chart.getDatasetMeta(0);
 
@@ -2174,10 +2226,11 @@ $letrasTipoMedidor = [
                         labels: {
                             boxWidth: 12,
                             padding: 8,
-                            font: { size: 10 },
-                            generateLabels: function (chart) {
-                                return [
-                                    {
+                            font: {
+                                size: 10
+                            },
+                            generateLabels: function(chart) {
+                                return [{
                                         text: 'Média',
                                         fillStyle: '#dc2626',
                                         strokeStyle: '#dc2626',
@@ -2199,7 +2252,7 @@ $letrasTipoMedidor = [
                     },
                     tooltip: {
                         callbacks: {
-                            label: function (context) {
+                            label: function(context) {
                                 const idx = context.dataIndex;
                                 let lines = [];
                                 lines.push('Média: ' + formatarNumero(context.raw) + ' ' + unidade);
@@ -2217,21 +2270,29 @@ $letrasTipoMedidor = [
                         title: {
                             display: true,
                             text: 'Dia',
-                            font: { size: 10 }
+                            font: {
+                                size: 10
+                            }
                         },
                         ticks: {
-                            font: { size: 9 }
+                            font: {
+                                size: 9
+                            }
                         }
                     },
                     y: {
                         title: {
                             display: true,
                             text: unidade,
-                            font: { size: 10 }
+                            font: {
+                                size: 10
+                            }
                         },
                         ticks: {
-                            font: { size: 9 },
-                            callback: function (value) {
+                            font: {
+                                size: 9
+                            },
+                            callback: function(value) {
                                 return formatarNumero(value);
                             }
                         },
@@ -2248,7 +2309,7 @@ $letrasTipoMedidor = [
     }
 
     // Fechar popup ao clicar fora
-    document.addEventListener('click', function (e) {
+    document.addEventListener('click', function(e) {
         const popup = document.getElementById('graficoPopup');
         const isButton = e.target.closest('.btn-grafico-popup');
         if (popup && !popup.contains(e.target) && !isButton) {
@@ -2257,7 +2318,7 @@ $letrasTipoMedidor = [
     });
 
     // Fechar popup ao pressionar ESC
-    document.addEventListener('keydown', function (e) {
+    document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             fecharGraficoPopup();
             fecharModalValidacao();
@@ -2327,9 +2388,9 @@ $letrasTipoMedidor = [
         // Atualizar tà­tulo do modal
         const tituloEl = document.getElementById('validacaoTitulo');
         if (tituloEl) {
-            tituloEl.innerHTML = apenasVisualizacao
-                ? '<ion-icon name="eye-outline"></ion-icon> Visualização de Dados'
-                : '<ion-icon name="checkmark-circle-outline"></ion-icon> Validação de Dados';
+            tituloEl.innerHTML = apenasVisualizacao ?
+                '<ion-icon name="eye-outline"></ion-icon> Visualização de Dados' :
+                '<ion-icon name="checkmark-circle-outline"></ion-icon> Validação de Dados';
         }
 
         // Atualizar mensagem de info
@@ -2412,7 +2473,10 @@ $letrasTipoMedidor = [
             // Scroll para o painel de Análise Inteligente
             const iaPanel = document.getElementById('iaPanelValidacao');
             if (iaPanel) {
-                iaPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                iaPanel.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest'
+                });
             }
 
             // Enviar a pergunta de análise
@@ -2602,7 +2666,15 @@ $letrasTipoMedidor = [
 
         let html = '';
         for (let h = 0; h < 24; h++) {
-            const d = horasMap[h] || { hora: h, media: null, min: null, max: null, qtd_registros: 0, tratado: false, soma_extravasou: 0 };
+            const d = horasMap[h] || {
+                hora: h,
+                media: null,
+                min: null,
+                max: null,
+                qtd_registros: 0,
+                tratado: false,
+                soma_extravasou: 0
+            };
             const horaStr = String(h).padStart(2, '0') + ':00';
             const temDados = d.qtd_registros > 0;
             const selecionada = validacaoHorasSelecionadas.includes(h);
@@ -2786,7 +2858,7 @@ $letrasTipoMedidor = [
         // =====================================================
         const errorBarsPlugin = {
             id: 'errorBarsValidacao',
-            afterDatasetsDraw: function (chart) {
+            afterDatasetsDraw: function(chart) {
                 // Verificar se error bars estão ativos
                 if (!errorBarsPluginAtivo) return;
 
@@ -2854,7 +2926,7 @@ $letrasTipoMedidor = [
                         fill: false,
                         // Cor do segmento muda se ambos pontos são tratados
                         segment: {
-                            borderColor: function (ctx) {
+                            borderColor: function(ctx) {
                                 const prev = ctx.p0DataIndex;
                                 const curr = ctx.p1DataIndex;
                                 if (tratados[prev] && tratados[curr]) {
@@ -2904,7 +2976,7 @@ $letrasTipoMedidor = [
                         backgroundColor: 'transparent',
                         borderWidth: 2,
                         borderDash: [8, 4],
-                        pointRadius: 0,  // Sem pontos, apenas linha
+                        pointRadius: 0, // Sem pontos, apenas linha
                         tension: 0,
                         spanGaps: true,
                         fill: false
@@ -2939,8 +3011,10 @@ $letrasTipoMedidor = [
                         labels: {
                             usePointStyle: true,
                             padding: 15,
-                            font: { size: 11 },
-                            generateLabels: function (chart) {
+                            font: {
+                                size: 11
+                            },
+                            generateLabels: function(chart) {
                                 return chart.data.datasets.map((dataset, i) => {
                                     return {
                                         text: dataset.label,
@@ -2954,7 +3028,7 @@ $letrasTipoMedidor = [
                     },
                     tooltip: {
                         callbacks: {
-                            label: function (context) {
+                            label: function(context) {
                                 const idx = context.dataIndex;
                                 let lines = [];
 
@@ -2995,15 +3069,25 @@ $letrasTipoMedidor = [
                 },
                 scales: {
                     x: {
-                        grid: { display: false },
-                        ticks: { font: { size: 9 } }
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            font: {
+                                size: 9
+                            }
+                        }
                     },
                     y: {
                         beginAtZero: true,
-                        grid: { color: '#e5e7eb' },
+                        grid: {
+                            color: '#e5e7eb'
+                        },
                         ticks: {
-                            font: { size: 9 },
-                            callback: function (value) {
+                            font: {
+                                size: 9
+                            },
+                            callback: function(value) {
                                 return formatarNumero(value);
                             }
                         }
@@ -3067,9 +3151,9 @@ $letrasTipoMedidor = [
 
     // Função para alternar visibilidade das linhas do gráfico
     /**
-    * Alterna a visibilidade das linhas do gráfico de validação
-    * @param {string} tipo - Tipo do controle: 'principal', 'errorbars', 'sugeridos', 'excluidos', 'mediadiaria'
-    */
+     * Alterna a visibilidade das linhas do gráfico de validação
+     * @param {string} tipo - Tipo do controle: 'principal', 'errorbars', 'sugeridos', 'excluidos', 'mediadiaria'
+     */
     function toggleLinhaGrafico(tipo) {
         if (!validacaoGrafico) return;
 
@@ -3153,9 +3237,9 @@ $letrasTipoMedidor = [
             String(h).padStart(2, '0') + ':00'
         ).join(', ');
 
-        const horasDisplay = validacaoHorasSelecionadas.length === 1
-            ? horasTexto + ' - ' + String(validacaoHorasSelecionadas[0]).padStart(2, '0') + ':59'
-            : horasTexto + ` (${validacaoHorasSelecionadas.length} horas)`;
+        const horasDisplay = validacaoHorasSelecionadas.length === 1 ?
+            horasTexto + ' - ' + String(validacaoHorasSelecionadas[0]).padStart(2, '0') + ':59' :
+            horasTexto + ` (${validacaoHorasSelecionadas.length} horas)`;
 
         if (isTipoNivel) {
             // Formulário para tipo 6 (Nível Reservatório)
@@ -3180,9 +3264,9 @@ $letrasTipoMedidor = [
                 const hora = validacaoHorasSelecionadas[0];
                 const dadoHora = validacaoDadosAtuais.dados.find(d => d.hora === hora);
                 document.getElementById('validacaoValorAtual').value =
-                    dadoHora && dadoHora.media !== null
-                        ? formatarNumero(dadoHora.media) + ' ' + validacaoUnidadeAtual
-                        : 'Sem dados';
+                    dadoHora && dadoHora.media !== null ?
+                    formatarNumero(dadoHora.media) + ' ' + validacaoUnidadeAtual :
+                    'Sem dados';
             } else {
                 document.getElementById('validacaoValorAtual').value =
                     validacaoHorasSelecionadas.length > 1 ? 'Múltiplas horas' : 'Sem dados';
@@ -3205,7 +3289,9 @@ $letrasTipoMedidor = [
             validacaoHorasSelecionadas = [];
         } else {
             // Marcar todas
-            validacaoHorasSelecionadas = Array.from({ length: 24 }, (_, i) => i);
+            validacaoHorasSelecionadas = Array.from({
+                length: 24
+            }, (_, i) => i);
         }
 
         // Atualizar visual
@@ -3252,7 +3338,9 @@ $letrasTipoMedidor = [
             }
         } else {
             // Se não há dados, selecionar todas
-            validacaoHorasSelecionadas = Array.from({ length: 24 }, (_, i) => i);
+            validacaoHorasSelecionadas = Array.from({
+                length: 24
+            }, (_, i) => i);
         }
 
         // Atualizar visual
@@ -3494,7 +3582,10 @@ $letrasTipoMedidor = [
         if (btnCancelar) btnCancelar.disabled = false;
 
         // Scroll para o container
-        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        container.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest'
+        });
 
         if (valoresSugeridosAtual.length === 0) {
             showToast('Nenhuma hora com dados históricos suficientes', 'aviso');
@@ -3536,10 +3627,12 @@ $letrasTipoMedidor = [
         };
 
         fetch('bd/operacoes/validarDadosIA.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -3737,12 +3830,12 @@ $letrasTipoMedidor = [
         btn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon> Processando...';
 
         fetch('bd/operacoes/validarDados.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        })
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -3910,7 +4003,9 @@ $letrasTipoMedidor = [
                 // Enviar para API da IA
                 return fetch('bd/operacoes/analiseIA.php', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify(payload)
                 });
             })
@@ -4010,10 +4105,12 @@ $letrasTipoMedidor = [
         };
 
         return fetch('bd/operacoes/consultarDadosIA.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
             .then(response => {
                 return response.text();
             })
@@ -4046,21 +4143,21 @@ $letrasTipoMedidor = [
      * Constrói contexto completo com dados do banco
      */
     /**
-      * Constrói contexto completo com dados do banco para a IA
-      * 
-      * @param {Object} dados - Dados retornados pelo consultarDadosIA.php
-      * @returns {string} - Contexto formatado para enviar à IA
-      * 
-      * @version 2.1 - Adicionado suporte a registros descartados (ID_SITUACAO)
-      */
+     * Constrói contexto completo com dados do banco para a IA
+     * 
+     * @param {Object} dados - Dados retornados pelo consultarDadosIA.php
+     * @returns {string} - Contexto formatado para enviar à IA
+     * 
+     * @version 2.1 - Adicionado suporte a registros descartados (ID_SITUACAO)
+     */
     /**
-      * Constrói contexto completo com dados do banco para a IA
-      * 
-      * @param {Object} dados - Dados retornados pelo consultarDadosIA.php
-      * @returns {string} - Contexto formatado para enviar à IA
-      * 
-      * @version 2.1 - Adicionado suporte a registros descartados (ID_SITUACAO)
-      */
+     * Constrói contexto completo com dados do banco para a IA
+     * 
+     * @param {Object} dados - Dados retornados pelo consultarDadosIA.php
+     * @returns {string} - Contexto formatado para enviar à IA
+     * 
+     * @version 2.1 - Adicionado suporte a registros descartados (ID_SITUACAO)
+     */
     function construirContextoCompletoChat(dados) {
         let contexto = '=== DADOS DO SISTEMA DE ABASTECIMENTO DE ÁGUA ===\n\n';
 
@@ -4194,7 +4291,10 @@ $letrasTipoMedidor = [
                 // Marcar horas com descarte
                 const marcaDescarte = qtdDescartados > 0 ? ' ⚠️' : '';
                 if (qtdDescartados > 0) {
-                    horasComDescarte.push({ hora: hora, qtd: qtdDescartados });
+                    horasComDescarte.push({
+                        hora: hora,
+                        qtd: qtdDescartados
+                    });
                 }
 
                 contexto += `${hora} | ${String(qtdValidos).padStart(7)} | ${String(qtdDescartados).padStart(8)} | ${formatNum(mediaVazao).padStart(11)} | ${minVazao.padStart(7)} | ${maxVazao}${marcaDescarte}\n`;
@@ -4512,10 +4612,12 @@ $letrasTipoMedidor = [
         };
 
         fetch('bd/operacoes/validarDadosIA.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -4677,10 +4779,10 @@ $letrasTipoMedidor = [
         const valorCdChave = document.getElementById('selectValorEntidade').value;
 
         // Tentar várias fontes para obter o CD_ENTIDADE_VALOR_ID
-        let valorEntidadeId = valorEntidadeIdSelecionado
-            || document.getElementById('valorEntidadeIdHidden').value
-            || valoresEntidadeMap[valorCdChave]
-            || '';
+        let valorEntidadeId = valorEntidadeIdSelecionado ||
+            document.getElementById('valorEntidadeIdHidden').value ||
+            valoresEntidadeMap[valorCdChave] ||
+            '';
 
         if (!valorEntidadeId) {
             body.innerHTML = `
@@ -4973,7 +5075,10 @@ $letrasTipoMedidor = [
 
         // Scroll para área de análise
         setTimeout(() => {
-            analiseArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            analiseArea.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest'
+            });
         }, 100);
 
         // Verificar cache
@@ -5212,7 +5317,10 @@ $letrasTipoMedidor = [
      * Renderiza anomalias (versão inline compacta)
      */
     function renderizarAnomaliasInline(container, data) {
-        const { resumo, anomaliasPorHora } = data;
+        const {
+            resumo,
+            anomaliasPorHora
+        } = data;
 
         if (anomaliasPorHora.length === 0) {
             container.innerHTML = `
@@ -5301,7 +5409,10 @@ $letrasTipoMedidor = [
      * Renderiza as anomalias detectadas
      */
     function renderizarAnomalias(container, data) {
-        const { resumo, anomaliasPorHora } = data;
+        const {
+            resumo,
+            anomaliasPorHora
+        } = data;
 
         let html = `
         <div class="anomalias-header">
@@ -5360,19 +5471,19 @@ $letrasTipoMedidor = [
     }
 
     /**
- * =====================================================
- * PATCH: Bolinhas de completude coloridas - operacoes.php
- * =====================================================
- * 
- * Este arquivo contém as alterações exatas a serem feitas em operacoes.php
- * 
- * REGRAS:
- * - >= 80% dos dados (1152+ registros) = bola VERDE
- * - >= 50% e < 80% (720-1151 registros) = bola AMARELA
- * - < 50% (< 720 registros) = bola VERMELHA
- * 
- * O fundo da célula permanece laranja para indicar dado incompleto
- */
+     * =====================================================
+     * PATCH: Bolinhas de completude coloridas - operacoes.php
+     * =====================================================
+     * 
+     * Este arquivo contém as alterações exatas a serem feitas em operacoes.php
+     * 
+     * REGRAS:
+     * - >= 80% dos dados (1152+ registros) = bola VERDE
+     * - >= 50% e < 80% (720-1151 registros) = bola AMARELA
+     * - < 50% (< 720 registros) = bola VERMELHA
+     * 
+     * O fundo da célula permanece laranja para indicar dado incompleto
+     */
 
     // =====================================================
     // PASSO 1: Adicionar função helper no início do <script>
@@ -5392,18 +5503,18 @@ $letrasTipoMedidor = [
     }
 
     /**
- * =====================================================
- * PATCH: Cores de fundo por completude horária - Modal de Validação
- * =====================================================
- * 
- * Este arquivo contém as alterações para operacoes.php
- * 
- * REGRAS (base 60 registros por hora):
- * - >= 80% dos dados (48+ registros) = fundo VERDE
- * - >= 50% e < 80% (30-47 registros) = fundo AMARELO
- * - < 50% (< 30 registros) = fundo VERMELHO
- * - 0 registros = sem cor especial (linha cinza padrão)
- */
+     * =====================================================
+     * PATCH: Cores de fundo por completude horária - Modal de Validação
+     * =====================================================
+     * 
+     * Este arquivo contém as alterações para operacoes.php
+     * 
+     * REGRAS (base 60 registros por hora):
+     * - >= 80% dos dados (48+ registros) = fundo VERDE
+     * - >= 50% e < 80% (30-47 registros) = fundo AMARELO
+     * - < 50% (< 30 registros) = fundo VERMELHO
+     * - 0 registros = sem cor especial (linha cinza padrão)
+     */
 
     // =====================================================
     // PASSO 1: Adicionar função helper para completude horária
@@ -5415,9 +5526,9 @@ $letrasTipoMedidor = [
         if (qtdRegistros === 0) return ''; // Sem dados, sem classe
         const percentual = (qtdRegistros / 60) * 100;
         if (percentual >= 80) {
-            return 'completude-verde';    // >= 48 registros
+            return 'completude-verde'; // >= 48 registros
         } else if (percentual >= 50) {
-            return 'completude-amarelo';  // >= 30 e < 48 registros
+            return 'completude-amarelo'; // >= 30 e < 48 registros
         } else {
             return 'completude-vermelho'; // < 30 registros
         }
@@ -5538,8 +5649,8 @@ $letrasTipoMedidor = [
     }
 
     /**
- * Desabilita todas as funções de edição quando há dados do Historiador (dia atual)
- */
+     * Desabilita todas as funções de edição quando há dados do Historiador (dia atual)
+     */
     function desabilitarEdicaoValidacao() {
         // Desabilitar checkbox "Selecionar Todas" no cabeçalho da tabela
         const chkTodos = document.getElementById('checkboxTodos');
