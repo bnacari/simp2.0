@@ -85,22 +85,7 @@ WHERE
 PRINT 'Ordem inicial definida para registros existentes.';
 
 GO
-    -- ============================================
-    -- ============================================
-    -- Índice para acelerar as consultas
-    CREATE INDEX IX_MRD_DT_MEDICAO_PONTO ON MEDICAO_RESUMO_DIARIO (DT_MEDICAO, CD_PONTO_MEDICAO) INCLUDE (
-        VL_SCORE_SAUDE,
-        FL_SEM_COMUNICACAO,
-        FL_VALOR_CONSTANTE,
-        FL_PERFIL_ANOMALO,
-        FL_VALOR_NEGATIVO,
-        FL_FORA_FAIXA,
-        FL_SPIKE,
-        FL_ANOMALIA,
-        ID_SITUACAO,
-        QTD_TRATAMENTOS
-    );
-
+   
 -- ============================================
 -- SIMP - Tabela de Regras da IA (Campo Único)
 -- Um único registro com todas as instruções

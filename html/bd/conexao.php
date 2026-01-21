@@ -5,7 +5,8 @@ $requestUri  = $_SERVER['REQUEST_URI'] ?? '';
 
 // verificar se contém o domínio de homologação
 // alternativa compatível com PHP < 8.0:
-$isHomologacao = (strpos($currentHost, 'vdeskadds007.cesan.com.br') !== false);
+// $isHomologacao = (strpos($currentHost, 'vdeskadds007.cesan.com.br') !== false);
+$isHomologacao = (strpos($currentHost, '') !== false); //PRODUÇÃO
 
 // se quiser checar a URL completa (protocolo + host + URI)
 $urlCompleta = (isset($_SERVER['REQUEST_SCHEME']) ? $_SERVER['REQUEST_SCHEME'] : 'http') . "://{$currentHost}{$requestUri}";

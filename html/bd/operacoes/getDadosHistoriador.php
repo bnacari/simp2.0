@@ -188,12 +188,23 @@ try {
     }
     
     // Calcular estatísticas por hora
+    // Também filtrar: horas futuras com valor zero não devem ser incluídas
+    $horaAtual = (int)date('H');
+    
     foreach ($porHora as $h => &$dadosHora) {
         if (count($dadosHora['valores']) > 0) {
             $dadosHora['qtd'] = count($dadosHora['valores']);
             $dadosHora['media'] = round(array_sum($dadosHora['valores']) / $dadosHora['qtd'], 2);
             $dadosHora['min'] = round(min($dadosHora['valores']), 2);
             $dadosHora['max'] = round(max($dadosHora['valores']), 2);
+            
+            // Se é hora futura e média é zero, não incluir (setar como null)
+            if ($h > $horaAtual && $dadosHora['media'] == 0) {
+                $dadosHora['media'] = null;
+                $dadosHora['min'] = null;
+                $dadosHora['max'] = null;
+                $dadosHora['qtd'] = 0;
+            }
         }
         // Remover array de valores para não sobrecarregar a resposta
         unset($dadosHora['valores']);

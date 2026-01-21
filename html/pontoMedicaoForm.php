@@ -4,7 +4,7 @@ include_once 'includes/menu.inc.php';
 include_once 'bd/conexao.php';
 
 // Verifica permissão para editar Ponto de Medição (busca por nome na tabela FUNCIONALIDADE)
-exigePermissaoTela('CADASTRO DE PONTO', ACESSO_ESCRITA);
+exigePermissaoTela('Cadastro de Ponto de Medição', ACESSO_ESCRITA);
 
 // Verifica se é edição
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;

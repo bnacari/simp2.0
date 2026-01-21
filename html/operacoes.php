@@ -438,10 +438,10 @@ $letrasTipoMedidor = [
                         <span class="controle-label">Média Diária</span>
                     </label>
                     <!-- Controle Historiador CCO (oculto por padrão, mostrado via JS quando há dados) -->
-                    <label class="grafico-controle-item" id="controleHistoriador" style="display: none;">
-                        <input type="checkbox" checked onchange="toggleGraficoControle('historiador')">
-                        <span class="controle-cor" style="background: #10b981;"></span>
-                        Historiador CCO
+                    <label class="grafico-controle-item" id="controleHistoriador" style="display:none;">
+                        <input type="checkbox" id="chkHistoriador" checked onchange="toggleLinhaGrafico('historiador')">
+                        <span class="controle-cor historiador"></span>
+                        <span class="controle-label">CCO</span>
                     </label>
                 </div>
 
@@ -2384,6 +2384,7 @@ $letrasTipoMedidor = [
         dadosHistoriadorAtual = null;
         removerIndicadorHistoriador();
         ocultarControleHistoriador();
+        habilitarEdicaoValidacao(); // Restaurar estado de edição
 
         // Destruir gráfico
         if (validacaoGrafico) {
@@ -2756,11 +2757,21 @@ $letrasTipoMedidor = [
             }
 
             // ADICIONAR: Valores do Historiador CCO (apenas dia atual)
+            // Valores do Historiador CCO (apenas dia atual)
             if (dadosHistoriadorAtual && dadosHistoriadorAtual.dados) {
                 temDadosHistoriador = true;
+                const horaAtual = new Date().getHours();
                 const dadosHoraHist = dadosHistoriadorAtual.dados.find(d => d.hora === h);
+
+                // Só incluir valor se:
+                // - Hora é menor ou igual à hora atual E tem dados
+                // - OU se o valor não é zero (mesmo em horas futuras)
                 if (dadosHoraHist && dadosHoraHist.media !== null) {
-                    valoresHistoriador.push(dadosHoraHist.media);
+                    if (h <= horaAtual || dadosHoraHist.media !== 0) {
+                        valoresHistoriador.push(dadosHoraHist.media);
+                    } else {
+                        valoresHistoriador.push(null); // Hora futura com zero = não mostrar
+                    }
                 } else {
                     valoresHistoriador.push(null);
                 }
@@ -2900,21 +2911,21 @@ $letrasTipoMedidor = [
                     }] : []),
                     // ADICIONAR: Dataset Historiador CCO (linha verde tracejada)
                     ...(temDadosHistoriador ? [{
-                        label: 'Historiador CCO',
+                        label: 'CCO',
                         data: valoresHistoriador,
-                        borderColor: '#10b981',  // Verde esmeralda
+                        borderColor: '#06b6d4',
                         backgroundColor: 'transparent',
                         borderWidth: 2.5,
-                        borderDash: [6, 4],  // Linha tracejada
+                        borderDash: [6, 4],
                         pointRadius: 3,
-                        pointBackgroundColor: '#10b981',
+                        pointBackgroundColor: '#06b6d4',
                         pointBorderColor: '#fff',
                         pointBorderWidth: 1,
                         pointHoverRadius: 5,
                         tension: 0.1,
                         spanGaps: false,
                         fill: false,
-                        order: 0  // Renderizar por cima das outras linhas
+                        order: 0
                     }] : [])
                 ]
             },
@@ -2958,8 +2969,8 @@ $letrasTipoMedidor = [
                                         lines.push('Sugerido: ' + formatarNumero(context.raw) + ' ' + unidade);
                                     } else if (datasetLabel === 'Excluídos') {
                                         lines.push('Excluído: ' + formatarNumero(context.raw) + ' ' + unidade);
-                                    } else if (datasetLabel === 'Historiador CCO') {
-                                        lines.push('Historiador CCO: ' + formatarNumero(context.raw) + ' ' + unidade);
+                                    } else if (datasetLabel === 'CCO') {
+                                        lines.push('CCO: ' + formatarNumero(context.raw) + ' ' + unidade);
                                     } else {
                                         // Dataset principal (Média ou Máximo)
                                         lines.push((isTipoNivel ? 'Máx: ' : 'Média: ') + formatarNumero(context.raw) + ' ' + unidade);
@@ -3084,7 +3095,8 @@ $letrasTipoMedidor = [
                 validacaoGrafico.data.datasets[datasetIndex].hidden = !graficoControlesEstado[tipo];
             }
         } else if (tipo === 'historiador') {
-            const datasetIndex = validacaoGrafico.data.datasets.findIndex(ds => ds.label === 'Historiador CCO');
+            graficoControlesEstado.historiador = document.getElementById('chkHistoriador').checked;
+            const datasetIndex = validacaoGrafico.data.datasets.findIndex(ds => ds.label === 'CCO');
             if (datasetIndex > -1) {
                 validacaoGrafico.data.datasets[datasetIndex].hidden = !graficoControlesEstado.historiador;
             }
@@ -5429,6 +5441,7 @@ $letrasTipoMedidor = [
         if (validacaoDataAtual !== hoje) {
             dadosHistoriadorAtual = null;
             ocultarControleHistoriador();
+            habilitarEdicaoValidacao(); // Habilitar edição para dias anteriores
             return;
         }
 
@@ -5443,31 +5456,33 @@ $letrasTipoMedidor = [
             })
             .then(data => {
                 if (data.success && data.is_dia_atual && data.dados && data.dados.length > 0) {
-                    // Verificar se há pelo menos um valor não nulo
-                    const temValores = data.dados.some(d => d.media !== null);
+                    const temValores = data.dados.some(d => d.media !== null && d.media !== 0);
 
                     if (temValores) {
                         dadosHistoriadorAtual = data;
                         mostrarIndicadorHistoriador(data.tag, data.total_registros);
                         mostrarControleHistoriador();
+                        desabilitarEdicaoValidacao(); // NOVO: Desabilitar edição
 
-                        // Re-renderizar gráfico com linha do historiador
                         if (validacaoDadosAtuais) {
                             renderizarGraficoValidacao(validacaoDadosAtuais.dados, validacaoDadosAtuais.unidade);
                         }
                     } else {
                         dadosHistoriadorAtual = null;
                         ocultarControleHistoriador();
+                        habilitarEdicaoValidacao();
                     }
                 } else {
                     dadosHistoriadorAtual = null;
                     ocultarControleHistoriador();
+                    habilitarEdicaoValidacao();
                 }
             })
             .catch(error => {
                 console.log('Historiador não disponível:', error);
                 dadosHistoriadorAtual = null;
                 ocultarControleHistoriador();
+                habilitarEdicaoValidacao();
             });
     }
 
@@ -5520,6 +5535,102 @@ $letrasTipoMedidor = [
         if (indicador) {
             indicador.style.display = 'none';
         }
+    }
+
+    /**
+ * Desabilita todas as funções de edição quando há dados do Historiador (dia atual)
+ */
+    function desabilitarEdicaoValidacao() {
+        // Desabilitar checkbox "Selecionar Todas" no cabeçalho da tabela
+        const chkTodos = document.getElementById('checkboxTodos');
+        if (chkTodos) chkTodos.disabled = true;
+
+        // Desabilitar checkboxes de seleção de horas nas linhas
+        document.querySelectorAll('#validacaoTabelaBody input[type="checkbox"]').forEach(cb => {
+            cb.disabled = true;
+        });
+
+        // Desabilitar botões de ação
+        const btnSugerir = document.getElementById('btnSugerirValores');
+        const btnValidar = document.getElementById('btnValidar');
+
+        if (btnSugerir) btnSugerir.disabled = true;
+        if (btnValidar) btnValidar.disabled = true;
+
+        // Desabilitar botões "Selecionar Todas" e "Selecionar Horas Vazias"
+        document.querySelectorAll('#validacaoAcoesRapidas button').forEach(btn => {
+            btn.disabled = true;
+        });
+
+        // Ocultar formulários de edição
+        const formValidacao = document.getElementById('validacaoForm');
+        const formNivel = document.getElementById('validacaoFormNivel');
+        if (formValidacao) formValidacao.style.display = 'none';
+        if (formNivel) formNivel.style.display = 'none';
+
+        // Atualizar texto informativo
+        const infoTexto = document.getElementById('validacaoInfoTexto');
+        if (infoTexto) {
+            infoTexto.innerHTML = '<span style="color:#06b6d4;"><ion-icon name="information-circle"></ion-icon> Dia atual - somente visualização. Dados em tempo real do CCO.</span>';
+        }
+
+        // Desabilitar TODA a área de Análise Inteligente
+        // - Botões de sugestão da IA
+        document.querySelectorAll('#iaChatSugestoes button').forEach(btn => {
+            btn.disabled = true;
+        });
+        // - Input de chat
+        const inputChat = document.getElementById('iaChatInput');
+        if (inputChat) inputChat.disabled = true;
+        // - Botão de enviar chat
+        const btnEnviarChat = document.getElementById('btnEnviarChat');
+        if (btnEnviarChat) btnEnviarChat.disabled = true;
+    }
+
+    /**
+     * Habilita funções de edição (para dias anteriores)
+     */
+    function habilitarEdicaoValidacao() {
+        // Verificar se usuário tem permissão de edição
+        if (typeof podeEditar === 'undefined' || !podeEditar) {
+            return;
+        }
+
+        // Habilitar checkbox "Selecionar Todas" no cabeçalho
+        const chkTodos = document.getElementById('checkboxTodos');
+        if (chkTodos) chkTodos.disabled = false;
+
+        // Habilitar checkboxes das linhas
+        document.querySelectorAll('#validacaoTabelaBody input[type="checkbox"]').forEach(cb => {
+            cb.disabled = false;
+        });
+
+        // Habilitar botões de ação
+        const btnSugerir = document.getElementById('btnSugerirValores');
+        if (btnSugerir) btnSugerir.disabled = false;
+
+        // Habilitar botões "Selecionar Todas" e "Selecionar Horas Vazias"
+        document.querySelectorAll('#validacaoAcoesRapidas button').forEach(btn => {
+            btn.disabled = false;
+        });
+
+        // Restaurar texto informativo
+        const infoTexto = document.getElementById('validacaoInfoTexto');
+        if (infoTexto) {
+            infoTexto.textContent = 'Marque uma ou mais horas na tabela para inserir/corrigir valores.';
+        }
+
+        // Habilitar área de Análise Inteligente
+        // - Botões de sugestão da IA
+        document.querySelectorAll('#iaChatSugestoes button').forEach(btn => {
+            btn.disabled = false;
+        });
+        // - Input de chat
+        const inputChat = document.getElementById('iaChatInput');
+        if (inputChat) inputChat.disabled = false;
+        // - Botão de enviar chat
+        const btnEnviarChat = document.getElementById('btnEnviarChat');
+        if (btnEnviarChat) btnEnviarChat.disabled = false;
     }
 </script>
 
