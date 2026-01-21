@@ -37,7 +37,7 @@ table {
     padding: 6px 12px;
     background-color: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 10px !important;
     font-size: 13px;
     width: 100%;
     box-sizing: border-box;
@@ -73,7 +73,7 @@ table {
 
 .choices__list--dropdown {
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 10px !important;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
     margin-top: 4px;
     z-index: 9999 !important;
@@ -285,13 +285,13 @@ table {
 /* Grid de Filtros */
 .filtros-grid {
     display: grid;
-    grid-template-columns: 1.5fr 1.5fr 1fr 90px 200px;
+    grid-template-columns: minmax(180px, 1.3fr) minmax(180px, 1.3fr) minmax(150px, 1.3fr) 90px minmax(160px, 200px);
     gap: 16px;
     align-items: end;
 }
 
 .filtros-grid.modo-datas {
-    grid-template-columns: 1.5fr 1.5fr 1fr 150px 150px;
+    grid-template-columns: 1.3fr 1.3fr 1.3fr 90px 180px;
 }
 
 .form-group {
@@ -321,7 +321,7 @@ table {
     padding: 10px 12px;
     background-color: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 10px !important;
     font-family: inherit;
     font-size: 13px;
     color: #334155;
@@ -358,7 +358,7 @@ input[type="date"].form-control {
     background: white;
     border: 1px solid #e2e8f0;
     border-top: none;
-    border-radius: 0 0 8px 8px;
+    border-radius: 0 0 10px 10px !important;
     max-height: 250px;
     overflow-y: auto;
     z-index: 9999;
@@ -3265,174 +3265,156 @@ input[type="date"].form-control {
     }
 }
 
+/* ============================================
+   CORREÇÕES MOBILE - OVERFLOW FILTROS
+   Adicionar ao final do operacoes.css
+   ============================================ */
+
+/* Correção global para filtros no mobile */
 @media (max-width: 768px) {
-    .operacoes-container {
-        padding: 16px;
+
+    /* Garante que o card de filtros não extrapole */
+    .filtros-card {
+        overflow: hidden;
+        width: 100%;
+        max-width: 100%;
     }
 
-    .operacoes-header {
-        padding: 20px;
+    /* Força largura máxima nos form-groups */
+    .form-group {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow: hidden;
     }
 
-    .operacoes-header h1 {
-        font-size: 18px;
+    /* Choices.js - Container principal */
+    .choices {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
     }
 
+    /* Choices.js - Inner container */
+    .choices__inner {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow: hidden;
+    }
+
+    /* Choices.js - Lista single */
+    .choices__list--single {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow: hidden;
+    }
+
+    /* Choices.js - Item selecionado - CRÍTICO para truncar texto */
+    .choices__list--single .choices__item {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Choices.js - Item selecionável */
+    .choices__item--selectable {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    /* Select nativo - fallback */
+    select.form-control,
+    .form-control {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Input de busca de ponto */
+    .autocomplete-container {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .autocomplete-container input {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    /* Seletor de mês com navegação */
+    .month-selector {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow: hidden;
+    }
+
+    .month-selector select {
+        flex: 1;
+        min-width: 0 !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Grid de filtros - força coluna única */
     .filtros-grid {
-        grid-template-columns: 1fr;
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 16px;
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
-    .filtros-grid.modo-datas {
-        grid-template-columns: 1fr;
-    }
-
-    .filtros-actions {
-        flex-direction: column;
-    }
-
-    .grafico-container {
-        height: 300px;
-    }
-
-    .filtros-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-    }
-
-    /* Modal de validação responsivo */
-    .modal-validacao {
-        width: 98%;
-        height: 95vh;
-    }
-
-    .modal-validacao-body {
-        flex-direction: column;
-    }
-
-    .validacao-coluna-ia {
-        width: 100%;
-        min-width: 100%;
-        max-height: 300px;
-        border-left: none;
-        border-top: 1px solid #e2e8f0;
-        order: 2;
-    }
-
-    .validacao-coluna-principal {
-        order: 1;
-        padding: 12px;
-    }
-
-    .validacao-coluna-ia .ia-chat-mensagens {
-        max-height: 150px;
-    }
-
-    .validacao-form-row {
-        flex-direction: column;
-    }
-
-    .validacao-resumo {
-        flex-wrap: wrap;
-    }
-
-    .validacao-resumo .resumo-item {
-        min-width: calc(50% - 10px);
-    }
-
-    .grafico-controles {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .validacao-tabela-container {
-        margin: 0 -12px;
-        width: calc(100% + 24px);
-    }
-
-    .valores-sugeridos-acoes {
-        flex-direction: column;
-    }
-
-    .valores-sugeridos-acoes button {
-        width: 100%;
+    /* Cada item da grid */
+    .filtros-grid>* {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
     }
 }
 
+/* Correções específicas para telas muito pequenas */
 @media (max-width: 480px) {
-    .operacoes-container {
-        padding: 10px;
-    }
 
-    .operacoes-header {
-        padding: 16px;
-        border-radius: 12px;
-    }
-
-    .operacoes-header h1 {
-        font-size: 16px;
-    }
-
-    .operacoes-header p {
-        font-size: 12px;
-    }
-
+    /* Reduz padding para dar mais espaço ao conteúdo */
     .filtros-card {
-        padding: 16px;
+        padding: 12px !important;
     }
 
-    .resultado-card {
-        padding: 16px;
+    .form-group {
+        margin-bottom: 12px;
     }
 
-    .btn-filtrar,
-    .btn-analise-ia {
-        width: 100%;
-        justify-content: center;
+    /* Choices.js - fonte menor em telas muito pequenas */
+    .choices__inner {
+        font-size: 12px !important;
+        padding: 6px 10px !important;
+        min-height: 40px !important;
     }
 
-    .resultado-tabs {
-        width: 100%;
+    .choices__list--single .choices__item {
+        font-size: 12px !important;
     }
 
-    .resultado-tab {
-        flex: 1;
-        justify-content: center;
+    /* Labels menores */
+    .form-label {
+        font-size: 11px !important;
     }
 
-    .resumo-cards {
-        grid-template-columns: 1fr 1fr;
+    /* Botões de ação ocupam largura total */
+    .filtros-actions {
+        flex-direction: column !important;
+        gap: 8px !important;
     }
 
-    .tabela-container {
-        margin: 0 -16px;
-        width: calc(100% + 32px);
-    }
-
-    .legenda-tabela {
-        padding: 12px;
-    }
-
-    .legenda-itens {
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    /* Modal análise IA responsivo */
-    .modal-analise-ia-content {
-        width: 98%;
-        max-height: 95vh;
-    }
-
-    .modal-analise-ia-body {
-        padding: 12px;
-    }
-
-    /* Popup gráfico responsivo */
-    .grafico-popup {
-        width: 95vw;
-        left: 2.5vw !important;
-        right: 2.5vw !important;
+    .filtros-actions button {
+        width: 100% !important;
+        justify-content: center !important;
     }
 }
 
@@ -3474,9 +3456,11 @@ input[type="date"].form-control {
 #validacaoTabelaBody tr.completude-verde {
     background: rgba(34, 197, 94, 0.15) !important;
 }
+
 #validacaoTabelaBody tr.completude-verde:hover {
     background: rgba(34, 197, 94, 0.25) !important;
 }
+
 #validacaoTabelaBody tr.completude-verde.selecionada {
     background: rgba(34, 197, 94, 0.35) !important;
 }
@@ -3485,9 +3469,11 @@ input[type="date"].form-control {
 #validacaoTabelaBody tr.completude-amarelo {
     background: rgba(234, 179, 8, 0.15) !important;
 }
+
 #validacaoTabelaBody tr.completude-amarelo:hover {
     background: rgba(234, 179, 8, 0.25) !important;
 }
+
 #validacaoTabelaBody tr.completude-amarelo.selecionada {
     background: rgba(234, 179, 8, 0.35) !important;
 }
@@ -3496,9 +3482,11 @@ input[type="date"].form-control {
 #validacaoTabelaBody tr.completude-vermelho {
     background: rgba(239, 68, 68, 0.15) !important;
 }
+
 #validacaoTabelaBody tr.completude-vermelho:hover {
     background: rgba(239, 68, 68, 0.25) !important;
 }
+
 #validacaoTabelaBody tr.completude-vermelho.selecionada {
     background: rgba(239, 68, 68, 0.35) !important;
 }
@@ -3507,9 +3495,11 @@ input[type="date"].form-control {
 #validacaoTabelaBody tr.tratado {
     background: rgba(59, 130, 246, 0.1) !important;
 }
+
 #validacaoTabelaBody tr.tratado:hover {
     background: rgba(59, 130, 246, 0.2) !important;
 }
+
 #validacaoTabelaBody tr.tratado.selecionada {
     background: rgba(59, 130, 246, 0.3) !important;
 }
@@ -3518,9 +3508,11 @@ input[type="date"].form-control {
 #validacaoTabelaBody tr.tratado.completude-verde {
     border-left: 3px solid #22c55e;
 }
+
 #validacaoTabelaBody tr.tratado.completude-amarelo {
     border-left: 3px solid #eab308;
 }
+
 #validacaoTabelaBody tr.tratado.completude-vermelho {
     border-left: 3px solid #ef4444;
 }
@@ -3550,12 +3542,414 @@ input[type="date"].form-control {
 
 .indicador-historiador strong {
     font-family: 'Consolas', 'Monaco', monospace;
-    background: rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.2);
     padding: 2px 6px;
     border-radius: 3px;
 }
 
 @keyframes pulse-icon {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* ============================================
+   CORREÇÃO COMPLETA - PADRONIZAÇÃO DOS FILTROS
+   Border-radius 10px + Altura 40px em todos os campos
+   
+   Adicionar ao FINAL do operacoes.css
+   ============================================ */
+
+/* ===== CHOICES.JS - PADRONIZAÇÃO ===== */
+
+/* Container interno - altura e border-radius */
+.choices__inner,
+.choices .choices__inner,
+.choices[data-type*="select-one"] .choices__inner,
+.choices[data-type*="select-multiple"] .choices__inner {
+    min-height: 40px !important;
+    height: 40px !important;
+    padding: 6px 12px !important;
+    border-radius: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Lista single dentro do inner */
+.choices__list--single {
+    padding: 0 16px 0 4px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Item selecionado */
+.choices__list--single .choices__item {
+    display: block !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* Dropdown do Choices.js */
+.choices__list--dropdown,
+.choices .choices__list--dropdown {
+    border-radius: 10px !important;
+}
+
+/* Campo de busca dentro do dropdown */
+.choices__input,
+.choices[data-type*="select-one"] .choices__input {
+    border-radius: 8px !important;
+}
+
+/* Seta do dropdown - centralizada */
+.choices[data-type*="select-one"]::after {
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    margin-top: 0 !important;
+}
+
+/* ===== INPUTS PADRÃO - PADRONIZAÇÃO ===== */
+
+/* Input padrão - Ponto de Medição e outros */
+.form-control,
+input.form-control,
+select.form-control,
+.autocomplete-container input.form-control {
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+    border-radius: 10px !important;
+    box-sizing: border-box !important;
+}
+
+/* Autocomplete dropdown - arredondado embaixo */
+.autocomplete-dropdown {
+    border-radius: 0 0 10px 10px !important;
+}
+
+/* ===== SELETOR DE MÊS - PADRONIZAÇÃO ===== */
+
+.month-selector select {
+    height: 40px !important;
+    min-height: 40px !important;
+    border-radius: 10px !important;
+}
+
+.month-selector button {
+    height: 40px !important;
+    min-height: 40px !important;
+    width: 40px !important;
+    border-radius: 10px !important;
+}
+
+/* ===== SELECT DE ANO - PADRONIZAÇÃO ===== */
+
+select#selectAno,
+.form-group select {
+    height: 40px !important;
+    min-height: 40px !important;
+    border-radius: 10px !important;
+}
+
+/* ===== Z-INDEX E OVERFLOW - GERAL ===== */
+
+/* Filtros card SEMPRE visível para dropdowns */
+.filtros-card {
+    overflow: visible !important;
+    position: relative;
+}
+
+.filtros-grid {
+    overflow: visible !important;
+}
+
+/* Form groups precisam permitir overflow */
+.form-group {
+    overflow: visible !important;
+    position: relative;
+}
+
+/* ===== CHOICES.JS - Z-INDEX ===== */
+
+.choices {
+    position: relative;
+    z-index: 1;
+}
+
+.choices.is-open {
+    z-index: 100 !important;
+}
+
+.choices__list--dropdown {
+    z-index: 100 !important;
+}
+
+/* ===== AUTOCOMPLETE PONTO DE MEDIÇÃO ===== */
+
+.autocomplete-container {
+    position: relative !important;
+    z-index: 50;
+}
+
+.autocomplete-container:focus-within {
+    z-index: 200 !important;
+}
+
+.autocomplete-dropdown {
+    position: absolute !important;
+    top: 100% !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 200 !important;
+    background: white !important;
+    border: 1px solid #e2e8f0 !important;
+    border-top: none !important;
+    max-height: 250px !important;
+    overflow-y: auto !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.autocomplete-dropdown.active {
+    display: block !important;
+}
+
+/* ===== MOBILE - CORREÇÕES ESPECÍFICAS ===== */
+
+@media (max-width: 768px) {
+    /* Container principal não pode cortar nada */
+    .operacoes-container {
+        overflow: visible !important;
+    }
+
+    /* Filtros card */
+    .filtros-card {
+        overflow: visible !important;
+        position: relative !important;
+        z-index: 10 !important;
+    }
+
+    /* Grid de filtros */
+    .filtros-grid {
+        overflow: visible !important;
+        position: relative !important;
+    }
+
+    /* Cada form-group - z-index decresce de cima para baixo */
+    .form-group {
+        position: relative !important;
+        overflow: visible !important;
+    }
+
+    /* Primeiro form-group (Tipo de Unidade) */
+    .filtros-grid > .form-group:nth-child(1) {
+        z-index: 50 !important;
+    }
+
+    /* Segundo form-group (Unidade Operacional) */
+    .filtros-grid > .form-group:nth-child(2) {
+        z-index: 40 !important;
+    }
+
+    /* Terceiro form-group (Ponto de Medição) */
+    .filtros-grid > .form-group:nth-child(3) {
+        z-index: 30 !important;
+    }
+
+    /* Quarto form-group (Ano) */
+    .filtros-grid > .form-group:nth-child(4) {
+        z-index: 20 !important;
+    }
+
+    /* Quinto form-group (Mês) */
+    .filtros-grid > .form-group:nth-child(5) {
+        z-index: 10 !important;
+    }
+
+    /* Form-group com foco fica na frente de TUDO */
+    .form-group:focus-within {
+        z-index: 9999 !important;
+    }
+
+    /* Choices.js no mobile */
+    .choices {
+        position: relative !important;
+    }
+
+    .choices.is-open {
+        z-index: 9999 !important;
+    }
+
+    .choices__list--dropdown {
+        position: absolute !important;
+        z-index: 10000 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* ===== AUTOCOMPLETE PONTO DE MEDIÇÃO - MOBILE ===== */
+    
+    .autocomplete-container {
+        position: relative !important;
+    }
+
+    .autocomplete-container:focus-within {
+        z-index: 9999 !important;
+    }
+
+    /* Input do autocomplete */
+    .autocomplete-container input {
+        -webkit-appearance: none !important;
+        appearance: none !important;
+    }
+
+    /* Dropdown do autocomplete */
+    .autocomplete-dropdown {
+        position: absolute !important;
+        top: 100% !important;
+        left: 0 !important;
+        right: 0 !important;
+        z-index: 10000 !important;
+        width: 100% !important;
+        display: none;
+        background: white !important;
+        border: 1px solid #e2e8f0 !important;
+        border-top: none !important;
+        border-radius: 0 0 10px 10px !important;
+        max-height: 200px !important;
+        overflow-y: auto !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Garante que dropdown ativo apareça */
+    .autocomplete-dropdown.active {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    /* Itens do autocomplete - área de toque maior */
+    .autocomplete-dropdown .autocomplete-item {
+        padding: 14px 12px !important;
+        min-height: 48px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        -webkit-tap-highlight-color: rgba(59, 130, 246, 0.2);
+    }
+
+    /* Truncar textos longos nos campos */
+    .choices__list--single .choices__item {
+        max-width: calc(100% - 30px) !important;
+    }
+}
+
+/* ===== MODAL DE VALIDAÇÃO - MOBILE ===== */
+/* Análise Inteligente abaixo do gráfico e médias */
+
+@media (max-width: 768px) {
+    /* Modal de validação ocupa tela toda */
+    .modal-validacao {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        border-radius: 0 !important;
+    }
+
+    /* Body do modal em coluna */
+    .modal-validacao-body {
+        display: flex !important;
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+    }
+
+    /* Coluna principal primeiro (gráfico, resumo, tabela) */
+    .validacao-coluna-principal {
+        order: 1 !important;
+        width: 100% !important;
+        flex-shrink: 0 !important;
+        padding: 12px !important;
+        overflow: visible !important;
+    }
+
+    /* Coluna de IA depois (abaixo de tudo) */
+    .validacao-coluna-ia {
+        order: 2 !important;
+        width: 100% !important;
+        min-width: 100% !important;
+        max-height: none !important;
+        border-left: none !important;
+        border-top: 1px solid #e2e8f0 !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Ajustar altura das mensagens de IA no mobile */
+    .validacao-coluna-ia .ia-chat-mensagens {
+        max-height: 200px !important;
+        min-height: 100px !important;
+    }
+
+    /* Resumo em grid no mobile */
+    .validacao-resumo {
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+    }
+
+    .validacao-resumo .resumo-item {
+        min-width: calc(50% - 10px) !important;
+        flex: 1 1 calc(50% - 10px) !important;
+    }
+
+    /* Gráfico menor no mobile */
+    .grafico-container-validacao,
+    .validacao-grafico-container {
+        height: 200px !important;
+        min-height: 200px !important;
+    }
+
+    /* Tabela de validação com scroll horizontal */
+    .validacao-tabela-container {
+        margin: 0 -12px !important;
+        width: calc(100% + 24px) !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    /* Formulário de validação em coluna */
+    .validacao-form-row {
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+
+    .validacao-form-group {
+        width: 100% !important;
+        min-width: 100% !important;
+    }
+
+    /* Controles do gráfico em coluna */
+    .grafico-controles {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+
+    /* Botões de valores sugeridos em coluna */
+    .valores-sugeridos-acoes {
+        flex-direction: column !important;
+    }
+
+    .valores-sugeridos-acoes button {
+        width: 100% !important;
+    }
 }
