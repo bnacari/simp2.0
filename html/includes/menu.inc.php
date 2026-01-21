@@ -864,6 +864,214 @@ if (isset($_SESSION['msg'])) {
             font-size: 9px;
         }
     }
+
+    /* User Info Wrapper */
+    .user-info-wrapper {
+        position: relative;
+    }
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 14px 6px 6px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 100px;
+        font-size: 13px;
+        font-weight: 600;
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .user-info:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .user-chevron {
+        font-size: 14px;
+        opacity: 0.7;
+        transition: transform 0.2s ease;
+    }
+
+    .user-info.active .user-chevron {
+        transform: rotate(180deg);
+    }
+
+    /* User Dropdown */
+    .user-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        width: 300px;
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.2s ease;
+        z-index: 1001;
+        overflow: hidden;
+    }
+
+    .user-dropdown.active {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+
+    .user-dropdown-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 20px;
+        background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+        color: white;
+    }
+
+    .user-dropdown-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 700;
+        flex-shrink: 0;
+        border: 3px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .user-dropdown-avatar.external {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+
+    .user-dropdown-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+    }
+
+    .user-dropdown-name {
+        font-size: 15px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .user-dropdown-group {
+        font-size: 12px;
+        opacity: 0.8;
+        background: rgba(255, 255, 255, 0.15);
+        padding: 3px 10px;
+        border-radius: 100px;
+        width: fit-content;
+    }
+
+    .user-dropdown-divider {
+        height: 1px;
+        background: #e2e8f0;
+        margin: 0;
+    }
+
+    .user-dropdown-details {
+        padding: 12px 16px;
+    }
+
+    .user-detail-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .user-detail-item:last-child {
+        border-bottom: none;
+    }
+
+    .user-detail-item ion-icon {
+        font-size: 18px;
+        color: #64748b;
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+
+    .user-detail-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .user-detail-label {
+        font-size: 11px;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+
+    .user-detail-value {
+        font-size: 13px;
+        color: #1e293b;
+        font-weight: 500;
+        word-break: break-word;
+    }
+
+    .user-dropdown-logout {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 14px 20px;
+        background: #fef2f2;
+        color: #dc2626;
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .user-dropdown-logout:hover {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .user-dropdown-logout ion-icon {
+        font-size: 18px;
+    }
+
+    /* Responsivo */
+    @media (max-width: 768px) {
+        .user-name {
+            display: none;
+        }
+
+        .user-chevron {
+            display: none;
+        }
+
+        .user-info {
+            padding: 6px;
+        }
+
+        .user-dropdown {
+            position: fixed;
+            top: 60px;
+            right: 12px;
+            left: 12px;
+            width: auto;
+        }
+    }
 </style>
 
 <!-- Overlay para mobile -->
@@ -881,7 +1089,9 @@ if (isset($_SESSION['msg'])) {
             <div class="modern-header-title">
                 <span class="brand-name">
                     SIMP
-                    <span class="ambiente-badge <?= $ambiente === 'PRODUÇÃO' ? 'producao' : '' ?> <?= $ambienteAlterado ? 'alterado' : '' ?>"><?= $ambiente ?></span>
+                    <?php if (!$isDesenvolvedor): ?>
+                        <span class="ambiente-badge <?= $ambiente === 'PRODUÇÃO' ? 'producao' : '' ?>"><?= $ambiente ?></span>
+                    <?php endif; ?>
                 </span>
                 <span class="system-fullname">Sistema Integrado de Macromedição e Pitometria</span>
             </div>
@@ -905,7 +1115,7 @@ if (isset($_SESSION['msg'])) {
                     </label>
                 </div>
                 <?php if ($ambienteAlterado): ?>
-                    <span class="ambiente-aviso" title="Ambiente forçado diferente do real (<?= $ambienteReal ?>)">
+                    <span class="ambiente-aviso" title="Ambiente forçado (real: <?= $ambienteReal ?>)">
                         <ion-icon name="warning-outline"></ion-icon>
                     </span>
                 <?php endif; ?>
@@ -915,19 +1125,79 @@ if (isset($_SESSION['msg'])) {
 
     <div class="modern-header-right">
         <?php if (isset($_SESSION['login'])) { ?>
-            <div class="user-info">
-                <div class="user-avatar <?= ($_SESSION['externo'] ?? '') == 'externo' ? 'external' : '' ?>">
-                    <?= strtoupper(substr($_SESSION['login'], 0, 2)) ?>
+            <div class="user-info-wrapper">
+                <div class="user-info" onclick="toggleUserDropdown(event)">
+                    <div class="user-avatar <?= ($_SESSION['externo'] ?? '') == 'externo' ? 'external' : '' ?>">
+                        <?= getIniciaisUsuario() ?>
+                    </div>
+                    <span class="user-name"><?= explode(' ', $_SESSION['nome'])[0] ?></span>
+                    <ion-icon name="chevron-down-outline" class="user-chevron"></ion-icon>
                 </div>
-                <span><?= explode('@', $_SESSION['login'])[0] ?></span>
+
+                <!-- Dropdown do Usuário -->
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar <?= ($_SESSION['externo'] ?? '') == 'externo' ? 'external' : '' ?>">
+                            <?= getIniciaisUsuario() ?>
+                        </div>
+                        <div class="user-dropdown-info">
+                            <span class="user-dropdown-name"><?= $_SESSION['nome'] ?></span>
+                            <span class="user-dropdown-group"><?= $_SESSION['grupo'] ?? 'Sem grupo' ?></span>
+                        </div>
+                    </div>
+
+                    <div class="user-dropdown-divider"></div>
+
+                    <div class="user-dropdown-details">
+                        <div class="user-detail-item">
+                            <ion-icon name="person-outline"></ion-icon>
+                            <div class="user-detail-content">
+                                <span class="user-detail-label">Login</span>
+                                <span class="user-detail-value"><?= $_SESSION['login'] ?></span>
+                            </div>
+                        </div>
+
+                        <div class="user-detail-item">
+                            <ion-icon name="card-outline"></ion-icon>
+                            <div class="user-detail-content">
+                                <span class="user-detail-label">Matrícula</span>
+                                <span class="user-detail-value"><?= $_SESSION['matricula'] ?: '-' ?></span>
+                            </div>
+                        </div>
+
+                        <div class="user-detail-item">
+                            <ion-icon name="mail-outline"></ion-icon>
+                            <div class="user-detail-content">
+                                <span class="user-detail-label">E-mail</span>
+                                <span class="user-detail-value"><?= $_SESSION['email'] ?: '-' ?></span>
+                            </div>
+                        </div>
+
+                        <div class="user-detail-item">
+                            <ion-icon name="shield-checkmark-outline"></ion-icon>
+                            <div class="user-detail-content">
+                                <span class="user-detail-label">Grupo de Acesso</span>
+                                <span class="user-detail-value"><?= $_SESSION['grupo'] ?? '-' ?></span>
+                            </div>
+                        </div>
+
+                        <div class="user-detail-item">
+                            <ion-icon name="key-outline"></ion-icon>
+                            <div class="user-detail-content">
+                                <span class="user-detail-label">Permissões</span>
+                                <span class="user-detail-value"><?= count($_SESSION['permissoes'] ?? []) ?> funcionalidades</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="user-dropdown-divider"></div>
+
+                    <a href="logout.php" class="user-dropdown-logout">
+                        <ion-icon name="log-out-outline"></ion-icon>
+                        Sair do Sistema
+                    </a>
+                </div>
             </div>
-            <a href="logout.php" class="btn-logout" title="Sair do Sistema">
-                <ion-icon name="exit-outline"></ion-icon>
-            </a>
-        <?php } else { ?>
-            <a href="index.php" class="btn-logout" title="Acessar Sistema">
-                <ion-icon name="log-in-outline"></ion-icon>
-            </a>
         <?php } ?>
     </div>
 </header>
@@ -1263,6 +1533,37 @@ if (isset($_SESSION['msg'])) {
         toast.classList.add('hiding');
         setTimeout(() => toast.remove(), 300);
     }
+
+    // Toggle User Dropdown
+    function toggleUserDropdown(event) {
+        event.stopPropagation();
+        const dropdown = document.getElementById('userDropdown');
+        const userInfo = event.currentTarget;
+
+        dropdown.classList.toggle('active');
+        userInfo.classList.toggle('active');
+    }
+
+    // Fechar dropdown ao clicar fora
+    document.addEventListener('click', function(event) {
+        const dropdown = document.getElementById('userDropdown');
+        const userInfo = document.querySelector('.user-info');
+
+        if (dropdown && !dropdown.contains(event.target) && !userInfo.contains(event.target)) {
+            dropdown.classList.remove('active');
+            userInfo.classList.remove('active');
+        }
+    });
+
+    // Fechar dropdown ao pressionar ESC
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const dropdown = document.getElementById('userDropdown');
+            const userInfo = document.querySelector('.user-info');
+            if (dropdown) dropdown.classList.remove('active');
+            if (userInfo) userInfo.classList.remove('active');
+        }
+    });
 </script>
 
 <?php if (!empty($msgSistema)): ?>
