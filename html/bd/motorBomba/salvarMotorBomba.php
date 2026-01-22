@@ -49,46 +49,46 @@ try {
     $vlRotacaoMotor = isset($_POST['vl_rotacao_motor']) && $_POST['vl_rotacao_motor'] !== '' ? (float)$_POST['vl_rotacao_motor'] : null;
 
     // Validações
-    if (empty($cdLocalidade)) throw new Exception('Localidade é obrigatória');
-    if (empty($dsCodigo)) throw new Exception('Código é obrigatório');
-    if (empty($dsNome)) throw new Exception('Nome é obrigatório');
-    if (empty($dsLocalizacao)) throw new Exception('Localização é obrigatória');
-    if (empty($cdUsuarioResponsavel)) throw new Exception('Responsável é obrigatório');
-    if (empty($tpEixo)) throw new Exception('Tipo de Eixo é obrigatório');
-    if ($vlDiametroRotorBomba === null) throw new Exception('Diâmetro do Rotor é obrigatório');
-    if ($vlAlturaManometricaBomba === null) throw new Exception('Altura Manométrica é obrigatória');
-    if ($vlTensaoMotor === null) throw new Exception('Tensão do Motor é obrigatória');
-    if ($vlCorrenteEletricaMotor === null) throw new Exception('Corrente Elétrica é obrigatória');
-    if ($vlPotenciaMotor === null) throw new Exception('Potência do Motor é obrigatória');
+    if (empty($cdLocalidade)) {
+        throw new Exception('Localidade é obrigatória');
+    }
+    if (empty($dsCodigo)) {
+        throw new Exception('Código é obrigatório');
+    }
+    if (empty($dsNome)) {
+        throw new Exception('Nome é obrigatório');
+    }
+    if (empty($tpEixo)) {
+        throw new Exception('Tipo de Eixo é obrigatório');
+    }
 
-    $cdUsuario = $_SESSION['cd_usuario'] ?? 1;
+    // Obter usuário logado
+    $cdUsuario = $_SESSION['cd_usuario'] ?? null;
+    if (!$cdUsuario) {
+        throw new Exception('Usuário não identificado');
+    }
 
-    // Buscar dados da unidade para log
+    // Buscar CD_UNIDADE da localidade para log
     $cdUnidadeLog = null;
     try {
-        $sqlUnidade = "SELECT L.CD_UNIDADE FROM SIMP.dbo.LOCALIDADE L WHERE L.CD_CHAVE = :cdLocalidade";
-        $stmtUnidade = $pdoSIMP->prepare($sqlUnidade);
-        $stmtUnidade->execute([':cdLocalidade' => $cdLocalidade]);
-        $rowUnidade = $stmtUnidade->fetch(PDO::FETCH_ASSOC);
-        if ($rowUnidade) {
-            $cdUnidadeLog = (int)$rowUnidade['CD_UNIDADE'];
-        }
+        $stmtUnidade = $pdoSIMP->prepare("SELECT CD_UNIDADE FROM SIMP.dbo.LOCALIDADE WHERE CD_CHAVE = :cd");
+        $stmtUnidade->execute([':cd' => $cdLocalidade]);
+        $cdUnidadeLog = $stmtUnidade->fetchColumn();
     } catch (Exception $e) {}
 
-    $isEdicao = $cdChave > 0;
+    $isEdicao = $cdChave !== null && $cdChave > 0;
 
     if ($isEdicao) {
         // Buscar dados anteriores para log
         $dadosAnteriores = null;
         try {
-            $sqlAnt = "SELECT * FROM SIMP.dbo.CONJUNTO_MOTOR_BOMBA WHERE CD_CHAVE = :id";
-            $stmtAnt = $pdoSIMP->prepare($sqlAnt);
+            $stmtAnt = $pdoSIMP->prepare("SELECT * FROM SIMP.dbo.CONJUNTO_MOTOR_BOMBA WHERE CD_CHAVE = :id");
             $stmtAnt->execute([':id' => $cdChave]);
             $dadosAnteriores = $stmtAnt->fetch(PDO::FETCH_ASSOC);
         } catch (Exception $e) {}
 
         // UPDATE
-        $sql = "UPDATE SIMP.dbo.CONJUNTO_MOTOR_BOMBA SET
+        $sql = "UPDATE SIMP.dbo.CONJUNTO_MOTOR_BOMBA SET 
                     CD_LOCALIDADE = :cd_localidade,
                     DS_CODIGO = :ds_codigo,
                     DS_NOME = :ds_nome,
@@ -229,7 +229,7 @@ try {
 } catch (Exception $e) {
     // Registrar log de erro
     try {
-        registrarLogErro('Conjunto Motor-Bomba', $isEdicao ? 'UPDATE' : 'INSERT', $e->getMessage(), ['cd_chave' => $cdChave ?? null]);
+        registrarLogErro('Conjunto Motor-Bomba', $isEdicao ?? false ? 'UPDATE' : 'INSERT', $e->getMessage(), ['cd_chave' => $cdChave ?? null]);
     } catch (Exception $logEx) {}
 
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);

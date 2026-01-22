@@ -2,134 +2,111 @@
 /**
  * SIMP - Registro de Vazão e Pressão
  * Endpoint: Restaurar Registro Individual
- * VERSÃO DEBUG v2
+ * COM REGISTRO DE LOG
+ * ATUALIZADO: Inclui CD_PONTO_MEDICAO no log
  */
 
 header('Content-Type: application/json; charset=utf-8');
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
-$debug = [];
-$debug['etapa'] = 'inicio';
+ini_set('display_errors', 0);
+error_reporting(0);
 
 try {
-    $debug['etapa'] = 'verificarAuth';
     require_once '../verificarAuth.php';
     verificarPermissaoAjax('REGISTRO DE VAZÃO', ACESSO_ESCRITA);
-    $debug['auth'] = 'OK';
 
-    $debug['etapa'] = 'conexao';
     include_once '../conexao.php';
-    $debug['conexao'] = isset($pdoSIMP) ? 'OK' : 'FALHOU';
-    
     @include_once '../logHelper.php';
 
-    $debug['etapa'] = 'leitura_post';
-    $debug['POST'] = $_POST;
-    
     $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
-    $debug['id_recebido'] = $id;
 
     if ($id <= 0) {
-        echo json_encode(['success' => false, 'message' => 'ID inválido', 'debug' => $debug]);
+        echo json_encode(['success' => false, 'message' => 'ID inválido']);
         exit;
     }
 
-    // PRIMEIRO: Buscar o registro para ver se existe e qual estado
-    $debug['etapa'] = 'buscar_registro';
-    $sqlBusca = "SELECT CD_CHAVE, ID_SITUACAO, CD_PONTO_MEDICAO, DT_LEITURA FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO WHERE CD_CHAVE = ?";
+    // Buscar dados do registro (para validação e log)
+    $sqlBusca = "SELECT RVP.*, PM.DS_NOME AS DS_PONTO_MEDICAO, L.CD_UNIDADE
+                 FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO RVP
+                 LEFT JOIN SIMP.dbo.PONTO_MEDICAO PM ON PM.CD_PONTO_MEDICAO = RVP.CD_PONTO_MEDICAO
+                 LEFT JOIN SIMP.dbo.LOCALIDADE L ON L.CD_CHAVE = PM.CD_LOCALIDADE
+                 WHERE RVP.CD_CHAVE = :id";
     $stmtBusca = $pdoSIMP->prepare($sqlBusca);
-    $stmtBusca->execute([$id]);
-    $registro = $stmtBusca->fetch(PDO::FETCH_ASSOC);
-    
-    $debug['registro_encontrado'] = $registro ? 'SIM' : 'NAO';
-    $debug['registro_dados'] = $registro;
-    
-    if (!$registro) {
-        echo json_encode([
-            'success' => false, 
-            'message' => "Registro CD_CHAVE=$id não encontrado na tabela",
-            'debug' => $debug
-        ]);
+    $stmtBusca->execute([':id' => $id]);
+    $dadosRegistro = $stmtBusca->fetch(PDO::FETCH_ASSOC);
+
+    if (!$dadosRegistro) {
+        echo json_encode(['success' => false, 'message' => 'Registro não encontrado']);
         exit;
     }
-    
-    $debug['id_situacao_atual'] = $registro['ID_SITUACAO'];
 
-    // Tentar UPDATE
-    $debug['etapa'] = 'executar_update';
+    // Verificar se já está ativo
+    if ($dadosRegistro['ID_SITUACAO'] == 1) {
+        echo json_encode(['success' => false, 'message' => 'Registro já está ativo (ID_SITUACAO = 1)']);
+        exit;
+    }
+
+    $cdUnidadeLog = $dadosRegistro['CD_UNIDADE'] ?? null;
+    $dsPontoMedicao = $dadosRegistro['DS_PONTO_MEDICAO'] ?? '';
+    $cdPontoMedicao = $dadosRegistro['CD_PONTO_MEDICAO'] ?? null;
+    $dtLeitura = $dadosRegistro['DT_LEITURA'] ?? '';
+
     $cdUsuario = $_SESSION['cd_usuario'] ?? null;
-    $debug['cd_usuario'] = $cdUsuario;
-    
+
+    // Executar UPDATE para restaurar (ID_SITUACAO = 2 → 1)
     $sql = "UPDATE SIMP.dbo.REGISTRO_VAZAO_PRESSAO 
             SET ID_SITUACAO = 1, 
                 DT_ULTIMA_ATUALIZACAO = GETDATE(),
-                CD_USUARIO_ULTIMA_ATUALIZACAO = ?
-            WHERE CD_CHAVE = ?";
-    
-    $debug['sql'] = $sql;
-    $debug['params'] = [$cdUsuario, $id];
+                CD_USUARIO_ULTIMA_ATUALIZACAO = :cd_usuario
+            WHERE CD_CHAVE = :id AND ID_SITUACAO = 2";
     
     $stmt = $pdoSIMP->prepare($sql);
-    $debug['prepare'] = 'OK';
-    
-    $resultado = $stmt->execute([$cdUsuario, $id]);
-    
-    $debug['execute'] = $resultado ? 'OK' : 'FALHOU';
-    $debug['rowCount'] = $stmt->rowCount();
-    $debug['errorInfo'] = $stmt->errorInfo();
-
-    // Verificar se mudou
-    $debug['etapa'] = 'verificar_apos_update';
-    $stmtVerifica = $pdoSIMP->prepare("SELECT ID_SITUACAO FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO WHERE CD_CHAVE = ?");
-    $stmtVerifica->execute([$id]);
-    $registroApos = $stmtVerifica->fetch(PDO::FETCH_ASSOC);
-    $debug['id_situacao_apos'] = $registroApos ? $registroApos['ID_SITUACAO'] : 'NAO ENCONTRADO';
+    $stmt->execute([
+        ':id' => $id,
+        ':cd_usuario' => $cdUsuario
+    ]);
 
     if ($stmt->rowCount() > 0) {
+        // Log de restauração (isolado)
+        if (function_exists('registrarLogUpdate')) {
+            try {
+                // Formato: CD_PONTO_MEDICAO-DS_NOME | Data
+                $identificador = "$cdPontoMedicao-$dsPontoMedicao | Data: $dtLeitura";
+                $dadosLog = [
+                    'CD_CHAVE' => $id,
+                    'CD_PONTO_MEDICAO' => $cdPontoMedicao,
+                    'DS_PONTO_MEDICAO' => $dsPontoMedicao,
+                    'DT_LEITURA' => $dtLeitura,
+                    'VL_VAZAO_EFETIVA' => $dadosRegistro['VL_VAZAO_EFETIVA'] ?? null,
+                    'VL_PRESSAO' => $dadosRegistro['VL_PRESSAO'] ?? null,
+                    'acao' => 'RESTAURAÇÃO (ID_SITUACAO: 2 → 1)',
+                    'ID_SITUACAO_ANTERIOR' => 2,
+                    'ID_SITUACAO_NOVO' => 1
+                ];
+                registrarLogUpdate('Registro de Vazão e Pressão', 'Registro Vazão/Pressão', $id, $identificador, $dadosLog, $cdUnidadeLog);
+            } catch (Exception $logEx) {}
+        }
+
         echo json_encode([
             'success' => true, 
-            'message' => 'Registro restaurado com sucesso',
-            'debug' => $debug
+            'message' => 'Registro restaurado com sucesso'
         ]);
     } else {
-        // rowCount = 0 pode significar que o valor já era 1
-        if ($registro['ID_SITUACAO'] == 1) {
-            echo json_encode([
-                'success' => false, 
-                'message' => 'Registro já está com ID_SITUACAO = 1 (ativo)',
-                'debug' => $debug
-            ]);
-        } else {
-            echo json_encode([
-                'success' => false, 
-                'message' => 'UPDATE executou mas rowCount=0. Verifique triggers ou permissões.',
-                'debug' => $debug
-            ]);
-        }
+        echo json_encode(['success' => false, 'message' => 'Erro ao restaurar registro']);
     }
 
 } catch (PDOException $e) {
-    $debug['erro_tipo'] = 'PDOException';
-    $debug['erro_msg'] = $e->getMessage();
-    $debug['erro_code'] = $e->getCode();
-    $debug['erro_linha'] = $e->getLine();
-    
-    echo json_encode([
-        'success' => false, 
-        'message' => 'Erro PDO: ' . $e->getMessage(),
-        'debug' => $debug
-    ]);
+    // Registrar log de erro (isolado)
+    if (function_exists('registrarLogErro')) { 
+        try { registrarLogErro('Registro de Vazão e Pressão', 'RESTAURAR', $e->getMessage(), ['id' => $id ?? null]); } catch (Exception $ex) {} 
+    }
+
+    echo json_encode(['success' => false, 'message' => 'Erro ao processar: ' . $e->getMessage()]);
 
 } catch (Exception $e) {
-    $debug['erro_tipo'] = 'Exception';
-    $debug['erro_msg'] = $e->getMessage();
-    $debug['erro_code'] = $e->getCode();
-    $debug['erro_linha'] = $e->getLine();
-    
-    echo json_encode([
-        'success' => false, 
-        'message' => 'Erro: ' . $e->getMessage(),
-        'debug' => $debug
-    ]);
+    // Registrar log de erro (isolado)
+    if (function_exists('registrarLogErro')) { 
+        try { registrarLogErro('Registro de Vazão e Pressão', 'RESTAURAR', $e->getMessage(), ['id' => $id ?? null]); } catch (Exception $ex) {} 
+    }
+
+    echo json_encode(['success' => false, 'message' => 'Erro ao processar: ' . $e->getMessage()]);
 }

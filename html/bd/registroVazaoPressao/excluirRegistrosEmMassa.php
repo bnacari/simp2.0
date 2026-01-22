@@ -3,6 +3,7 @@
  * SIMP - Registro de Vazão e Pressão
  * Endpoint: Descartar/Excluir Registros em Massa
  * COM REGISTRO DE LOG
+ * ATUALIZADO: Inclui CD_PONTO_MEDICAO no log
  * 
  * Lógica:
  * - Registros com ID_SITUACAO = 1: Soft Delete (muda para 2)
@@ -89,6 +90,7 @@ try {
             $chavesSoftDelete[] = $reg['CD_CHAVE'];
             if (!isset($pontosSoftDelete[$cdPonto])) {
                 $pontosSoftDelete[$cdPonto] = [
+                    'cd_ponto_medicao' => $cdPonto, // Inclui CD_PONTO_MEDICAO
                     'nome' => $reg['DS_PONTO_MEDICAO'],
                     'quantidade' => 0
                 ];
@@ -98,6 +100,7 @@ try {
             $chavesHardDelete[] = $reg['CD_CHAVE'];
             if (!isset($pontosHardDelete[$cdPonto])) {
                 $pontosHardDelete[$cdPonto] = [
+                    'cd_ponto_medicao' => $cdPonto, // Inclui CD_PONTO_MEDICAO
                     'nome' => $reg['DS_PONTO_MEDICAO'],
                     'quantidade' => 0
                 ];
@@ -159,7 +162,8 @@ try {
             if ($descartados > 0) {
                 $resumoPontos = [];
                 foreach ($pontosSoftDelete as $cdPonto => $info) {
-                    $resumoPontos[] = $info['nome'] . ' (' . $info['quantidade'] . ' reg.)';
+                    // Formato: CD_PONTO_MEDICAO-DS_NOME (X reg.)
+                    $resumoPontos[] = $info['cd_ponto_medicao'] . '-' . $info['nome'] . ' (' . $info['quantidade'] . ' reg.)';
                 }
                 
                 $contexto = [
@@ -175,7 +179,8 @@ try {
             if ($deletados > 0) {
                 $resumoPontos = [];
                 foreach ($pontosHardDelete as $cdPonto => $info) {
-                    $resumoPontos[] = $info['nome'] . ' (' . $info['quantidade'] . ' reg.)';
+                    // Formato: CD_PONTO_MEDICAO-DS_NOME (X reg.)
+                    $resumoPontos[] = $info['cd_ponto_medicao'] . '-' . $info['nome'] . ' (' . $info['quantidade'] . ' reg.)';
                 }
                 
                 $contexto = [

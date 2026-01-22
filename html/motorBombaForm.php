@@ -449,6 +449,252 @@ $tiposEixo = [['value' => 'H', 'text' => 'Horizontal'], ['value' => 'V', 'text' 
             width: 100%;
         }
     }
+
+    /* ============================================
+       Anexos
+       ============================================ */
+    .badge-count {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 10px;
+        margin-left: auto;
+    }
+
+    .upload-area {
+        border: 2px dashed #cbd5e1;
+        border-radius: 10px;
+        background: #f8fafc;
+        margin-bottom: 16px;
+        transition: all 0.3s ease;
+    }
+
+    .upload-area.drag-over {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .upload-placeholder {
+        padding: 30px 20px;
+        text-align: center;
+        cursor: pointer;
+    }
+
+    .upload-placeholder:hover {
+        background: #f1f5f9;
+    }
+
+    .upload-placeholder ion-icon {
+        font-size: 40px;
+        color: #3b82f6;
+        margin-bottom: 8px;
+    }
+
+    .upload-placeholder p {
+        margin: 0 0 4px 0;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    .upload-hint {
+        color: #94a3b8;
+        font-size: 11px;
+    }
+
+    .upload-selected {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 12px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 10px;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .selected-file {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: white;
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .selected-file ion-icon {
+        font-size: 18px;
+        color: #3b82f6;
+    }
+
+    .selected-file span {
+        font-size: 12px;
+        color: #334155;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .btn-remove-file {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        display: flex;
+    }
+
+    .btn-remove-file ion-icon {
+        font-size: 18px;
+        color: #ef4444;
+    }
+
+    .anexos-lista {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .loading-anexos {
+        text-align: center;
+        padding: 20px;
+        color: #64748b;
+        font-size: 12px;
+    }
+
+    .anexo-vazio {
+        text-align: center;
+        padding: 30px 20px;
+        color: #94a3b8;
+        font-size: 13px;
+    }
+
+    .anexo-vazio ion-icon {
+        font-size: 32px;
+        display: block;
+        margin: 0 auto 8px;
+    }
+
+    .anexo-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+
+    .anexo-item:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+
+    .anexo-icon {
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .anexo-icon ion-icon {
+        font-size: 18px;
+        color: white;
+    }
+
+    .anexo-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .anexo-nome {
+        font-size: 12px;
+        font-weight: 600;
+        color: #334155;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .anexo-meta {
+        font-size: 10px;
+        color: #94a3b8;
+        margin-top: 2px;
+    }
+
+    .anexo-acoes {
+        display: flex;
+        gap: 6px;
+    }
+
+    .anexo-acoes .btn-acao {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        background: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+
+    .anexo-acoes .btn-acao ion-icon {
+        font-size: 14px;
+        color: #64748b;
+    }
+
+    .anexo-acoes .btn-acao:hover {
+        background: #f1f5f9;
+    }
+
+    .anexo-acoes .btn-acao.download:hover {
+        background: #dbeafe;
+        border-color: #3b82f6;
+    }
+
+    .anexo-acoes .btn-acao.download:hover ion-icon {
+        color: #3b82f6;
+    }
+
+    .anexo-acoes .btn-acao.delete:hover {
+        background: #fee2e2;
+        border-color: #ef4444;
+    }
+
+    .anexo-acoes .btn-acao.delete:hover ion-icon {
+        color: #ef4444;
+    }
+
+    @media (max-width: 768px) {
+        .upload-selected {
+            flex-direction: column;
+        }
+        
+        .upload-selected .form-control {
+            width: 100%;
+        }
+        
+        .anexo-item {
+            flex-wrap: wrap;
+        }
+        
+        .anexo-acoes {
+            width: 100%;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+    }
 </style>
 
 <div class="page-container">
@@ -518,7 +764,7 @@ $tiposEixo = [['value' => 'H', 'text' => 'Horizontal'], ['value' => 'V', 'text' 
                     <div class="form-group col-3">
                         <label class="form-label">
                             <ion-icon name="pricetag-outline"></ion-icon>
-                            Código <span class="required">*</span>
+                            Nº do Conjunto <span class="required">*</span>
                         </label>
                         <input type="text" name="ds_codigo" class="form-control" maxlength="20" required 
                                value="<?= $isEdicao ? htmlspecialchars($motorBomba['DS_CODIGO']) : '' ?>" placeholder="Ex: CMB-001">
@@ -739,6 +985,55 @@ $tiposEixo = [['value' => 'H', 'text' => 'Horizontal'], ['value' => 'V', 'text' 
                     </div>
                 </div>
             </div>
+        </div>
+
+        <?php if ($isEdicao): ?>
+        <!-- Anexos (somente em edição) -->
+        <div class="form-card" id="cardAnexos">
+            <div class="form-card-header">
+                <ion-icon name="attach-outline"></ion-icon>
+                <h2>Anexos</h2>
+                <span class="badge-count" id="badgeAnexosCount">0</span>
+            </div>
+            <div class="form-card-body">
+                <!-- Área de Upload -->
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="inputAnexo" style="display: none;" 
+                           accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.7z,.txt,.csv">
+                    <div class="upload-placeholder" onclick="document.getElementById('inputAnexo').click()">
+                        <ion-icon name="cloud-upload-outline"></ion-icon>
+                        <p>Clique para selecionar ou arraste o arquivo</p>
+                        <span class="upload-hint">Formatos: Imagens, PDF, DOC, XLS, ZIP (máx. 10MB)</span>
+                    </div>
+                </div>
+                
+                <!-- Arquivo selecionado -->
+                <div class="upload-selected" id="uploadSelected" style="display: none;">
+                    <div class="selected-file">
+                        <ion-icon name="document-outline" id="selectedFileIcon"></ion-icon>
+                        <span id="selectedFileName"></span>
+                        <button type="button" class="btn-remove-file" onclick="limparArquivoSelecionado()">
+                            <ion-icon name="close-circle-outline"></ion-icon>
+                        </button>
+                    </div>
+                    <input type="text" id="inputObservacaoAnexo" class="form-control" 
+                           placeholder="Observação (opcional)" maxlength="500" style="flex: 1;">
+                    <button type="button" class="btn btn-primary" onclick="enviarAnexo()">
+                        <ion-icon name="cloud-upload-outline"></ion-icon>
+                        Enviar
+                    </button>
+                </div>
+
+                <!-- Lista de Anexos -->
+                <div class="anexos-lista" id="listaAnexos">
+                    <div class="loading-anexos">Carregando anexos...</div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <!-- Botões de Ação -->
+        <div class="form-card">
             <div class="form-actions">
                 <a href="motorBomba.php" class="btn btn-secondary">
                     <ion-icon name="close-outline"></ion-icon>
@@ -828,6 +1123,199 @@ function salvar() {
         }
     });
 }
+
+<?php if ($isEdicao): ?>
+// ============================================
+// Gerenciamento de Anexos
+// ============================================
+let arquivoSelecionado = null;
+const cdConjunto = <?= $id ?>;
+
+$(document).ready(function() {
+    carregarAnexos();
+    
+    // Drag and drop
+    const uploadArea = document.getElementById('uploadArea');
+    if (uploadArea) {
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+        
+        uploadArea.addEventListener('dragleave', function() {
+            uploadArea.classList.remove('drag-over');
+        });
+        
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            if (e.dataTransfer.files.length > 0) {
+                selecionarArquivo(e.dataTransfer.files[0]);
+            }
+        });
+    }
+    
+    document.getElementById('inputAnexo').addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            selecionarArquivo(e.target.files[0]);
+        }
+    });
+});
+
+function selecionarArquivo(file) {
+    const extensoesPermitidas = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', '7z', 'txt', 'csv'];
+    const extensao = file.name.split('.').pop().toLowerCase();
+    
+    if (!extensoesPermitidas.includes(extensao)) {
+        showToast('Tipo de arquivo não permitido', 'erro');
+        return;
+    }
+    
+    if (file.size > 10 * 1024 * 1024) {
+        showToast('Arquivo muito grande (máx. 10MB)', 'erro');
+        return;
+    }
+    
+    arquivoSelecionado = file;
+    document.getElementById('selectedFileName').textContent = file.name;
+    
+    // Ícone baseado no tipo
+    const icones = {
+        'pdf': 'document-text-outline',
+        'doc': 'document-text-outline',
+        'docx': 'document-text-outline',
+        'xls': 'grid-outline',
+        'xlsx': 'grid-outline',
+        'zip': 'archive-outline',
+        'rar': 'archive-outline',
+        '7z': 'archive-outline'
+    };
+    document.getElementById('selectedFileIcon').setAttribute('name', icones[extensao] || 'image-outline');
+    
+    document.getElementById('uploadArea').style.display = 'none';
+    document.getElementById('uploadSelected').style.display = 'flex';
+}
+
+function limparArquivoSelecionado() {
+    arquivoSelecionado = null;
+    document.getElementById('inputAnexo').value = '';
+    document.getElementById('inputObservacaoAnexo').value = '';
+    document.getElementById('uploadArea').style.display = 'block';
+    document.getElementById('uploadSelected').style.display = 'none';
+}
+
+function enviarAnexo() {
+    if (!arquivoSelecionado) {
+        showToast('Selecione um arquivo', 'alerta');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('arquivo', arquivoSelecionado);
+    formData.append('cd_conjunto', cdConjunto);
+    formData.append('observacao', document.getElementById('inputObservacaoAnexo').value);
+    
+    $.ajax({
+        url: 'bd/motorBomba/uploadAnexo.php',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                showToast('Anexo enviado com sucesso', 'sucesso');
+                limparArquivoSelecionado();
+                carregarAnexos();
+            } else {
+                showToast(response.message || 'Erro ao enviar anexo', 'erro');
+            }
+        },
+        error: function() {
+            showToast('Erro ao comunicar com o servidor', 'erro');
+        }
+    });
+}
+
+function carregarAnexos() {
+    $.ajax({
+        url: 'bd/motorBomba/listarAnexos.php',
+        method: 'GET',
+        data: { cd_conjunto: cdConjunto },
+        dataType: 'json',
+        success: function(response) {
+            renderizarAnexos(response.data || []);
+        },
+        error: function() {
+            document.getElementById('listaAnexos').innerHTML = '<div class="anexo-vazio">Erro ao carregar anexos</div>';
+        }
+    });
+}
+
+function renderizarAnexos(anexos) {
+    const container = document.getElementById('listaAnexos');
+    document.getElementById('badgeAnexosCount').textContent = anexos.length;
+    
+    if (anexos.length === 0) {
+        container.innerHTML = `
+            <div class="anexo-vazio">
+                <ion-icon name="folder-open-outline"></ion-icon>
+                Nenhum anexo cadastrado
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    anexos.forEach(function(anexo) {
+        html += `
+            <div class="anexo-item">
+                <div class="anexo-icon">
+                    <ion-icon name="${anexo.DS_ICONE || 'document-outline'}"></ion-icon>
+                </div>
+                <div class="anexo-info">
+                    <div class="anexo-nome">${anexo.DS_FILENAME}</div>
+                    <div class="anexo-meta">${anexo.VL_TAMANHO_FORMATADO || ''}</div>
+                </div>
+                <div class="anexo-acoes">
+                    <a href="bd/motorBomba/downloadAnexo.php?id=${anexo.CD_ANEXO}" class="btn-acao download" title="Download">
+                        <ion-icon name="download-outline"></ion-icon>
+                    </a>
+                    <button type="button" class="btn-acao delete" title="Excluir" onclick="excluirAnexo(${anexo.CD_ANEXO}, '${anexo.DS_FILENAME.replace(/'/g, "\\'")}')">
+                        <ion-icon name="trash-outline"></ion-icon>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function excluirAnexo(id, nome) {
+    if (!confirm('Deseja excluir o anexo "' + nome + '"?')) {
+        return;
+    }
+    
+    $.ajax({
+        url: 'bd/motorBomba/excluirAnexo.php',
+        method: 'POST',
+        data: { id: id },
+        dataType: 'json',
+        success: function(response) {
+            if (response.success) {
+                showToast('Anexo excluído com sucesso', 'sucesso');
+                carregarAnexos();
+            } else {
+                showToast(response.message || 'Erro ao excluir', 'erro');
+            }
+        },
+        error: function() {
+            showToast('Erro ao comunicar com o servidor', 'erro');
+        }
+    });
+}
+<?php endif; ?>
 </script>
 
 <?php include_once 'includes/footer.inc.php'; ?>

@@ -969,15 +969,15 @@ $descartes = [
                 let mensagem = response.message;
 
                 if (response.tipo === 'soft_delete') {
-                    mensagem = 'âœ“ Registro transformado em descartado!\n\n';
-                    mensagem += 'ðŸ“¦ ID_SITUACAO alterado de 1 para 2\n';
-                    mensagem += 'ðŸ‘ï¸ Desaparecerá das listagens normais\n';
-                    mensagem += 'ðŸ”„ Poderá ser recuperado se necessário';
+                    mensagem = 'Registro transformado em descartado!\n\n';
+                    mensagem += 'ID_SITUACAO alterado de 1 para 2\n';
+                    mensagem += ' Desaparecerá das listagens normais\n';
+                    mensagem += 'Poderá ser recuperado se necessário';
                 } else if (response.tipo === 'hard_delete') {
-                    mensagem = 'âœ“ Registro removido permanentemente!\n\n';
-                    mensagem += 'ðŸ—‘ï¸ ID_SITUACAO = 2 foi deletado do banco\n';
-                    mensagem += 'âŒ Esta ação é irreversível\n';
-                    mensagem += 'ðŸ“¦ Recuperação requer backup do banco';
+                    mensagem = 'Registro removido permanentemente!\n\n';
+                    mensagem += 'ID_SITUACAO = 2 foi deletado do banco\n';
+                    mensagem += 'Esta ação é irreversível\n';
+                    mensagem += 'Recuperação requer backup do banco';
                 }
 
                 showToast(mensagem, 'sucesso');
@@ -1347,20 +1347,20 @@ $descartes = [
 
                 if (response.success) {
                     // Construir mensagem detalhada conforme o que foi processado
-                    let toastMsg = 'âœ“ Exclusão realizada com sucesso!\n\n';
+                    let toastMsg = 'Exclusão realizada com sucesso!\n\n';
 
                     if (response.descartados > 0) {
-                        toastMsg += `ðŸ“¦ ${response.descartados} registro(s) transformado(s) em descartado(s)\n`;
+                        toastMsg += `${response.descartados} registro(s) transformado(s) em descartado(s)\n`;
                         toastMsg += '   (Poderão ser recuperados se necessário)\n\n';
                     }
 
                     if (response.deletados > 0) {
-                        toastMsg += `ðŸ—‘ï¸ ${response.deletados} registro(s) removido(s) permanentemente\n`;
+                        toastMsg += `${response.deletados} registro(s) removido(s) permanentemente\n`;
                         toastMsg += '   (Ação irreversível)';
                     }
 
                     if (response.descartados === 0 && response.deletados === 0) {
-                        toastMsg = 'âœ“ Nenhum registro foi processado (todos já estavam no mesmo estado)';
+                        toastMsg = 'Nenhum registro foi processado (todos já estavam no mesmo estado)';
                     }
 
                     showToast(toastMsg, 'sucesso');
