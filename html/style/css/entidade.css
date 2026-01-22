@@ -2130,3 +2130,125 @@
             gap: 8px;
         }
     }
+
+    /* ============================================
+   BADGES DE MATCH - VERSÃO 5
+   Adicionar ao final de entidade.css
+   ============================================ */
+
+    /* Badge de Match - Estilo igual aos badges existentes do sistema */
+    .badge-match {
+        display: inline-flex !important;
+        align-items: center;
+        gap: 3px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        vertical-align: middle;
+        margin-left: 8px;
+    }
+
+    .badge-match ion-icon {
+        font-size: 10px;
+        flex-shrink: 0;
+    }
+
+    /* Badge Match no Tipo - Azul */
+    .badge-match-tipo {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    /* Badge Match na Unidade - Roxo */
+    .badge-match-unidade {
+        background: #ede9fe;
+        color: #5b21b6;
+    }
+
+    /* Badge Match no Ponto - Amarelo/Laranja */
+    .badge-match-ponto {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    /* ============================================
+   GARANTIR QUE OS TÍTULOS ACEITEM BADGES INLINE
+   ============================================ */
+
+    .tipo-info h3 {
+        display: flex !important;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .valor-info {
+        display: flex !important;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .valor-info h4 {
+        display: flex !important;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .item-info {
+        display: flex !important;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    /* ============================================
+   ESTADOS DE FILTRO - APENAS BORDA LATERAL FINA
+   ============================================ */
+
+    /* Match Direto no Tipo - borda lateral azul */
+    .tipo-card.filtro-match-direto>.tipo-card-header {
+        border-left: 3px solid #3b82f6;
+    }
+
+    /* Match Direto na Unidade - borda lateral roxa */
+    .valor-card.filtro-match-direto>.valor-card-header {
+        border-left: 3px solid #8b5cf6;
+    }
+
+    /* Match Direto no Ponto - borda lateral amarela */
+    .item-row.filtro-match-direto {
+        border-left: 3px solid #f59e0b;
+    }
+
+    /* Match herdado (não direto) - borda cinza sutil */
+    .tipo-card.filtro-match:not(.filtro-match-direto)>.tipo-card-header {
+        border-left: 3px solid #cbd5e1;
+    }
+
+    .valor-card.filtro-match:not(.filtro-match-direto)>.valor-card-header {
+        border-left: 3px solid #cbd5e1;
+    }
+
+    .item-row.filtro-match:not(.filtro-match-direto) {
+        border-left: 3px solid #cbd5e1;
+    }
+
+    /* ============================================
+   RESPONSIVO
+   ============================================ */
+
+    @media (max-width: 768px) {
+        .badge-match {
+            font-size: 8px;
+            padding: 2px 6px;
+        }
+
+        .badge-match ion-icon {
+            font-size: 9px;
+        }
+    }

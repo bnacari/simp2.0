@@ -1222,6 +1222,11 @@ try {
             .replace(/[\u0300-\u036f]/g, '');
     }
 
+    // ============================================
+    // Sistema de Filtros - VERSÃO 3 CORRIGIDA
+    // Substituir a função aplicarFiltros() em entidade.php
+    // ============================================
+
     function aplicarFiltros() {
         const termoBusca = normalizarTexto(document.getElementById('filtroBusca').value);
         const filtroDescarte = document.querySelector('input[name="filtroDescarte"]:checked')?.value || 'todos';
@@ -1233,6 +1238,13 @@ try {
 
         const tipoCards = document.querySelectorAll('.tipo-card');
 
+        // Limpar todos os badges de match anteriores
+        document.querySelectorAll('.badge-match').forEach(b => b.remove());
+        // Limpar todas as classes de match
+        document.querySelectorAll('.filtro-match, .filtro-match-direto').forEach(el => {
+            el.classList.remove('filtro-match', 'filtro-match-direto');
+        });
+
         tipoCards.forEach(tipoCard => {
             const tipoNome = normalizarTexto(tipoCard.dataset.tipoNome || '');
             const tipoId = normalizarTexto(tipoCard.dataset.tipoId || '');
@@ -1241,33 +1253,31 @@ try {
             // Filtro de descarte no tipo
             if (filtroDescarte === 'sim' && tipoDescarte !== '1') {
                 tipoCard.classList.add('filtro-oculto');
-                tipoCard.classList.remove('filtro-match');
                 return;
             }
             if (filtroDescarte === 'nao' && tipoDescarte === '1') {
                 tipoCard.classList.add('filtro-oculto');
-                tipoCard.classList.remove('filtro-match');
                 return;
             }
 
             // Se não há busca textual e não há filtro de favoritos, mostrar tipo e processar valores
             if (!termoBusca && filtroFavoritos === 'todos' && filtroDescarte === 'todos') {
-                tipoCard.classList.remove('filtro-oculto', 'filtro-match');
+                tipoCard.classList.remove('filtro-oculto');
                 totalTiposVisiveis++;
 
                 tipoCard.querySelectorAll('.valor-card').forEach(v => {
-                    v.classList.remove('filtro-oculto', 'filtro-match');
+                    v.classList.remove('filtro-oculto');
                     totalValoresVisiveis++;
                 });
                 tipoCard.querySelectorAll('.item-row').forEach(i => {
-                    i.classList.remove('filtro-oculto', 'filtro-match');
+                    i.classList.remove('filtro-oculto');
                     totalItensVisiveis++;
                 });
                 return;
             }
 
-            // Busca textual e/ou filtro de favoritos
-            let tipoMatch = termoBusca && (tipoNome.includes(termoBusca) || tipoId.includes(termoBusca));
+            // Verificar se o Tipo dá match direto
+            let tipoMatchDireto = termoBusca && (tipoNome.includes(termoBusca) || tipoId.includes(termoBusca));
             let tipoTemFilhoVisivel = false;
 
             const valorCards = tipoCard.querySelectorAll('.valor-card');
@@ -1279,11 +1289,11 @@ try {
                 // Filtro de favoritos
                 if (filtroFavoritos === 'favoritos' && !isFavorito) {
                     valorCard.classList.add('filtro-oculto');
-                    valorCard.classList.remove('filtro-match');
                     return;
                 }
 
-                let valorMatch = !termoBusca || valorNome.includes(termoBusca) || valorId.includes(termoBusca);
+                // Verificar se Valor/Unidade dá match direto
+                let valorMatchDireto = termoBusca && (valorNome.includes(termoBusca) || valorId.includes(termoBusca));
                 let valorTemFilhoVisivel = false;
 
                 const itemRows = valorCard.querySelectorAll('.item-row');
@@ -1297,77 +1307,203 @@ try {
                     const tagTempAgua = normalizarTexto(itemRow.dataset.tagTempAgua || '');
                     const tagTempAmbiente = normalizarTexto(itemRow.dataset.tagTempAmbiente || '');
 
-                    let itemMatch = !termoBusca || pontoNome.includes(termoBusca) ||
+                    // Verificar se Ponto dá match direto
+                    let pontoMatchDireto = termoBusca && (
+                        pontoNome.includes(termoBusca) ||
                         pontoCodigo.includes(termoBusca) ||
                         tagVazao.includes(termoBusca) ||
                         tagPressao.includes(termoBusca) ||
                         tagVolume.includes(termoBusca) ||
                         tagReservatorio.includes(termoBusca) ||
                         tagTempAgua.includes(termoBusca) ||
-                        tagTempAmbiente.includes(termoBusca);
+                        tagTempAmbiente.includes(termoBusca)
+                    );
 
-                    if (itemMatch) {
+                    // Determinar visibilidade: match direto OU herdado do pai (tipo ou valor)
+                    let itemVisivel = pontoMatchDireto || valorMatchDireto || tipoMatchDireto || !termoBusca;
+
+                    if (itemVisivel) {
                         itemRow.classList.remove('filtro-oculto');
                         totalItensVisiveis++;
                         valorTemFilhoVisivel = true;
 
-                        if (termoBusca && (pontoNome.includes(termoBusca) || pontoCodigo.includes(termoBusca) ||
-                            tagVazao.includes(termoBusca) || tagPressao.includes(termoBusca))) {
-                            itemRow.classList.add('filtro-match');
-                        } else {
-                            itemRow.classList.remove('filtro-match');
+                        // Adicionar badge indicando onde foi o match
+                        if (termoBusca) {
+                            if (pontoMatchDireto) {
+                                itemRow.classList.add('filtro-match', 'filtro-match-direto');
+                                adicionarBadgeMatchItem(itemRow, 'ponto', getMatchField(itemRow, termoBusca));
+                            } else if (valorMatchDireto) {
+                                itemRow.classList.add('filtro-match');
+                                adicionarBadgeMatchItem(itemRow, 'unidade');
+                            } else if (tipoMatchDireto) {
+                                itemRow.classList.add('filtro-match');
+                                adicionarBadgeMatchItem(itemRow, 'tipo');
+                            }
                         }
                     } else {
                         itemRow.classList.add('filtro-oculto');
-                        itemRow.classList.remove('filtro-match');
                     }
                 });
 
-                // Valor visível se: ele mesmo deu match ou tem filho visível
-                if (valorMatch || valorTemFilhoVisivel) {
+                // Valor visível se: ele mesmo deu match OU tem filho visível OU tipo deu match
+                let valorVisivel = valorMatchDireto || valorTemFilhoVisivel || tipoMatchDireto || !termoBusca;
+
+                // Mas apenas se passar pelo filtro de favoritos
+                if (filtroFavoritos === 'favoritos' && !isFavorito) {
+                    valorVisivel = false;
+                }
+
+                if (valorVisivel) {
                     valorCard.classList.remove('filtro-oculto');
                     totalValoresVisiveis++;
                     tipoTemFilhoVisivel = true;
 
-                    if (termoBusca && (valorNome.includes(termoBusca) || valorId.includes(termoBusca))) {
-                        valorCard.classList.add('filtro-match');
-                    } else {
-                        valorCard.classList.remove('filtro-match');
+                    if (termoBusca) {
+                        if (valorMatchDireto) {
+                            valorCard.classList.add('filtro-match', 'filtro-match-direto');
+                            adicionarBadgeMatchValor(valorCard, 'unidade');
+                        } else if (tipoMatchDireto) {
+                            valorCard.classList.add('filtro-match');
+                            adicionarBadgeMatchValor(valorCard, 'tipo');
+                        }
                     }
 
                     // Expandir valor se tem item com match
-                    if (valorTemFilhoVisivel) {
+                    if (valorTemFilhoVisivel && termoBusca) {
                         valorCard.classList.add('expanded');
                     }
                 } else {
                     valorCard.classList.add('filtro-oculto');
-                    valorCard.classList.remove('filtro-match');
                 }
             });
 
             // Tipo visível se: ele mesmo deu match ou tem filho visível
-            if (tipoMatch || tipoTemFilhoVisivel) {
+            if (tipoMatchDireto || tipoTemFilhoVisivel) {
                 tipoCard.classList.remove('filtro-oculto');
                 totalTiposVisiveis++;
 
-                if (tipoMatch) {
-                    tipoCard.classList.add('filtro-match');
-                } else {
-                    tipoCard.classList.remove('filtro-match');
+                if (termoBusca && tipoMatchDireto) {
+                    tipoCard.classList.add('filtro-match', 'filtro-match-direto');
+                    adicionarBadgeMatchTipo(tipoCard, 'tipo');
                 }
 
                 // Expandir tipo se tem valor visível
-                if (tipoTemFilhoVisivel) {
+                if (tipoTemFilhoVisivel && termoBusca) {
                     tipoCard.classList.add('expanded');
                 }
             } else {
                 tipoCard.classList.add('filtro-oculto');
-                tipoCard.classList.remove('filtro-match');
             }
         });
 
         // Atualizar contagem de resultados
         atualizarContagemFiltro(termoBusca, filtroDescarte, filtroFavoritos, totalTiposVisiveis, totalValoresVisiveis, totalItensVisiveis);
+    }
+
+    // Criar elemento badge
+    function criarBadge(nivel, campo = null) {
+        const badge = document.createElement('span');
+        badge.className = 'badge-match badge-match-' + nivel;
+
+        const icones = {
+            'tipo': 'folder-outline',
+            'unidade': 'albums-outline',
+            'ponto': 'location-outline'
+        };
+
+        const textos = {
+            'tipo': 'Match no Tipo',
+            'unidade': 'Match na Unidade',
+            'ponto': campo ? `Match: ${campo}` : 'Match no Ponto'
+        };
+
+        badge.innerHTML = `<ion-icon name="${icones[nivel]}"></ion-icon> ${textos[nivel]}`;
+        badge.title = textos[nivel];
+
+        return badge;
+    }
+
+    // Adicionar badge no TIPO (dentro do h3)
+    function adicionarBadgeMatchTipo(tipoCard, nivel) {
+        const h3 = tipoCard.querySelector('.tipo-info h3');
+        if (h3 && !h3.querySelector('.badge-match')) {
+            const badge = criarBadge(nivel);
+            h3.appendChild(badge);
+        }
+    }
+
+    // Adicionar badge no VALOR/UNIDADE (dentro do h4)
+    function adicionarBadgeMatchValor(valorCard, nivel) {
+        const h4 = valorCard.querySelector('.valor-info h4');
+        if (h4 && !h4.querySelector('.badge-match')) {
+            const badge = criarBadge(nivel);
+            h4.appendChild(badge);
+        }
+    }
+
+    // Adicionar badge no ITEM/PONTO (após o h5 ou dentro de item-info)
+    function adicionarBadgeMatchItem(itemRow, nivel, campo = null) {
+        const itemInfo = itemRow.querySelector('.item-info');
+        if (itemInfo && !itemInfo.querySelector('.badge-match')) {
+            const badge = criarBadge(nivel, campo);
+            // Inserir após o primeiro elemento (h5)
+            const h5 = itemInfo.querySelector('h5');
+            if (h5) {
+                h5.insertAdjacentElement('afterend', badge);
+            } else {
+                itemInfo.appendChild(badge);
+            }
+        }
+    }
+
+    // Função auxiliar para identificar qual campo deu match
+    function getMatchField(itemRow, termo) {
+        const pontoNome = normalizarTexto(itemRow.dataset.pontoNome || '');
+        const pontoCodigo = normalizarTexto(itemRow.dataset.pontoCodigo || '');
+        const tagVazao = normalizarTexto(itemRow.dataset.tagVazao || '');
+        const tagPressao = normalizarTexto(itemRow.dataset.tagPressao || '');
+        const tagVolume = normalizarTexto(itemRow.dataset.tagVolume || '');
+        const tagReservatorio = normalizarTexto(itemRow.dataset.tagReservatorio || '');
+        const tagTempAgua = normalizarTexto(itemRow.dataset.tagTempAgua || '');
+        const tagTempAmbiente = normalizarTexto(itemRow.dataset.tagTempAmbiente || '');
+
+        if (pontoNome.includes(termo)) return 'Nome';
+        if (pontoCodigo.includes(termo)) return 'Código';
+        if (tagVazao.includes(termo)) return 'TAG Vazão';
+        if (tagPressao.includes(termo)) return 'TAG Pressão';
+        if (tagVolume.includes(termo)) return 'TAG Volume';
+        if (tagReservatorio.includes(termo)) return 'TAG Reservatório';
+        if (tagTempAgua.includes(termo)) return 'TAG Temp. Água';
+        if (tagTempAmbiente.includes(termo)) return 'TAG Temp. Ambiente';
+
+        return null;
+    }
+
+    // Atualizar função limparFiltros para remover badges
+    function limparFiltros() {
+        document.getElementById('filtroBusca').value = '';
+        document.getElementById('btnLimparBusca').style.display = 'none';
+        document.querySelector('input[name="filtroDescarte"][value="todos"]').checked = true;
+        document.querySelector('input[name="filtroFavoritos"][value="todos"]').checked = true;
+
+        // Remover classes de filtro
+        document.querySelectorAll('.tipo-card, .valor-card, .item-row').forEach(el => {
+            el.classList.remove('filtro-oculto', 'filtro-match', 'filtro-match-direto');
+        });
+
+        // Remover badges de match
+        document.querySelectorAll('.badge-match').forEach(b => b.remove());
+
+        document.getElementById('filtroResultado').style.display = 'none';
+
+        // Limpar estado salvo dos filtros
+        clearFiltrosState();
+
+        // Restaurar estado salvo dos acordeões
+        restoreExpandedState();
+
+        // Atualizar botão de expandir/recolher
+        setTimeout(verificarEstadoAcordeoes, 50);
     }
 
     function atualizarContagemFiltro(termoBusca, filtroDescarte, filtroFavoritos, tipos, valores, itens) {
@@ -1392,29 +1528,6 @@ try {
         }
 
         verificarEstadoAcordeoes();
-    }
-
-    function limparFiltros() {
-        document.getElementById('filtroBusca').value = '';
-        document.getElementById('btnLimparBusca').style.display = 'none';
-        document.querySelector('input[name="filtroDescarte"][value="todos"]').checked = true;
-        document.querySelector('input[name="filtroFavoritos"][value="todos"]').checked = true;
-
-        // Remover classes de filtro
-        document.querySelectorAll('.tipo-card, .valor-card, .item-row').forEach(el => {
-            el.classList.remove('filtro-oculto', 'filtro-match');
-        });
-
-        document.getElementById('filtroResultado').style.display = 'none';
-
-        // Limpar estado salvo dos filtros
-        clearFiltrosState();
-
-        // Restaurar estado salvo dos acordeões
-        restoreExpandedState();
-
-        // Atualizar botão de expandir/recolher
-        setTimeout(verificarEstadoAcordeoes, 50);
     }
 
     // Inicializar filtros
