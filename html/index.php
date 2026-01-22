@@ -1579,6 +1579,61 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
         background: #f5f3ff;
         color: #8b5cf6;
     }
+
+    /* ============================================
+   Dashboard Grid - Novo Layout
+   ============================================ */
+    .dashboard-grid-novo {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 24px;
+        align-items: stretch;
+        margin-bottom: 24px;
+    }
+
+    .dashboard-col-left {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .dashboard-col-right {
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Card com altura total (Pontos Críticos) */
+    .dashboard-col-right .card-full-height {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .dashboard-col-right .card-full-height .content-card-body {
+        flex: 1;
+        overflow-y: auto;
+        max-height: none;
+    }
+
+    /* Ajuste para lista de ranking preencher o espaço */
+    .dashboard-col-right .ranking-list {
+        min-height: 100%;
+    }
+
+    /* Responsividade */
+    @media (max-width: 1200px) {
+        .dashboard-grid-novo {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-col-right .card-full-height {
+            max-height: 400px;
+        }
+
+        .dashboard-col-right .card-full-height .content-card-body {
+            max-height: 340px;
+        }
+    }
 </style>
 
 <div class="page-container">
@@ -1787,41 +1842,27 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
 
 
 
-    <!-- Dashboard Grid -->
-    <div class="dashboard-grid">
-        <!-- Grafico Evolucao -->
-        <div class="content-card">
-            <div class="content-card-header">
-                <div class="content-card-title">
-                    <ion-icon name="trending-up-outline"></ion-icon>
-                    Evolucao por Status
+    <!-- Dashboard Grid - NOVO LAYOUT -->
+    <div class="dashboard-grid-novo">
+        <!-- Coluna Esquerda: Gráfico + Maior Esforço -->
+        <div class="dashboard-col-left">
+            <!-- Gráfico -->
+            <div class="content-card">
+                <div class="content-card-header">
+                    <div class="content-card-title">
+                        <ion-icon name="trending-up-outline"></ion-icon>
+                        Evolucao da Cobertura
+                    </div>
+                </div>
+                <div class="content-card-body">
+                    <div class="grafico-container">
+                        <canvas id="graficoEvolucao"></canvas>
+                    </div>
                 </div>
             </div>
-            <div class="content-card-body">
-                <div class="grafico-container">
-                    <canvas id="graficoEvolucao"></canvas>
-                </div>
-            </div>
-        </div>
 
-        <!-- Ranking Criticos -->
-        <div class="content-card">
-            <div class="content-card-header">
-                <div class="content-card-title">
-                    <ion-icon name="warning-outline"></ion-icon>
-                    Pontos Criticos
-                </div>
-            </div>
-           
-            <div class="content-card-body">
-                <ul class="ranking-list" id="rankingCriticos">
-                    <li class="loading-container">
-                        <ion-icon name="sync-outline"></ion-icon>
-                        <span>Carregando...</span>
-                    </li>
-                </ul>
-            </div>
-             <!-- Ranking Tratamento Manual -->
+            <!-- Ranking Tratamento Manual (abaixo do gráfico) -->
+            <div class="content-card">
                 <div class="content-card-header">
                     <div class="content-card-title">
                         <ion-icon name="construct-outline"></ion-icon>
@@ -1840,8 +1881,28 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
                         </li>
                     </ul>
                 </div>
+            </div>
         </div>
-        
+
+        <!-- Coluna Direita: Pontos Críticos (altura alinhada) -->
+        <div class="dashboard-col-right">
+            <div class="content-card card-full-height">
+                <div class="content-card-header">
+                    <div class="content-card-title">
+                        <ion-icon name="warning-outline"></ion-icon>
+                        Pontos Criticos
+                    </div>
+                </div>
+                <div class="content-card-body">
+                    <ul class="ranking-list" id="rankingCriticos">
+                        <li class="loading-container">
+                            <ion-icon name="sync-outline"></ion-icon>
+                            <span>Carregando...</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Tabela de Dados -->
@@ -1931,6 +1992,8 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
     // Variáveis globais (manter as existentes)
     let dadosAtuais = [];
     let graficoEvolucao = null;
+    let colunaOrdenacao = null;
+    let direcaoOrdenacao = 'asc';
 
     const tiposMedidor = {
         1: { nome: 'Macro', nomeCompleto: 'Macromedidor', icone: 'speedometer-outline' },
@@ -2235,6 +2298,88 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
 
         $('#tabelaBody').html(html);
     }
+
+    /**
+ * Ordena os dados da tabela
+ * @param {string} coluna - Nome da coluna (data-column)
+ */
+    function ordenarDados(coluna) {
+        if (!dadosAtuais || dadosAtuais.length === 0) {
+            console.warn('Nenhum dado para ordenar');
+            return;
+        }
+
+        // Alterna direção se mesma coluna
+        if (colunaOrdenacao === coluna) {
+            direcaoOrdenacao = direcaoOrdenacao === 'asc' ? 'desc' : 'asc';
+        } else {
+            colunaOrdenacao = coluna;
+            direcaoOrdenacao = 'asc';
+        }
+
+        // Atualiza visual das colunas
+        document.querySelectorAll('.tabela-metricas th.sortable').forEach(th => {
+            th.classList.remove('asc', 'desc');
+        });
+        const thAtual = document.querySelector(`.tabela-metricas th[data-column="${coluna}"]`);
+        if (thAtual) {
+            thAtual.classList.add(direcaoOrdenacao);
+        }
+
+        // Ordena o array
+        dadosAtuais.sort((a, b) => {
+            let valorA, valorB;
+
+            // Campos especiais
+            if (coluna === 'DS_STATUS') {
+                const ordemStatus = { 'CRITICO': 1, 'ATENCAO': 2, 'OK': 3 };
+                valorA = ordemStatus[(a.DS_STATUS || '').toUpperCase()] || 4;
+                valorB = ordemStatus[(b.DS_STATUS || '').toUpperCase()] || 4;
+            } else if (coluna === 'VL_TENDENCIA_7D') {
+                const ordemTend = { 'SUBINDO': 1, 'DESCENDO': 2, 'ESTAVEL': 3 };
+                valorA = ordemTend[(a.VL_TENDENCIA_7D || 'ESTAVEL').toUpperCase()] || 4;
+                valorB = ordemTend[(b.VL_TENDENCIA_7D || 'ESTAVEL').toUpperCase()] || 4;
+            } else if (coluna === 'DS_NOME') {
+                valorA = (a.DS_NOME || '').toLowerCase();
+                valorB = (b.DS_NOME || '').toLowerCase();
+            } else if (coluna === 'DT_REFERENCIA') {
+                valorA = a.DT_REFERENCIA || '';
+                valorB = b.DT_REFERENCIA || '';
+            } else {
+                // Campos numéricos (PERC_COBERTURA, VL_MEDIA, VL_MEDIA_HIST_4SEM, VL_DESVIO_HIST_PERC)
+                valorA = parseFloat(a[coluna]) || 0;
+                valorB = parseFloat(b[coluna]) || 0;
+            }
+
+            // Comparação
+            if (typeof valorA === 'string') {
+                return direcaoOrdenacao === 'asc'
+                    ? valorA.localeCompare(valorB)
+                    : valorB.localeCompare(valorA);
+            } else {
+                return direcaoOrdenacao === 'asc'
+                    ? valorA - valorB
+                    : valorB - valorA;
+            }
+        });
+
+        // Re-renderiza a tabela
+        atualizarTabela(dadosAtuais);
+    }
+
+
+    // ============================================
+    // ADICIONAR ESTE EVENT LISTENER DENTRO DO $(document).ready
+    // (após a inicialização do Select2)
+    // ============================================
+
+    // Event listener para ordenação nas colunas da tabela
+    $(document).on('click', '.tabela-metricas th.sortable', function () {
+        const coluna = $(this).data('column');
+        if (coluna) {
+            ordenarDados(coluna);
+        }
+    });
 
     /**
      * Atualiza o ranking de críticos
