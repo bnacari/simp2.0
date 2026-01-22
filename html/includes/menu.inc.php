@@ -14,9 +14,40 @@ $paginaAtual = basename($_SERVER['PHP_SELF'], '.php');
 // Verifica se o usuário é desenvolvedor
 $isDesenvolvedor = temPermissaoTela('Desenvolvedor', ACESSO_LEITURA);
 
+// ============================================
+// PERSISTÊNCIA DE AMBIENTE - Cookie + Sessão
+// ============================================
+
+// Restaura ambiente do cookie se não existir na sessão (apenas desenvolvedores)
+// Isso garante que o ambiente seja lembrado entre sessões
+if ($isDesenvolvedor && !isset($_SESSION['ambiente_forcado']) && isset($_COOKIE['simp_ambiente_preferido'])) {
+    $ambienteCookie = $_COOKIE['simp_ambiente_preferido'];
+    // Valida valor do cookie antes de usar
+    if (in_array($ambienteCookie, ['HOMOLOGAÇÃO', 'PRODUÇÃO'])) {
+        $_SESSION['ambiente_forcado'] = $ambienteCookie;
+    }
+}
+
 // Processa alteração de ambiente via POST (apenas desenvolvedores)
 if ($isDesenvolvedor && isset($_POST['alternar_ambiente'])) {
-    $_SESSION['ambiente_forcado'] = $_POST['alternar_ambiente'];
+    $novoAmbiente = $_POST['alternar_ambiente'];
+    
+    // Salva na sessão
+    $_SESSION['ambiente_forcado'] = $novoAmbiente;
+    
+    // Salva em cookie para persistir entre sessões (30 dias)
+    setcookie(
+        'simp_ambiente_preferido',  // nome do cookie
+        $novoAmbiente,              // valor
+        [
+            'expires' => time() + (30 * 24 * 60 * 60), // 30 dias
+            'path' => '/',                              // disponível em todo o site
+            'secure' => true,                           // apenas HTTPS
+            'httponly' => true,                         // não acessível via JavaScript
+            'samesite' => 'Strict'                      // proteção CSRF
+        ]
+    );
+    
     header("Location: " . $_SERVER['REQUEST_URI']);
     exit;
 }

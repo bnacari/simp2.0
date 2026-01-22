@@ -185,21 +185,21 @@ $tiposEixo = [
                                 <span class="sort-desc"><ion-icon name="caret-down"></ion-icon></span>
                             </span>
                         </th>
-                        <th data-sort="TP_EIXO">
+                        <th data-sort="TP_EIXO" class="text-center">
                             Eixo
                             <span class="sort-indicator">
                                 <span class="sort-asc"><ion-icon name="caret-up"></ion-icon></span>
                                 <span class="sort-desc"><ion-icon name="caret-down"></ion-icon></span>
                             </span>
                         </th>
-                        <th data-sort="VL_POTENCIA_MOTOR">
+                        <th data-sort="VL_POTENCIA_MOTOR" class="text-center">
                             Potência (CV)
                             <span class="sort-indicator">
                                 <span class="sort-asc"><ion-icon name="caret-up"></ion-icon></span>
                                 <span class="sort-desc"><ion-icon name="caret-down"></ion-icon></span>
                             </span>
                         </th>
-                        <th data-sort="VL_VAZAO_BOMBA">
+                        <th data-sort="VL_VAZAO_BOMBA" class="text-center">
                             Vazão (L/s)
                             <span class="sort-indicator">
                                 <span class="sort-asc"><ion-icon name="caret-up"></ion-icon></span>
@@ -207,14 +207,14 @@ $tiposEixo = [
                             </span>
                         </th>
                         <!-- NOVO: Coluna Altura Manométrica -->
-                        <th data-sort="VL_ALTURA_MANOMETRICA_BOMBA">
+                        <th data-sort="VL_ALTURA_MANOMETRICA_BOMBA" class="text-center">
                             Altura Manom. (m)
                             <span class="sort-indicator">
                                 <span class="sort-asc"><ion-icon name="caret-up"></ion-icon></span>
                                 <span class="sort-desc"><ion-icon name="caret-down"></ion-icon></span>
                             </span>
                         </th>
-                        <th class="no-sort">Ações</th>
+                        <th class="no-sort text-center">Ações</th>
                     </tr>
                 </thead>
                 <tbody id="tabelaResultados">
@@ -624,11 +624,11 @@ function renderizarTabela(dados) {
                 <td><strong>${item.DS_CODIGO || '-'}</strong></td>
                 <td>${item.DS_NOME || '-'}</td>
                 <td>${item.DS_LOCALIZACAO || '-'}</td>
-                <td><span class="badge ${eixoClass}">${eixo}</span></td>
-                <td class="text-right">${potencia}</td>
-                <td class="text-right">${vazao}</td>
-                <td class="text-right">${alturaManometrica}</td>
-                <td>
+                <td class="text-center"><span class="badge ${eixoClass}">${eixo}</span></td>
+                <td class="text-center">${potencia}</td>
+                <td class="text-center">${vazao}</td>
+                <td class="text-center">${alturaManometrica}</td>
+                <td class="text-center">
                     <div class="actions-cell">
                         <button type="button" class="btn-action view" onclick="visualizar(${item.CD_CHAVE})" title="Visualizar">
                             <ion-icon name="eye-outline"></ion-icon>
@@ -1116,7 +1116,19 @@ $(document).on('click', '.modal-overlay', function(e) {
 
 /* Coluna de texto à direita */
 .text-right {
-    text-align: right;
+    text-align: right !important;
+}
+
+/* Coluna de texto centralizado */
+.text-center {
+    text-align: center !important;
+}
+
+/* Actions cell centralizado */
+.actions-cell {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
 }
 
 /* ============================================
