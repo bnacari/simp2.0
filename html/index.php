@@ -1989,12 +1989,13 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
   * pelas versões abaixo.
   */
 
-    // Variáveis globais (manter as existentes)
+    // Variáveis globais
     let dadosAtuais = [];
     let graficoEvolucao = null;
     let colunaOrdenacao = null;
     let direcaoOrdenacao = 'asc';
 
+    // Tipos de medidor
     const tiposMedidor = {
         1: { nome: 'Macro', nomeCompleto: 'Macromedidor', icone: 'speedometer-outline' },
         2: { nome: 'Pito', nomeCompleto: 'Estação Pitométrica', icone: 'pulse-outline' },
@@ -2003,6 +2004,7 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
         8: { nome: 'Hidro', nomeCompleto: 'Hidrômetro', icone: 'stopwatch-outline' }
     };
 
+    // Unidades por tipo de medidor
     const unidadesMedidor = {
         1: 'l/s',
         2: 'l/s',
@@ -2010,6 +2012,16 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
         6: '%',
         8: 'l/s'
     };
+
+    // Letras por tipo de medidor
+    const letrasTipoMedidor = {
+        1: 'M',
+        2: 'E',
+        4: 'P',
+        6: 'R',
+        8: 'H'
+    };
+
 
     /**
      * Inicializacao
@@ -2187,8 +2199,103 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
         }
     }
 
+
     /**
-     * Atualiza a tabela de dados (ATUALIZADO COM COLUNA TRATADOS)
+     * Gera o código formatado do ponto de medição
+     * Formato: CD_LOCALIDADE-CD_PONTO(6 dígitos)-LETRA-CD_UNIDADE
+     * Exemplo: 5200-000888-E-4
+     */
+    function gerarCodigoPonto(item) {
+        const cdLocalidade = item.CD_LOCALIDADE_CODIGO || item.CD_LOCALIDADE || '000';
+        const cdPonto = String(item.CD_PONTO_MEDICAO || 0).padStart(6, '0');
+        const letraTipo = letrasTipoMedidor[item.ID_TIPO_MEDIDOR] || 'X';
+        const cdUnidade = item.CD_UNIDADE || '00';
+
+        return `${cdLocalidade}-${cdPonto}-${letraTipo}-${cdUnidade}`;
+    }
+
+    /**
+ * Gera o código formatado do ponto de medição
+ * Formato: CD_LOCALIDADE-CD_PONTO(6 dígitos)-LETRA-CD_UNIDADE
+ * Exemplo: 5200-000888-E-4
+ */
+    function gerarCodigoPonto(item) {
+        const cdLocalidade = item.CD_LOCALIDADE_CODIGO || item.CD_LOCALIDADE || '000';
+        const cdPonto = String(item.CD_PONTO_MEDICAO || 0).padStart(6, '0');
+        const letraTipo = letrasTipoMedidor[item.ID_TIPO_MEDIDOR] || 'X';
+        const cdUnidade = item.CD_UNIDADE || '00';
+
+        return `${cdLocalidade}-${cdPonto}-${letraTipo}-${cdUnidade}`;
+    }
+
+    /**
+ * Formata data para exibição (DD/MM/YYYY)
+ */
+    function formatarData(data) {
+        if (!data) return '-';
+        const d = new Date(data);
+        return d.toLocaleDateString('pt-BR');
+    }
+
+    /**
+     * Formata número com 2 casas decimais
+     */
+    function formatarNumero(valor) {
+        if (valor === null || valor === undefined) return '-';
+        return parseFloat(valor).toFixed(2);
+    }
+
+    /**
+     * Formata desvio com cor e sinal
+     */
+    function formatarDesvio(valor) {
+        if (valor === null || valor === undefined) return '-';
+        const v = parseFloat(valor);
+        const sinal = v > 0 ? '+' : '';
+        const cor = Math.abs(v) > 30 ? (v > 0 ? 'color: #ef4444' : 'color: #3b82f6') : '';
+        return `<span style="${cor}">${sinal}${v.toFixed(1)}%</span>`;
+    }
+
+    /**
+     * Retorna o ícone da tendência
+     */
+    function getTendenciaIcon(tendencia) {
+        switch ((tendencia || '').toUpperCase()) {
+            case 'SUBINDO': return 'trending-up-outline';
+            case 'DESCENDO': return 'trending-down-outline';
+            default: return 'remove-outline';
+        }
+    }
+
+    /**
+     * Gera o badge HTML do tipo de medidor
+     */
+    function getBadgeTipoMedidor(idTipo) {
+        const tipo = tiposMedidor[idTipo];
+        if (!tipo) return '';
+
+        return `<span class="badge-tipo-medidor tipo-${idTipo}" title="${tipo.nomeCompleto}">
+        <ion-icon name="${tipo.icone}"></ion-icon>
+        ${tipo.nome}
+    </span>`;
+    }
+
+    /**
+     * Gera o código formatado do ponto de medição
+     * Formato: CD_LOCALIDADE-CD_PONTO(6 dígitos)-LETRA-CD_UNIDADE
+     * Exemplo: 5200-000888-E-4
+     */
+    function gerarCodigoPonto(item) {
+        const cdLocalidade = item.CD_LOCALIDADE_CODIGO || item.CD_LOCALIDADE || '000';
+        const cdPonto = String(item.CD_PONTO_MEDICAO || 0).padStart(6, '0');
+        const letraTipo = letrasTipoMedidor[item.ID_TIPO_MEDIDOR] || 'X';
+        const cdUnidade = item.CD_UNIDADE || '00';
+
+        return `${cdLocalidade}-${cdPonto}-${letraTipo}-${cdUnidade}`;
+    }
+
+    /**
+     * Atualiza a tabela de dados
      */
     function atualizarTabela(dados) {
         if (!dados || dados.length === 0) {
@@ -2212,85 +2319,83 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
             const cobertura = parseFloat(item.PERC_COBERTURA) || 0;
             const coberturaClass = cobertura >= 95 ? 'alta' : (cobertura >= 50 ? 'media' : 'baixa');
             const tendenciaClass = item.VL_TENDENCIA_7D ? item.VL_TENDENCIA_7D.toLowerCase() : 'estavel';
-
             const unidade = unidadesMedidor[item.ID_TIPO_MEDIDOR] || '';
-            const media = parseFloat(item.VL_MEDIA) || 0;
-            const hist = parseFloat(item.VL_MEDIA_HIST_4SEM) || 0;
-            const desvio = parseFloat(item.VL_DESVIO_HIST_PERC) || 0;
 
-            // NOVO: Dados de tratamento manual
+            // Tratamento manual
             const qtdTratados = parseInt(item.QTD_TRATADOS_MANUAL) || 0;
-            const qtdRegistros = parseInt(item.QTD_REGISTROS) || 1;
-            const percTratados = ((qtdTratados / qtdRegistros) * 100).toFixed(1);
-
-            // Classificação do nível de tratamento
+            const percTratado = parseFloat(item.PERC_TRATADO) || 0;
             let tratadosClass = 'baixo';
-            if (qtdTratados > 200 || percTratados > 20) {
+            if (qtdTratados > 200 || percTratado > 20) {
                 tratadosClass = 'alto';
-            } else if (qtdTratados > 50 || percTratados > 5) {
+            } else if (qtdTratados > 100 || percTratado > 10) {
                 tratadosClass = 'medio';
             }
 
+            // Código formatado do ponto
+            const codigoPonto = gerarCodigoPonto(item);
+
             html += `
-            <tr onclick="verDetalhes(${item.CD_PONTO_MEDICAO}, '${item.DT_REFERENCIA}')" style="cursor:pointer;">
+            <tr class="${statusClass}">
                 <td>
                     <div class="ponto-info">
-                        <span class="ponto-nome">${item.DS_NOME || 'Ponto ' + item.CD_PONTO_MEDICAO}</span>
-                        <span class="ponto-tipo">${getBadgeTipoMedidor(item.ID_TIPO_MEDIDOR)}</span>
+                        <div class="ponto-info-header">
+                            <span class="ponto-nome">${codigoPonto}</span>
+                            ${getBadgeTipoMedidor(item.ID_TIPO_MEDIDOR)}
+                        </div>
+                        <span class="ponto-descricao">${item.DS_NOME || '-'}</span>
                     </div>
                 </td>
-                <td>${new Date(item.DT_REFERENCIA).toLocaleDateString('pt-BR')}</td>
+                <td>${formatarData(item.DT_REFERENCIA)}</td>
                 <td>
-                    <div class="cobertura-bar ${coberturaClass}">
-                        <div class="cobertura-fill" style="width: ${Math.min(cobertura, 100)}%"></div>
+                    <div class="cobertura-bar">
+                        <div class="cobertura-bar-track">
+                            <div class="cobertura-bar-fill ${coberturaClass}" style="width: ${cobertura}%"></div>
+                        </div>
+                        <span class="cobertura-value">${cobertura.toFixed(0)}%</span>
                     </div>
-                    <span class="cobertura-text">${cobertura.toFixed(0)}%</span>
                 </td>
-                <td>${media.toFixed(2)} ${unidade}</td>
-                <td>${hist > 0 ? hist.toFixed(2) + ' ' + unidade : '-'}</td>
-                <td>
-                    <span class="desvio ${desvio > 30 ? 'alto' : (desvio < -30 ? 'baixo' : '')}">
-                        ${desvio !== 0 ? (desvio > 0 ? '+' : '') + desvio.toFixed(0) + '%' : '-'}
-                    </span>
-                </td>
+                <td>${formatarNumero(item.VL_MEDIA)} ${unidade}</td>
+                <td>${formatarNumero(item.VL_MEDIA_HIST_4SEM)} ${unidade}</td>
+                <td>${formatarDesvio(item.VL_DESVIO_HIST_PERC)}</td>
                 <td>
                     <span class="tendencia ${tendenciaClass}">
-                        <ion-icon name="${tendenciaClass === 'subindo' ? 'trending-up-outline' :
-                    (tendenciaClass === 'descendo' ? 'trending-down-outline' : 'remove-outline')}"></ion-icon>
+                        <ion-icon name="${getTendenciaIcon(item.VL_TENDENCIA_7D)}"></ion-icon>
                         ${item.VL_TENDENCIA_7D || 'ESTAVEL'}
                     </span>
                 </td>
                 <td>
                     <div class="flags-container">
-                        <span class="flag-icon ${item.FL_COBERTURA_BAIXA == 1 ? 'ativo' : 'inativo'}" 
-                              title="Cobertura baixa">
-                            <ion-icon name="wifi-outline"></ion-icon>
+                        <span class="flag-icon ${item.FL_COBERTURA_BAIXA == 1 ? 'ativo' : 'inativo'}" title="Cobertura Baixa">
+                            <ion-icon name="cloud-offline-outline"></ion-icon>
                         </span>
-                        <span class="flag-icon ${item.FL_SENSOR_PROBLEMA == 1 ? 'ativo' : 'inativo'}" 
-                              title="Problema no sensor">
+                        <span class="flag-icon ${item.FL_SENSOR_PROBLEMA == 1 ? 'ativo' : 'inativo'}" title="Problema Sensor">
                             <ion-icon name="hardware-chip-outline"></ion-icon>
                         </span>
-                        <span class="flag-icon ${item.FL_VALOR_ANOMALO == 1 ? 'ativo' : 'inativo'}" 
-                              title="Valor anômalo">
+                        <span class="flag-icon ${item.FL_VALOR_ANOMALO == 1 ? 'ativo' : 'inativo'}" title="Valor Anômalo">
                             <ion-icon name="alert-outline"></ion-icon>
                         </span>
-                        <span class="flag-icon ${item.FL_DESVIO_SIGNIFICATIVO == 1 ? 'ativo' : 'inativo'}" 
-                              title="Desvio significativo">
-                            <ion-icon name="stats-chart-outline"></ion-icon>
+                        <span class="flag-icon ${item.FL_DESVIO_SIGNIFICATIVO == 1 ? 'ativo' : 'inativo'}" title="Desvio Significativo">
+                            <ion-icon name="trending-up-outline"></ion-icon>
                         </span>
                     </div>
                 </td>
                 <td>
-                    ${qtdTratados > 0
-                    ? `<span class="tratados-badge ${tratadosClass}" 
-                                 title="${percTratados}% dos ${qtdRegistros.toLocaleString('pt-BR')} registros">
-                             <ion-icon name="construct-outline"></ion-icon>
-                             ${qtdTratados.toLocaleString('pt-BR')}
-                           </span>`
-                    : '<span style="color:#cbd5e1">-</span>'}
+                    <span class="status-badge ${statusClass}">
+                        ${item.DS_STATUS || '-'}
+                    </span>
                 </td>
                 <td>
-                    <span class="status-badge ${statusClass}">${item.DS_STATUS}</span>
+                    ${qtdTratados > 0 ? `
+                        <span class="tratados-badge ${tratadosClass}" title="${percTratado.toFixed(1)}% dos registros">
+                            <ion-icon name="construct-outline"></ion-icon>
+                            ${qtdTratados}
+                        </span>
+                    ` : '<span style="color:#94a3b8;">-</span>'}
+                </td>
+                <td>
+                    <button class="btn-acao" onclick="verDetalhes(${item.CD_PONTO_MEDICAO}, '${item.DT_REFERENCIA}')" title="Ver detalhes">
+                        <ion-icon name="eye-outline"></ion-icon>
+                    </button>
                 </td>
             </tr>
         `;
@@ -2382,15 +2487,15 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
     });
 
     /**
-     * Atualiza o ranking de críticos
-     */
+ * Atualiza o ranking de pontos críticos
+ */
     function atualizarRanking(criticos) {
         if (!criticos || criticos.length === 0) {
             $('#rankingCriticos').html(`
             <li class="empty-state" style="padding: 20px; text-align: center;">
                 <ion-icon name="checkmark-circle-outline" style="font-size: 32px; color: #10b981;"></ion-icon>
                 <p style="margin: 8px 0 0; color: #64748b; font-size: 13px;">
-                    Nenhum ponto crítico ou em atenção
+                    Nenhum ponto crítico encontrado
                 </p>
             </li>
         `);
@@ -2402,15 +2507,18 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
             const statusClass = item.DS_STATUS ? item.DS_STATUS.toLowerCase() : '';
             const cobertura = parseFloat(item.PERC_COBERTURA) || 0;
 
+            // Código formatado do ponto
+            const codigoPonto = gerarCodigoPonto(item);
+
             html += `
             <li class="ranking-item" onclick="verDetalhes(${item.CD_PONTO_MEDICAO}, '${item.DT_REFERENCIA}')">
                 <span class="ranking-position">${index + 1}</span>
                 <div class="ranking-info">
                     <div class="ranking-header">
-                        <span class="ranking-nome">${item.DS_NOME || 'Ponto ' + item.CD_PONTO_MEDICAO}</span>
+                        <span class="ranking-nome" title="${item.DS_NOME || ''}">${codigoPonto}</span>
                         ${getBadgeTipoMedidor(item.ID_TIPO_MEDIDOR)}
                     </div>
-                    <div class="ranking-detalhe">${cobertura.toFixed(0)}% cobertura</div>
+                    <div class="ranking-detalhe">${item.DS_NOME || '-'} • ${cobertura.toFixed(0)}% cobertura</div>
                 </div>
                 <span class="ranking-valor ${statusClass}">${item.DS_STATUS}</span>
             </li>
@@ -2421,8 +2529,8 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
     }
 
     /**
-     * NOVO: Atualiza o ranking de pontos com maior tratamento manual
-     */
+ * Atualiza o ranking de pontos com maior tratamento manual
+ */
     function atualizarRankingTratados(maisTratados) {
         const container = $('#rankingTratados');
 
@@ -2454,16 +2562,19 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
                 bgColor = '#fffbeb';
             }
 
+            // Código formatado do ponto
+            const codigoPonto = gerarCodigoPonto(item);
+
             html += `
             <li class="ranking-item" onclick="verDetalhes(${item.CD_PONTO_MEDICAO}, '${item.DT_REFERENCIA}')">
                 <span class="ranking-position">${index + 1}</span>
                 <div class="ranking-info">
                     <div class="ranking-header">
-                        <span class="ranking-nome">${item.DS_NOME || 'Ponto ' + item.CD_PONTO_MEDICAO}</span>
+                        <span class="ranking-nome" title="${item.DS_NOME || ''}">${codigoPonto}</span>
                         ${getBadgeTipoMedidor(item.ID_TIPO_MEDIDOR)}
                     </div>
                     <div class="ranking-detalhe" style="color: ${badgeColor};">
-                        <strong>${qtdTratados.toLocaleString('pt-BR')}</strong> registros (${percTratado.toFixed(1)}%)
+                        ${item.DS_NOME || '-'} • <strong>${qtdTratados.toLocaleString('pt-BR')}</strong> registros (${percTratado.toFixed(1)}%)
                     </div>
                 </div>
                 <span class="ranking-tratados-badge" style="background: ${bgColor}; color: ${badgeColor};">

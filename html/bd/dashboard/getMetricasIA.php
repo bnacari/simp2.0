@@ -241,6 +241,7 @@ try {
                 IM.VL_MEDIA,
                 IM.DS_STATUS,
                 IM.DS_RESUMO,
+                L.CD_LOCALIDADE AS CD_LOCALIDADE_CODIGO,
                 IM.QTD_TRATADOS_MANUAL,  -- <<< ADICIONADO
                 PM.DS_NOME
             FROM SIMP.dbo.IA_METRICAS_DIARIAS IM
@@ -279,6 +280,7 @@ try {
                 IM.ID_TIPO_MEDIDOR,
                 IM.QTD_TRATADOS_MANUAL,
                 IM.QTD_REGISTROS,
+                L.CD_LOCALIDADE AS CD_LOCALIDADE_CODIGO,
                 CAST((IM.QTD_TRATADOS_MANUAL * 100.0 / NULLIF(IM.QTD_REGISTROS, 0)) AS DECIMAL(5,2)) AS PERC_TRATADO,
                 IM.DS_STATUS,
                 PM.DS_NOME
