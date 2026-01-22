@@ -15,31 +15,33 @@ try {
     verificarPermissaoAjax('Consultar Log', ACESSO_LEITURA);
 
     // Parâmetros de paginação
-    $pagina = isset($_GET['pagina']) ? max(1, (int)$_GET['pagina']) : 1;
-    $porPagina = isset($_GET['porPagina']) ? min(100, max(10, (int)$_GET['porPagina'])) : 20;
+    $pagina = isset($_GET['pagina']) ? max(1, (int) $_GET['pagina']) : 1;
+    $porPagina = isset($_GET['porPagina']) ? min(100, max(10, (int) $_GET['porPagina'])) : 20;
     $offset = ($pagina - 1) * $porPagina;
 
     // Parâmetros de filtro
     $dataInicio = isset($_GET['dataInicio']) && !empty($_GET['dataInicio']) ? $_GET['dataInicio'] : null;
     $dataFim = isset($_GET['dataFim']) && !empty($_GET['dataFim']) ? $_GET['dataFim'] : null;
-    $cdUsuario = isset($_GET['cdUsuario']) && $_GET['cdUsuario'] !== '' ? (int)$_GET['cdUsuario'] : null;
-    $cdFuncionalidade = isset($_GET['cdFuncionalidade']) && $_GET['cdFuncionalidade'] !== '' ? (int)$_GET['cdFuncionalidade'] : null;
-    $cdUnidade = isset($_GET['cdUnidade']) && $_GET['cdUnidade'] !== '' ? (int)$_GET['cdUnidade'] : null;
-    $tipo = isset($_GET['tipo']) && $_GET['tipo'] !== '' ? (int)$_GET['tipo'] : null;
+    $cdUsuario = isset($_GET['cdUsuario']) && $_GET['cdUsuario'] !== '' ? (int) $_GET['cdUsuario'] : null;
+    $cdFuncionalidade = isset($_GET['cdFuncionalidade']) && $_GET['cdFuncionalidade'] !== '' ? (int) $_GET['cdFuncionalidade'] : null;
+    $cdUnidade = isset($_GET['cdUnidade']) && $_GET['cdUnidade'] !== '' ? (int) $_GET['cdUnidade'] : null;
+    $tipo = isset($_GET['tipo']) && $_GET['tipo'] !== '' ? (int) $_GET['tipo'] : null;
     $busca = isset($_GET['busca']) ? trim($_GET['busca']) : '';
 
     // Construir WHERE
     $where = [];
     $params = [];
 
+    // Data/hora início - já vem no formato YYYY-MM-DD HH:MM:SS do frontend
     if ($dataInicio) {
         $where[] = "L.DT_LOG >= :dataInicio";
-        $params[':dataInicio'] = $dataInicio . ' 00:00:00';
+        $params[':dataInicio'] = $dataInicio;
     }
 
+    // Data/hora fim - já vem no formato YYYY-MM-DD HH:MM:SS do frontend
     if ($dataFim) {
         $where[] = "L.DT_LOG <= :dataFim";
-        $params[':dataFim'] = $dataFim . ' 23:59:59';
+        $params[':dataFim'] = $dataFim;
     }
 
     if ($cdUsuario !== null) {
@@ -77,7 +79,7 @@ try {
     ";
     $stmtCount = $pdoSIMP->prepare($sqlCount);
     $stmtCount->execute($params);
-    $total = (int)$stmtCount->fetch(PDO::FETCH_ASSOC)['TOTAL'];
+    $total = (int) $stmtCount->fetch(PDO::FETCH_ASSOC)['TOTAL'];
     $totalPaginas = ceil($total / $porPagina);
 
     // Buscar dados com paginação

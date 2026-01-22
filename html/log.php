@@ -440,7 +440,9 @@ $tiposLog = [
     }
 
     @keyframes spin {
-        to { transform: rotate(360deg); }
+        to {
+            transform: rotate(360deg);
+        }
     }
 
     /* ============================================
@@ -656,12 +658,12 @@ $tiposLog = [
         </div>
         <div class="filtros-grid">
             <div class="filtro-group">
-                <label>Data Início</label>
-                <input type="date" id="filtroDataInicio">
+                <label>Data/Hora Início</label>
+                <input type="datetime-local" id="filtroDataInicio">
             </div>
             <div class="filtro-group">
-                <label>Data Fim</label>
-                <input type="date" id="filtroDataFim">
+                <label>Data/Hora Fim</label>
+                <input type="datetime-local" id="filtroDataFim">
             </div>
             <div class="filtro-group">
                 <label>Usuário</label>
@@ -822,283 +824,404 @@ $tiposLog = [
 </div>
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
 <script>
-// Estado da paginação
-let estadoPaginacao = {
-    pagina: 1,
-    total: 0,
-    totalPaginas: 0
-};
-
-const porPagina = 20;
-
-// Tipos de Log para exibição
-const tiposLog = {
-    1: { nome: 'Informação', classe: 'badge-info' },
-    2: { nome: 'Aviso', classe: 'badge-warning' },
-    3: { nome: 'Erro', classe: 'badge-error' },
-    4: { nome: 'Debug', classe: 'badge-debug' }
-};
-
-// Buscar logs
-function buscarLogs(pagina = 1) {
-    const loading = document.getElementById('loadingOverlay');
-    const tbody = document.getElementById('tabelaLogs');
-    
-    loading.classList.add('active');
-
-    const params = {
-        pagina: pagina,
-        porPagina: porPagina,
-        dataInicio: document.getElementById('filtroDataInicio').value,
-        dataFim: document.getElementById('filtroDataFim').value,
-        cdUsuario: document.getElementById('filtroUsuario').value,
-        cdFuncionalidade: document.getElementById('filtroFuncionalidade').value,
-        cdUnidade: document.getElementById('filtroUnidade').value,
-        tipo: document.getElementById('filtroTipo').value,
-        busca: document.getElementById('filtroBusca').value
+    // ============================================
+    // SIMP - Consulta de Log
+    // Variáveis de estado e paginação
+    // ============================================
+    let estadoPaginacao = {
+        pagina: 1,
+        total: 0,
+        totalPaginas: 0
     };
 
-    $.get('bd/log/getLogs.php', params, function(response) {
-        loading.classList.remove('active');
+    const porPagina = 20;
 
-        if (response.success) {
-            estadoPaginacao = {
-                pagina: response.pagina,
-                total: response.total,
-                totalPaginas: response.totalPaginas
-            };
+    // Tipos de Log para exibição
+    const tiposLog = {
+        1: { nome: 'Informação', classe: 'badge-info' },
+        2: { nome: 'Aviso', classe: 'badge-warning' },
+        3: { nome: 'Erro', classe: 'badge-error' },
+        4: { nome: 'Debug', classe: 'badge-debug' }
+    };
 
-            document.getElementById('countRegistros').innerHTML = 
-                `<strong>${response.total.toLocaleString('pt-BR')}</strong> registro(s) encontrado(s)`;
+    // ============================================
+    // Inicialização Select2 nos dropdowns
+    // ============================================
+    function initSelect2() {
+        // Usuário
+        $('#filtroUsuario').select2({
+            placeholder: 'Todos',
+            allowClear: true,
+            width: '100%',
+            language: {
+                noResults: function () { return 'Nenhum resultado encontrado'; },
+                searching: function () { return 'Buscando...'; }
+            }
+        });
 
-            if (response.data.length > 0) {
-                let html = '';
-                response.data.forEach(item => {
-                    const tipo = tiposLog[item.TP_LOG] || { nome: 'Desconhecido', classe: 'badge-default' };
-                    const dataFormatada = formatarDataHora(item.DT_LOG);
-                    
-                    html += `
+        // Funcionalidade
+        $('#filtroFuncionalidade').select2({
+            placeholder: 'Todas',
+            allowClear: true,
+            width: '100%',
+            language: {
+                noResults: function () { return 'Nenhum resultado encontrado'; },
+                searching: function () { return 'Buscando...'; }
+            }
+        });
+
+        // Unidade
+        $('#filtroUnidade').select2({
+            placeholder: 'Todas',
+            allowClear: true,
+            width: '100%',
+            language: {
+                noResults: function () { return 'Nenhum resultado encontrado'; },
+                searching: function () { return 'Buscando...'; }
+            }
+        });
+
+        // Tipo
+        $('#filtroTipo').select2({
+            placeholder: 'Todos',
+            allowClear: true,
+            width: '100%',
+            minimumResultsForSearch: Infinity // Desabilita busca (poucos itens)
+        });
+    }
+
+    // ============================================
+    // Funções auxiliares de data/hora
+    // ============================================
+
+    // ============================================
+    // Funções auxiliares de data/hora
+    // ============================================
+
+    /**
+     * Retorna datetime-local string para 2 dias atrás às 00:00:00
+     */
+    function getDataInicioPadrao() {
+        const data = new Date();
+        data.setDate(data.getDate() - 2);
+        data.setHours(0, 0, 0, 0);
+        return formatDateTimeLocal(data);
+    }
+
+    /**
+     * Retorna datetime-local string para hoje às 23:59:59
+     */
+    function getDataFimPadrao() {
+        const data = new Date();
+        data.setHours(23, 59, 59, 0);
+        return formatDateTimeLocal(data);
+    }
+
+    /**
+     * Formata Date para string datetime-local (YYYY-MM-DDTHH:MM)
+     * Nota: datetime-local não aceita segundos no value
+     */
+    function formatDateTimeLocal(date) {
+        const ano = date.getFullYear();
+        const mes = String(date.getMonth() + 1).padStart(2, '0');
+        const dia = String(date.getDate()).padStart(2, '0');
+        const hora = String(date.getHours()).padStart(2, '0');
+        const min = String(date.getMinutes()).padStart(2, '0');
+        return `${ano}-${mes}-${dia}T${hora}:${min}`;
+    }
+
+    /**
+     * Formata data/hora para exibição pt-BR
+     */
+    function formatarDataHora(dataStr) {
+        if (!dataStr) return '-';
+        const data = new Date(dataStr);
+        return data.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    }
+
+    // ============================================
+    // Buscar logs via AJAX
+    // ============================================
+    function buscarLogs(pagina = 1) {
+        const loading = document.getElementById('loadingOverlay');
+        const tbody = document.getElementById('tabelaLogs');
+
+        loading.classList.add('active');
+
+        // Monta parâmetros - datetime-local já vem no formato correto
+        const params = {
+            pagina: pagina,
+            porPagina: porPagina,
+            dataInicio: document.getElementById('filtroDataInicio').value.replace('T', ' '),
+            dataFim: document.getElementById('filtroDataFim').value.replace('T', ' '),
+            cdUsuario: $('#filtroUsuario').val() || '',
+            cdFuncionalidade: $('#filtroFuncionalidade').val() || '',
+            cdUnidade: $('#filtroUnidade').val() || '',
+            tipo: $('#filtroTipo').val() || '',
+            busca: document.getElementById('filtroBusca').value
+        };
+
+        $.get('bd/log/getLogs.php', params, function (response) {
+            loading.classList.remove('active');
+
+            if (response.success) {
+                estadoPaginacao = {
+                    pagina: response.pagina,
+                    total: response.total,
+                    totalPaginas: response.totalPaginas
+                };
+
+                document.getElementById('countRegistros').innerHTML =
+                    `<strong>${response.total.toLocaleString('pt-BR')}</strong> registro(s) encontrado(s)`;
+
+                if (response.data.length > 0) {
+                    let html = '';
+                    response.data.forEach(item => {
+                        const tipo = tiposLog[item.TP_LOG] || { nome: 'Desconhecido', classe: 'badge-default' };
+                        const dataFormatada = formatarDataHora(item.DT_LOG);
+
+                        html += `
                         <tr>
                             <td class="td-code">${item.CD_LOG}</td>
                             <td class="td-datetime">${dataFormatada}</td>
-                            <td class="td-usuario">${escapeHtml(item.DS_USUARIO || '-')}</td>
-                            <td class="td-funcionalidade">${escapeHtml(item.DS_FUNCIONALIDADE || '-')}</td>
-                            <td><span class="badge ${tipo.classe}">${tipo.nome}</span></td>
-                            <td class="td-nome-log">${escapeHtml(item.NM_LOG || '-')}</td>
-                            <td class="td-descricao">
-                                <div class="descricao-truncate" onclick="abrirDetalhes(${item.CD_LOG})" title="Clique para ver detalhes">
-                                    ${escapeHtml(item.DS_LOG || '-')}
-                                </div>
-                            </td>
-                            <td class="td-code">${escapeHtml(item.DS_VERSAO || '-')}</td>
-                            <td>
-                                <button class="btn-limpar" style="padding: 6px 10px;" onclick="abrirDetalhes(${item.CD_LOG})" title="Ver detalhes">
+                            <td class="td-usuario">${escapeHtml(item.DS_USUARIO) || '-'}</td>
+                            <td class="td-funcionalidade">${escapeHtml(item.DS_FUNCIONALIDADE) || '-'}</td>
+                            <td class="td-unidade">${escapeHtml(item.DS_UNIDADE) || '-'}</td>
+                            <td class="td-tipo"><span class="badge ${tipo.classe}">${tipo.nome}</span></td>
+                            <td class="td-nome">${escapeHtml(item.NM_LOG) || '-'}</td>
+                            <td class="td-acoes">
+                                <button class="btn-icon" onclick="abrirDetalhes(${item.CD_LOG})" title="Ver detalhes">
                                     <ion-icon name="eye-outline"></ion-icon>
                                 </button>
                             </td>
                         </tr>
                     `;
-                });
-                tbody.innerHTML = html;
-            } else {
-                tbody.innerHTML = `
+                    });
+                    tbody.innerHTML = html;
+                } else {
+                    tbody.innerHTML = `
                     <tr>
-                        <td colspan="9">
-                            <div class="empty-state">
-                                <ion-icon name="document-text-outline"></ion-icon>
-                                <h4>Nenhum registro encontrado</h4>
-                                <p>Ajuste os filtros e tente novamente</p>
-                            </div>
+                        <td colspan="8" class="empty-state">
+                            <ion-icon name="document-text-outline"></ion-icon>
+                            <p>Nenhum registro encontrado</p>
                         </td>
                     </tr>
                 `;
+                }
+                renderizarPaginacao();
+            } else {
+                showToast(response.message || 'Erro ao buscar logs', 'erro');
             }
-
-            renderizarPaginacao();
-        } else {
-            showToast(response.message || 'Erro ao carregar logs', 'erro');
-        }
-    }, 'json').fail(function(xhr) {
-        loading.classList.remove('active');
-        showToast('Erro ao comunicar com o servidor', 'erro');
-        console.error('Erro AJAX:', xhr);
-    });
-}
-
-// Cache para detalhes
-let logsCache = {};
-
-// Buscar detalhes do log
-function abrirDetalhes(cdLog) {
-    // Buscar detalhes via AJAX
-    $.get('bd/log/getLogDetalhe.php', { cdLog: cdLog }, function(response) {
-        if (response.success && response.data) {
-            const log = response.data;
-            const tipo = tiposLog[log.TP_LOG] || { nome: 'Desconhecido', classe: 'badge-default' };
-            
-            document.getElementById('detCodigo').textContent = log.CD_LOG;
-            document.getElementById('detData').textContent = formatarDataHora(log.DT_LOG);
-            document.getElementById('detUsuario').textContent = log.DS_USUARIO || '-';
-            document.getElementById('detFuncionalidade').textContent = log.DS_FUNCIONALIDADE || '-';
-            document.getElementById('detUnidade').textContent = log.DS_UNIDADE || '-';
-            document.getElementById('detTipo').innerHTML = `<span class="badge ${tipo.classe}">${tipo.nome}</span>`;
-            document.getElementById('detNome').textContent = log.NM_LOG || '-';
-            document.getElementById('detDescricao').textContent = log.DS_LOG || '-';
-            document.getElementById('detVersao').textContent = log.DS_VERSAO || '-';
-            document.getElementById('detServidor').textContent = log.NM_SERVIDOR || '-';
-            
-            document.getElementById('modalDetalhes').classList.add('active');
-        } else {
-            showToast('Erro ao carregar detalhes', 'erro');
-        }
-    }, 'json').fail(function() {
-        showToast('Erro ao comunicar com o servidor', 'erro');
-    });
-}
-
-function fecharModalDetalhes(event) {
-    if (!event || event.target === event.currentTarget) {
-        document.getElementById('modalDetalhes').classList.remove('active');
+        }, 'json').fail(function (xhr) {
+            loading.classList.remove('active');
+            showToast('Erro ao comunicar com o servidor', 'erro');
+            console.error('Erro AJAX:', xhr);
+        });
     }
-}
 
-// Renderizar paginação
-function renderizarPaginacao() {
-    const { pagina, total, totalPaginas } = estadoPaginacao;
-    const inicio = Math.min((pagina - 1) * porPagina + 1, total);
-    const fim = Math.min(pagina * porPagina, total);
+    // ============================================
+    // Cache e detalhes do log
+    // ============================================
+    let logsCache = {};
 
-    document.getElementById('paginationInfo').textContent = 
-        total > 0 ? `Mostrando ${inicio} a ${fim} de ${total.toLocaleString('pt-BR')}` : 'Nenhum registro';
+    function abrirDetalhes(cdLog) {
+        $.get('bd/log/getLogDetalhe.php', { cdLog: cdLog }, function (response) {
+            if (response.success && response.data) {
+                const log = response.data;
+                const tipo = tiposLog[log.TP_LOG] || { nome: 'Desconhecido', classe: 'badge-default' };
 
-    let paginationHtml = '';
-    
-    // Botão anterior
-    paginationHtml += `
+                document.getElementById('detCodigo').textContent = log.CD_LOG;
+                document.getElementById('detData').textContent = formatarDataHora(log.DT_LOG);
+                document.getElementById('detUsuario').textContent = log.DS_USUARIO || '-';
+                document.getElementById('detFuncionalidade').textContent = log.DS_FUNCIONALIDADE || '-';
+                document.getElementById('detUnidade').textContent = log.DS_UNIDADE || '-';
+                document.getElementById('detTipo').innerHTML = `<span class="badge ${tipo.classe}">${tipo.nome}</span>`;
+                document.getElementById('detNome').textContent = log.NM_LOG || '-';
+                document.getElementById('detDescricao').textContent = log.DS_LOG || '-';
+                document.getElementById('detVersao').textContent = log.DS_VERSAO || '-';
+                document.getElementById('detServidor').textContent = log.NM_SERVIDOR || '-';
+
+                document.getElementById('modalDetalhes').classList.add('active');
+            } else {
+                showToast('Erro ao carregar detalhes', 'erro');
+            }
+        }, 'json').fail(function () {
+            showToast('Erro ao comunicar com o servidor', 'erro');
+        });
+    }
+
+    function fecharModalDetalhes(event) {
+        if (!event || event.target === event.currentTarget) {
+            document.getElementById('modalDetalhes').classList.remove('active');
+        }
+    }
+
+    // ============================================
+    // Paginação
+    // ============================================
+    function renderizarPaginacao() {
+        const { pagina, total, totalPaginas } = estadoPaginacao;
+        const inicio = Math.min((pagina - 1) * porPagina + 1, total);
+        const fim = Math.min(pagina * porPagina, total);
+
+        document.getElementById('paginationInfo').textContent =
+            total > 0 ? `Mostrando ${inicio} a ${fim} de ${total.toLocaleString('pt-BR')}` : 'Nenhum registro';
+
+        let paginationHtml = '';
+
+        // Botão anterior
+        paginationHtml += `
         <button class="page-btn" onclick="buscarLogs(${pagina - 1})" ${pagina <= 1 ? 'disabled' : ''}>
             <ion-icon name="chevron-back-outline"></ion-icon>
         </button>
     `;
 
-    // Páginas
-    const maxPages = 5;
-    let startPage = Math.max(1, pagina - Math.floor(maxPages / 2));
-    let endPage = Math.min(totalPaginas, startPage + maxPages - 1);
-    
-    if (endPage - startPage + 1 < maxPages) {
-        startPage = Math.max(1, endPage - maxPages + 1);
-    }
+        // Páginas
+        const maxPages = 5;
+        let startPage = Math.max(1, pagina - Math.floor(maxPages / 2));
+        let endPage = Math.min(totalPaginas, startPage + maxPages - 1);
 
-    if (startPage > 1) {
-        paginationHtml += `<button class="page-btn" onclick="buscarLogs(1)">1</button>`;
-        if (startPage > 2) {
-            paginationHtml += `<span style="padding: 0 8px; color: #94a3b8;">...</span>`;
+        if (endPage - startPage + 1 < maxPages) {
+            startPage = Math.max(1, endPage - maxPages + 1);
         }
-    }
 
-    for (let i = startPage; i <= endPage; i++) {
-        paginationHtml += `
+        if (startPage > 1) {
+            paginationHtml += `<button class="page-btn" onclick="buscarLogs(1)">1</button>`;
+            if (startPage > 2) {
+                paginationHtml += `<span style="padding: 0 8px; color: #94a3b8;">...</span>`;
+            }
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            paginationHtml += `
             <button class="page-btn ${i === pagina ? 'active' : ''}" onclick="buscarLogs(${i})">${i}</button>
         `;
-    }
-
-    if (endPage < totalPaginas) {
-        if (endPage < totalPaginas - 1) {
-            paginationHtml += `<span style="padding: 0 8px; color: #94a3b8;">...</span>`;
         }
-        paginationHtml += `<button class="page-btn" onclick="buscarLogs(${totalPaginas})">${totalPaginas}</button>`;
-    }
 
-    // Botão próximo
-    paginationHtml += `
+        if (endPage < totalPaginas) {
+            if (endPage < totalPaginas - 1) {
+                paginationHtml += `<span style="padding: 0 8px; color: #94a3b8;">...</span>`;
+            }
+            paginationHtml += `<button class="page-btn" onclick="buscarLogs(${totalPaginas})">${totalPaginas}</button>`;
+        }
+
+        // Botão próximo
+        paginationHtml += `
         <button class="page-btn" onclick="buscarLogs(${pagina + 1})" ${pagina >= totalPaginas ? 'disabled' : ''}>
             <ion-icon name="chevron-forward-outline"></ion-icon>
         </button>
     `;
 
-    document.getElementById('pagination').innerHTML = paginationHtml;
-}
+        document.getElementById('pagination').innerHTML = paginationHtml;
+    }
 
-// Limpar filtros
-function limparFiltros() {
-    document.getElementById('filtroDataInicio').value = '';
-    document.getElementById('filtroDataFim').value = '';
-    document.getElementById('filtroUsuario').value = '';
-    document.getElementById('filtroFuncionalidade').value = '';
-    document.getElementById('filtroUnidade').value = '';
-    document.getElementById('filtroTipo').value = '';
-    document.getElementById('filtroBusca').value = '';
-    buscarLogs(1);
-}
+    // ============================================
+    // Limpar filtros (resetando Select2)
+    // ============================================
+    function limparFiltros() {
+        // Resetar datas para padrão
+        document.getElementById('filtroDataInicio').value = getDataInicioPadrao();
+        document.getElementById('filtroDataFim').value = getDataFimPadrao();
 
-// Funções auxiliares
-function formatarDataHora(dataStr) {
-    if (!dataStr) return '-';
-    const data = new Date(dataStr);
-    return data.toLocaleString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
-}
+        // Resetar Select2
+        $('#filtroUsuario').val('').trigger('change');
+        $('#filtroFuncionalidade').val('').trigger('change');
+        $('#filtroUnidade').val('').trigger('change');
+        $('#filtroTipo').val('').trigger('change');
 
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+        // Limpar campo de busca
+        document.getElementById('filtroBusca').value = '';
 
-// Toast
-function showToast(message, type = 'info') {
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
+        buscarLogs(1);
+    }
 
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `
+    // ============================================
+    // Funções auxiliares
+    // ============================================
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `
         <ion-icon name="${type === 'sucesso' ? 'checkmark-circle' : type === 'erro' ? 'alert-circle' : 'information-circle'}-outline"></ion-icon>
         <span>${message}</span>
     `;
-    container.appendChild(toast);
+        container.appendChild(toast);
 
-    setTimeout(() => toast.classList.add('show'), 10);
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
-    }, 4000);
-}
-
-// Event listeners
-document.getElementById('filtroBusca').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') buscarLogs(1);
-});
-
-// Fechar modal com ESC
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        fecharModalDetalhes();
+        setTimeout(() => toast.classList.add('show'), 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
     }
-});
 
-// Inicialização
-document.addEventListener('DOMContentLoaded', function() {
-    // Define data de hoje como padrão para data fim
-    const hoje = new Date().toISOString().split('T')[0];
-    document.getElementById('filtroDataFim').value = hoje;
-    
-    // Define 7 dias atrás como data início
-    const seteDiasAtras = new Date();
-    seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
-    document.getElementById('filtroDataInicio').value = seteDiasAtras.toISOString().split('T')[0];
-    
-    buscarLogs(1);
-});
+    // ============================================
+    // Event listeners
+    // ============================================
+    document.getElementById('filtroBusca').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') buscarLogs(1);
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            fecharModalDetalhes();
+        }
+    });
+
+    // ============================================
+    // Inicialização ao carregar a página
+    // ============================================
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', function () {
+        // Inicializa Select2 nos dropdowns
+        if (typeof $ !== 'undefined' && $.fn.select2) {
+            $('#filtroUsuario, #filtroFuncionalidade, #filtroUnidade, #filtroTipo').select2({
+                placeholder: 'Todos',
+                allowClear: true,
+                width: '100%',
+                language: {
+                    noResults: function () { return 'Nenhum resultado encontrado'; }
+                }
+            });
+        }
+
+        // Data fim: hoje às 23:59
+        const hoje = new Date();
+        const anoFim = hoje.getFullYear();
+        const mesFim = String(hoje.getMonth() + 1).padStart(2, '0');
+        const diaFim = String(hoje.getDate()).padStart(2, '0');
+        document.getElementById('filtroDataFim').value = anoFim + '-' + mesFim + '-' + diaFim + 'T23:59';
+
+        // Data início: 2 dias atrás às 00:00
+        const inicio = new Date();
+        inicio.setDate(inicio.getDate() - 2);
+        const anoIni = inicio.getFullYear();
+        const mesIni = String(inicio.getMonth() + 1).padStart(2, '0');
+        const diaIni = String(inicio.getDate()).padStart(2, '0');
+        document.getElementById('filtroDataInicio').value = anoIni + '-' + mesIni + '-' + diaIni + 'T00:00';
+
+        buscarLogs(1);
+    });
 </script>
 
 </body>
+
 </html>

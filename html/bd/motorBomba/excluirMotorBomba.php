@@ -10,7 +10,7 @@ ini_set('display_errors', 0);
 error_reporting(0);
 
 require_once '../verificarAuth.php';
-require_once '../logHelper.php';
+@include_once '../logHelper.php';
 
 include_once '../conexao.php';
 
@@ -19,7 +19,7 @@ try {
         throw new Exception('Método não permitido');
     }
 
-    $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+    $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
 
     if ($id <= 0) {
         throw new Exception('ID inválido');
@@ -49,30 +49,32 @@ try {
     $stmt->execute([':id' => $id]);
 
     // Registrar log de DELETE
-    try {
-        $dadosLog = [
-            'CD_CHAVE' => $id,
-            'DS_CODIGO' => $dadosExcluidos['DS_CODIGO'] ?? null,
-            'DS_NOME' => $dadosExcluidos['DS_NOME'] ?? null,
-            'TP_EIXO' => $dadosExcluidos['TP_EIXO'] ?? null,
-            'VL_POTENCIA_MOTOR' => $dadosExcluidos['VL_POTENCIA_MOTOR'] ?? null,
-            'VL_VAZAO_BOMBA' => $dadosExcluidos['VL_VAZAO_BOMBA'] ?? null,
-            'CD_LOCALIDADE' => $dadosExcluidos['CD_LOCALIDADE'] ?? null,
-            'DS_LOCALIZACAO' => $dadosExcluidos['DS_LOCALIZACAO'] ?? null
-        ];
-        registrarLogDelete('Conjunto Motor-Bomba', 'Motor-Bomba', $id, $identificador, $dadosLog, $cdUnidadeLog);
-    } catch (Exception $logEx) {
-        error_log('Erro ao registrar log de DELETE Motor-Bomba: ' . $logEx->getMessage());
+    if (function_exists('registrarLogDelete')) {
+        try {
+            $dadosLog = [
+                'CD_CHAVE' => $id,
+                'DS_CODIGO' => $dadosExcluidos['DS_CODIGO'] ?? null,
+                'DS_NOME' => $dadosExcluidos['DS_NOME'] ?? null,
+                'TP_EIXO' => $dadosExcluidos['TP_EIXO'] ?? null,
+                'VL_POTENCIA_MOTOR' => $dadosExcluidos['VL_POTENCIA_MOTOR'] ?? null,
+                'VL_VAZAO_BOMBA' => $dadosExcluidos['VL_VAZAO_BOMBA'] ?? null,
+                'CD_LOCALIDADE' => $dadosExcluidos['CD_LOCALIDADE'] ?? null,
+                'DS_LOCALIZACAO' => $dadosExcluidos['DS_LOCALIZACAO'] ?? null
+            ];
+            registrarLogDelete('Conjunto Motor-Bomba', 'Motor-Bomba', $id, $identificador, $dadosLog, $cdUnidadeLog);
+        } catch (Exception $logEx) {
+            error_log('Erro ao registrar log de DELETE Motor-Bomba: ' . $logEx->getMessage());
+        }
     }
 
     echo json_encode([
-        'success' => true, 
+        'success' => true,
         'message' => 'Conjunto Motor-Bomba "' . ($dadosExcluidos['DS_NOME'] ?? $id) . '" excluído com sucesso!'
     ]);
 
 } catch (PDOException $e) {
     $mensagem = $e->getMessage();
-    
+
     // Tratar erro de FK de forma mais amigável
     if (strpos($mensagem, 'REFERENCE constraint') !== false || strpos($mensagem, 'FK_') !== false) {
         if (preg_match('/table "([^"]+)"/', $mensagem, $matches)) {
@@ -81,34 +83,43 @@ try {
         } else {
             $mensagemAmigavel = "Não é possível excluir este Conjunto Motor-Bomba pois possui registros vinculados no sistema.";
         }
-        
+
         // Registrar log de erro
-        try {
-            registrarLogErro('Conjunto Motor-Bomba', 'DELETE', $mensagemAmigavel, ['id' => $id, 'erro_sql' => $mensagem]);
-        } catch (Exception $logEx) {}
-        
+        if (function_exists('registrarLogErro')) {
+            try {
+                registrarLogErro('Conjunto Motor-Bomba', 'DELETE', $mensagemAmigavel, ['id' => $id, 'erro_sql' => $mensagem]);
+            } catch (Exception $logEx) {
+            }
+        }
+
         echo json_encode([
-            'success' => false, 
+            'success' => false,
             'message' => $mensagemAmigavel,
             'erro_sql' => $mensagem
         ]);
     } else {
         // Registrar log de erro
-        try {
-            registrarLogErro('Conjunto Motor-Bomba', 'DELETE', $mensagem, ['id' => $id]);
-        } catch (Exception $logEx) {}
-        
+        if (function_exists('registrarLogErro')) {
+            try {
+                registrarLogErro('Conjunto Motor-Bomba', 'DELETE', $mensagem, ['id' => $id]);
+            } catch (Exception $logEx) {
+            }
+        }
+
         echo json_encode([
-            'success' => false, 
+            'success' => false,
             'message' => 'Erro no banco de dados: ' . $mensagem
         ]);
     }
 
 } catch (Exception $e) {
     // Registrar log de erro
-    try {
-        registrarLogErro('Conjunto Motor-Bomba', 'DELETE', $e->getMessage(), ['id' => $id ?? null]);
-    } catch (Exception $logEx) {}
+    if (function_exists('registrarLogErro')) {
+        try {
+            registrarLogErro('Conjunto Motor-Bomba', 'DELETE', $e->getMessage(), ['id' => $id ?? null]);
+        } catch (Exception $logEx) {
+        }
+    }
 
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }

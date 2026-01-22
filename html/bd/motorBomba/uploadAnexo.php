@@ -24,7 +24,7 @@ try {
     }
 
     // Validar dados
-    $cdConjunto = isset($_POST['cd_conjunto']) ? (int)$_POST['cd_conjunto'] : 0;
+    $cdConjunto = isset($_POST['cd_conjunto']) ? (int) $_POST['cd_conjunto'] : 0;
     $observacao = isset($_POST['observacao']) ? trim($_POST['observacao']) : null;
 
     if ($cdConjunto <= 0) {
@@ -53,7 +53,7 @@ try {
     // Validar extensão
     $extensoesPermitidas = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'rar', '7z', 'txt', 'csv'];
     $extensao = strtolower(pathinfo($nomeOriginal, PATHINFO_EXTENSION));
-    
+
     if (!in_array($extensao, $extensoesPermitidas)) {
         throw new Exception('Tipo de arquivo não permitido. Extensões aceitas: ' . implode(', ', $extensoesPermitidas));
     }
@@ -77,7 +77,7 @@ try {
                          ELSE 4 END";
     $stmtFunc = $pdoSIMP->query($sqlFunc);
     $funcionalidade = $stmtFunc->fetch(PDO::FETCH_ASSOC);
-    
+
     if (!$funcionalidade) {
         // Listar funcionalidades disponíveis para debug
         $sqlLista = "SELECT TOP 10 CD_FUNCIONALIDADE, DS_NOME FROM SIMP.dbo.FUNCIONALIDADE ORDER BY DS_NOME";
@@ -110,7 +110,7 @@ try {
     // CD_CHAVE_FUNCIONALIDADE = CD_CHAVE da tabela CONJUNTO_MOTOR_BOMBA
     // Para SQL Server, usar 0x + hex para dados binários
     $hexData = '0x' . bin2hex($conteudoBinario);
-    
+
     $sql = "INSERT INTO SIMP.dbo.ANEXO (
                 CD_FUNCIONALIDADE,
                 CD_CHAVE_FUNCIONALIDADE,
@@ -143,7 +143,7 @@ try {
     $stmt->bindValue(':ds_observacao', $observacao, PDO::PARAM_STR);
     $stmt->bindValue(':cd_usuario', $cdUsuario, PDO::PARAM_INT);
     $stmt->bindValue(':cd_usuario2', $cdUsuario, PDO::PARAM_INT);
-    
+
     if (!$stmt->execute()) {
         $errorInfo = $stmt->errorInfo();
         throw new Exception('Erro ao inserir anexo: ' . ($errorInfo[2] ?? 'Erro desconhecido'));
@@ -183,7 +183,8 @@ try {
                 'cd_conjunto' => $cdConjunto ?? null,
                 'arquivo' => $nomeOriginal ?? null
             ]);
-        } catch (Exception $logEx) {}
+        } catch (Exception $logEx) {
+        }
     }
 
     echo json_encode([

@@ -10,7 +10,7 @@ ini_set('display_errors', 0);
 error_reporting(0);
 
 require_once '../verificarAuth.php';
-require_once '../logHelper.php';
+@include_once '../logHelper.php';
 
 include_once '../conexao.php';
 
@@ -19,34 +19,34 @@ try {
         throw new Exception('Método não permitido');
     }
 
-    $cdChave = isset($_POST['cd_chave']) && $_POST['cd_chave'] !== '' ? (int)$_POST['cd_chave'] : null;
-    $cdLocalidade = isset($_POST['cd_localidade']) ? (int)$_POST['cd_localidade'] : null;
+    $cdChave = isset($_POST['cd_chave']) && $_POST['cd_chave'] !== '' ? (int) $_POST['cd_chave'] : null;
+    $cdLocalidade = isset($_POST['cd_localidade']) ? (int) $_POST['cd_localidade'] : null;
     $dsCodigo = isset($_POST['ds_codigo']) ? trim($_POST['ds_codigo']) : '';
     $dsNome = isset($_POST['ds_nome']) ? trim($_POST['ds_nome']) : '';
     $dsLocalizacao = isset($_POST['ds_localizacao']) ? trim($_POST['ds_localizacao']) : '';
-    $cdUsuarioResponsavel = isset($_POST['cd_usuario_responsavel']) ? (int)$_POST['cd_usuario_responsavel'] : null;
+    $cdUsuarioResponsavel = isset($_POST['cd_usuario_responsavel']) ? (int) $_POST['cd_usuario_responsavel'] : null;
     $tpEixo = isset($_POST['tp_eixo']) ? trim($_POST['tp_eixo']) : '';
     $dsObservacao = isset($_POST['ds_observacao']) ? trim($_POST['ds_observacao']) : null;
-    
+
     // Dados Bomba
     $dsFabricanteBomba = isset($_POST['ds_fabricante_bomba']) && $_POST['ds_fabricante_bomba'] !== '' ? trim($_POST['ds_fabricante_bomba']) : null;
     $dsTipoBomba = isset($_POST['ds_tipo_bomba']) && $_POST['ds_tipo_bomba'] !== '' ? trim($_POST['ds_tipo_bomba']) : null;
     $dsSerieBomba = isset($_POST['ds_serie_bomba']) && $_POST['ds_serie_bomba'] !== '' ? trim($_POST['ds_serie_bomba']) : null;
-    $vlDiametroRotorBomba = isset($_POST['vl_diametro_rotor_bomba']) && $_POST['vl_diametro_rotor_bomba'] !== '' ? (float)$_POST['vl_diametro_rotor_bomba'] : null;
-    $vlVazaoBomba = isset($_POST['vl_vazao_bomba']) && $_POST['vl_vazao_bomba'] !== '' ? (float)$_POST['vl_vazao_bomba'] : null;
-    $vlAlturaManometricaBomba = isset($_POST['vl_altura_manometrica_bomba']) && $_POST['vl_altura_manometrica_bomba'] !== '' ? (float)$_POST['vl_altura_manometrica_bomba'] : null;
-    $vlRotacaoBomba = isset($_POST['vl_rotacao_bomba']) && $_POST['vl_rotacao_bomba'] !== '' ? (float)$_POST['vl_rotacao_bomba'] : null;
-    $vlAreaSuccaoBomba = isset($_POST['vl_area_succao_bomba']) && $_POST['vl_area_succao_bomba'] !== '' ? (float)$_POST['vl_area_succao_bomba'] : null;
-    $vlAreaRecalqueBomba = isset($_POST['vl_area_recalque_bomba']) && $_POST['vl_area_recalque_bomba'] !== '' ? (float)$_POST['vl_area_recalque_bomba'] : null;
-    
+    $vlDiametroRotorBomba = isset($_POST['vl_diametro_rotor_bomba']) && $_POST['vl_diametro_rotor_bomba'] !== '' ? (float) $_POST['vl_diametro_rotor_bomba'] : null;
+    $vlVazaoBomba = isset($_POST['vl_vazao_bomba']) && $_POST['vl_vazao_bomba'] !== '' ? (float) $_POST['vl_vazao_bomba'] : null;
+    $vlAlturaManometricaBomba = isset($_POST['vl_altura_manometrica_bomba']) && $_POST['vl_altura_manometrica_bomba'] !== '' ? (float) $_POST['vl_altura_manometrica_bomba'] : null;
+    $vlRotacaoBomba = isset($_POST['vl_rotacao_bomba']) && $_POST['vl_rotacao_bomba'] !== '' ? (float) $_POST['vl_rotacao_bomba'] : null;
+    $vlAreaSuccaoBomba = isset($_POST['vl_area_succao_bomba']) && $_POST['vl_area_succao_bomba'] !== '' ? (float) $_POST['vl_area_succao_bomba'] : null;
+    $vlAreaRecalqueBomba = isset($_POST['vl_area_recalque_bomba']) && $_POST['vl_area_recalque_bomba'] !== '' ? (float) $_POST['vl_area_recalque_bomba'] : null;
+
     // Dados Motor
     $dsFabricanteMotor = isset($_POST['ds_fabricante_motor']) && $_POST['ds_fabricante_motor'] !== '' ? trim($_POST['ds_fabricante_motor']) : null;
     $dsTipoMotor = isset($_POST['ds_tipo_motor']) && $_POST['ds_tipo_motor'] !== '' ? trim($_POST['ds_tipo_motor']) : null;
     $dsSerieMotor = isset($_POST['ds_serie_motor']) && $_POST['ds_serie_motor'] !== '' ? trim($_POST['ds_serie_motor']) : null;
-    $vlTensaoMotor = isset($_POST['vl_tensao_motor']) && $_POST['vl_tensao_motor'] !== '' ? (float)$_POST['vl_tensao_motor'] : null;
-    $vlCorrenteEletricaMotor = isset($_POST['vl_corrente_eletrica_motor']) && $_POST['vl_corrente_eletrica_motor'] !== '' ? (float)$_POST['vl_corrente_eletrica_motor'] : null;
-    $vlPotenciaMotor = isset($_POST['vl_potencia_motor']) && $_POST['vl_potencia_motor'] !== '' ? (float)$_POST['vl_potencia_motor'] : null;
-    $vlRotacaoMotor = isset($_POST['vl_rotacao_motor']) && $_POST['vl_rotacao_motor'] !== '' ? (float)$_POST['vl_rotacao_motor'] : null;
+    $vlTensaoMotor = isset($_POST['vl_tensao_motor']) && $_POST['vl_tensao_motor'] !== '' ? (float) $_POST['vl_tensao_motor'] : null;
+    $vlCorrenteEletricaMotor = isset($_POST['vl_corrente_eletrica_motor']) && $_POST['vl_corrente_eletrica_motor'] !== '' ? (float) $_POST['vl_corrente_eletrica_motor'] : null;
+    $vlPotenciaMotor = isset($_POST['vl_potencia_motor']) && $_POST['vl_potencia_motor'] !== '' ? (float) $_POST['vl_potencia_motor'] : null;
+    $vlRotacaoMotor = isset($_POST['vl_rotacao_motor']) && $_POST['vl_rotacao_motor'] !== '' ? (float) $_POST['vl_rotacao_motor'] : null;
 
     // Validações
     if (empty($cdLocalidade)) {
@@ -74,7 +74,8 @@ try {
         $stmtUnidade = $pdoSIMP->prepare("SELECT CD_UNIDADE FROM SIMP.dbo.LOCALIDADE WHERE CD_CHAVE = :cd");
         $stmtUnidade->execute([':cd' => $cdLocalidade]);
         $cdUnidadeLog = $stmtUnidade->fetchColumn();
-    } catch (Exception $e) {}
+    } catch (Exception $e) {
+    }
 
     $isEdicao = $cdChave !== null && $cdChave > 0;
 
@@ -85,7 +86,8 @@ try {
             $stmtAnt = $pdoSIMP->prepare("SELECT * FROM SIMP.dbo.CONJUNTO_MOTOR_BOMBA WHERE CD_CHAVE = :id");
             $stmtAnt->execute([':id' => $cdChave]);
             $dadosAnteriores = $stmtAnt->fetch(PDO::FETCH_ASSOC);
-        } catch (Exception $e) {}
+        } catch (Exception $e) {
+        }
 
         // UPDATE
         $sql = "UPDATE SIMP.dbo.CONJUNTO_MOTOR_BOMBA SET 
@@ -115,32 +117,34 @@ try {
                     CD_USUARIO_ULTIMA_ATUALIZACAO = :cd_usuario,
                     DT_ULTIMA_ATUALIZACAO = GETDATE()
                 WHERE CD_CHAVE = :cd_chave";
-        
+
         $stmt = $pdoSIMP->prepare($sql);
         $stmt->bindValue(':cd_chave', $cdChave, PDO::PARAM_INT);
         $msg = 'Registro atualizado com sucesso!';
 
         // Log de UPDATE (isolado)
         try {
-            $alteracoes = [
-                'dados_novos' => [
-                    'DS_CODIGO' => $dsCodigo,
-                    'DS_NOME' => $dsNome,
-                    'TP_EIXO' => $tpEixo,
-                    'VL_POTENCIA_MOTOR' => $vlPotenciaMotor,
-                    'VL_VAZAO_BOMBA' => $vlVazaoBomba
-                ]
-            ];
-            if ($dadosAnteriores) {
-                $alteracoes['dados_anteriores'] = [
-                    'DS_CODIGO' => $dadosAnteriores['DS_CODIGO'] ?? null,
-                    'DS_NOME' => $dadosAnteriores['DS_NOME'] ?? null,
-                    'TP_EIXO' => $dadosAnteriores['TP_EIXO'] ?? null,
-                    'VL_POTENCIA_MOTOR' => $dadosAnteriores['VL_POTENCIA_MOTOR'] ?? null,
-                    'VL_VAZAO_BOMBA' => $dadosAnteriores['VL_VAZAO_BOMBA'] ?? null
+            if (function_exists('registrarLogUpdate')) {
+                $alteracoes = [
+                    'dados_novos' => [
+                        'DS_CODIGO' => $dsCodigo,
+                        'DS_NOME' => $dsNome,
+                        'TP_EIXO' => $tpEixo,
+                        'VL_POTENCIA_MOTOR' => $vlPotenciaMotor,
+                        'VL_VAZAO_BOMBA' => $vlVazaoBomba
+                    ]
                 ];
+                if ($dadosAnteriores) {
+                    $alteracoes['dados_anteriores'] = [
+                        'DS_CODIGO' => $dadosAnteriores['DS_CODIGO'] ?? null,
+                        'DS_NOME' => $dadosAnteriores['DS_NOME'] ?? null,
+                        'TP_EIXO' => $dadosAnteriores['TP_EIXO'] ?? null,
+                        'VL_POTENCIA_MOTOR' => $dadosAnteriores['VL_POTENCIA_MOTOR'] ?? null,
+                        'VL_VAZAO_BOMBA' => $dadosAnteriores['VL_VAZAO_BOMBA'] ?? null
+                    ];
+                }
+                registrarLogUpdate('Conjunto Motor-Bomba', 'Motor-Bomba', $cdChave, "$dsCodigo - $dsNome", $alteracoes, $cdUnidadeLog);
             }
-            registrarLogUpdate('Conjunto Motor-Bomba', 'Motor-Bomba', $cdChave, "$dsCodigo - $dsNome", $alteracoes, $cdUnidadeLog);
         } catch (Exception $logEx) {
             error_log('Erro ao registrar log de UPDATE Motor-Bomba: ' . $logEx->getMessage());
         }
@@ -164,7 +168,7 @@ try {
                     :vl_corrente_eletrica_motor, :vl_potencia_motor, :vl_rotacao_motor,
                     :cd_usuario, GETDATE()
                 )";
-        
+
         $stmt = $pdoSIMP->prepare($sql);
         $msg = 'Registro cadastrado com sucesso!';
     }
@@ -193,7 +197,7 @@ try {
     $stmt->bindValue(':vl_potencia_motor', $vlPotenciaMotor);
     $stmt->bindValue(':vl_rotacao_motor', $vlRotacaoMotor);
     $stmt->bindValue(':cd_usuario', $cdUsuario, PDO::PARAM_INT);
-    
+
     $stmt->execute();
 
     // Se foi INSERT, pegar o ID e registrar log
@@ -201,16 +205,18 @@ try {
         try {
             $stmtId = $pdoSIMP->query("SELECT SCOPE_IDENTITY() AS ID");
             $novoId = $stmtId->fetch(PDO::FETCH_ASSOC)['ID'];
-            
-            $dadosInseridos = [
-                'DS_CODIGO' => $dsCodigo,
-                'DS_NOME' => $dsNome,
-                'TP_EIXO' => $tpEixo,
-                'VL_POTENCIA_MOTOR' => $vlPotenciaMotor,
-                'VL_VAZAO_BOMBA' => $vlVazaoBomba,
-                'DS_LOCALIZACAO' => $dsLocalizacao
-            ];
-            registrarLogInsert('Conjunto Motor-Bomba', 'Motor-Bomba', $novoId, "$dsCodigo - $dsNome", $dadosInseridos, $cdUnidadeLog);
+
+            if (function_exists('registrarLogInsert')) {
+                $dadosInseridos = [
+                    'DS_CODIGO' => $dsCodigo,
+                    'DS_NOME' => $dsNome,
+                    'TP_EIXO' => $tpEixo,
+                    'VL_POTENCIA_MOTOR' => $vlPotenciaMotor,
+                    'VL_VAZAO_BOMBA' => $vlVazaoBomba,
+                    'DS_LOCALIZACAO' => $dsLocalizacao
+                ];
+                registrarLogInsert('Conjunto Motor-Bomba', 'Motor-Bomba', $novoId, "$dsCodigo - $dsNome", $dadosInseridos, $cdUnidadeLog);
+            }
         } catch (Exception $logEx) {
             error_log('Erro ao registrar log de INSERT Motor-Bomba: ' . $logEx->getMessage());
         }
@@ -220,17 +226,23 @@ try {
 
 } catch (PDOException $e) {
     // Registrar log de erro
-    try {
-        registrarLogErro('Conjunto Motor-Bomba', $isEdicao ? 'UPDATE' : 'INSERT', $e->getMessage(), ['cd_chave' => $cdChave ?? null, 'ds_nome' => $dsNome ?? null]);
-    } catch (Exception $logEx) {}
+    if (function_exists('registrarLogErro')) {
+        try {
+            registrarLogErro('Conjunto Motor-Bomba', $isEdicao ? 'UPDATE' : 'INSERT', $e->getMessage(), ['cd_chave' => $cdChave ?? null, 'ds_nome' => $dsNome ?? null]);
+        } catch (Exception $logEx) {
+        }
+    }
 
     echo json_encode(['success' => false, 'message' => 'Erro no banco de dados: ' . $e->getMessage()]);
 
 } catch (Exception $e) {
     // Registrar log de erro
-    try {
-        registrarLogErro('Conjunto Motor-Bomba', $isEdicao ?? false ? 'UPDATE' : 'INSERT', $e->getMessage(), ['cd_chave' => $cdChave ?? null]);
-    } catch (Exception $logEx) {}
+    if (function_exists('registrarLogErro')) {
+        try {
+            registrarLogErro('Conjunto Motor-Bomba', $isEdicao ?? false ? 'UPDATE' : 'INSERT', $e->getMessage(), ['cd_chave' => $cdChave ?? null]);
+        } catch (Exception $logEx) {
+        }
+    }
 
     echo json_encode(['success' => false, 'message' => $e->getMessage()]);
 }

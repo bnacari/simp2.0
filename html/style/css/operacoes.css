@@ -3953,3 +3953,106 @@ select#selectAno,
         width: 100% !important;
     }
 }
+
+/* ============================================
+   CORREÇÃO GRID MODO DATAS - DATA INÍCIO E DATA FIM
+   Adicionar ao FINAL do operacoes.css
+   ============================================ */
+
+/* Grid no modo datas - 5 colunas: Tipo, Unidade, Ponto, DataInicio, DataFim */
+.filtros-grid.modo-datas {
+    display: grid !important;
+    grid-template-columns: 1.3fr 1.3fr 1.3fr 1fr 1fr !important;
+    gap: 16px !important;
+    align-items: end !important;
+}
+
+/* Form-groups de data - SEM forçar display para permitir JS esconder */
+#grupoDataInicio,
+#grupoDataFim {
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    width: 100%;
+}
+
+/* Quando visível (display:flex aplicado pelo JS) */
+#grupoDataInicio[style*="display: flex"],
+#grupoDataFim[style*="display: flex"] {
+    flex-direction: column !important;
+    gap: 6px !important;
+}
+
+/* Inputs de data - estilo padronizado */
+#grupoDataInicio input,
+#grupoDataFim input,
+input#inputDataInicio,
+input#inputDataFim {
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    display: block !important;
+    width: 100% !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+    margin: 0 !important;
+    background-color: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+    font-family: inherit !important;
+    font-size: 13px !important;
+    color: #334155 !important;
+    box-sizing: border-box !important;
+    cursor: pointer !important;
+    outline: none !important;
+}
+
+/* Hover */
+#grupoDataInicio input:hover,
+#grupoDataFim input:hover {
+    border-color: #cbd5e1 !important;
+    background-color: #ffffff !important;
+}
+
+/* Focus */
+#grupoDataInicio input:focus,
+#grupoDataFim input:focus {
+    background-color: #ffffff !important;
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Ícone calendário */
+#grupoDataInicio input::-webkit-calendar-picker-indicator,
+#grupoDataFim input::-webkit-calendar-picker-indicator {
+    cursor: pointer !important;
+    opacity: 1 !important;
+}
+
+/* ============================================
+   RESPONSIVO
+   ============================================ */
+
+@media (max-width: 1400px) {
+    .filtros-grid.modo-datas {
+        grid-template-columns: 1fr 1fr 1fr !important;
+    }
+}
+
+@media (max-width: 900px) {
+    .filtros-grid.modo-datas {
+        grid-template-columns: 1fr 1fr !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .filtros-grid.modo-datas {
+        grid-template-columns: 1fr !important;
+    }
+    
+    #grupoDataInicio input,
+    #grupoDataFim input {
+        font-size: 16px !important;
+    }
+}
