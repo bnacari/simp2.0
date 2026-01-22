@@ -56,7 +56,7 @@ try {
             OFFSET :offset ROWS FETCH NEXT :porPagina ROWS ONLY";
     
     $stmt = $pdoSIMP->prepare($sql);
-    foreach ($params as $key => $value) {
+    foreach ($params as $key => $value) { 
         $stmt->bindValue($key, $value);
     }
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
