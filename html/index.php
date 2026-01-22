@@ -1815,7 +1815,6 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
                     <option value="50">50 registros</option>
                     <option value="100" selected>100 registros</option>
                     <option value="200">200 registros</option>
-                    <option value="500">500 registros</option>
                 </select>
             </div>
 
@@ -1949,8 +1948,10 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
                             <th class="sortable" data-column="DS_STATUS">
                                 Status <ion-icon name="swap-vertical-outline"></ion-icon>
                             </th>
-                            <th title="Registros que necessitaram tratamento manual (ID_SITUACAO = 2)">
-                                <ion-icon name="construct-outline"></ion-icon> Tratados
+                            <th class="sortable" data-column="QTD_TRATADOS_MANUAL"
+                                title="Registros que necessitaram tratamento manual (ID_SITUACAO = 2)">
+                                <ion-icon name="construct-outline"></ion-icon> Tratados <ion-icon
+                                    name="swap-vertical-outline"></ion-icon>
                             </th>
                             <th>Acoes</th>
                         </tr>
@@ -2405,9 +2406,9 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
     }
 
     /**
- * Ordena os dados da tabela
- * @param {string} coluna - Nome da coluna (data-column)
- */
+   * Ordena os dados da tabela
+   * @param {string} coluna - Nome da coluna (data-column)
+   */
     function ordenarDados(coluna) {
         if (!dadosAtuais || dadosAtuais.length === 0) {
             console.warn('Nenhum dado para ordenar');
@@ -2450,6 +2451,10 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
             } else if (coluna === 'DT_REFERENCIA') {
                 valorA = a.DT_REFERENCIA || '';
                 valorB = b.DT_REFERENCIA || '';
+            } else if (coluna === 'QTD_TRATADOS_MANUAL') {
+                // Ordenação por quantidade de tratados
+                valorA = parseInt(a.QTD_TRATADOS_MANUAL) || 0;
+                valorB = parseInt(b.QTD_TRATADOS_MANUAL) || 0;
             } else {
                 // Campos numéricos (PERC_COBERTURA, VL_MEDIA, VL_MEDIA_HIST_4SEM, VL_DESVIO_HIST_PERC)
                 valorA = parseFloat(a[coluna]) || 0;
