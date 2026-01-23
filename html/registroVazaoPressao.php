@@ -228,7 +228,7 @@ $descartes = [
                 <ion-icon name="search-outline"></ion-icon>
                 Buscar
             </button>
-            <button type="button" class="btn-importar" onclick="abrirModalImportacao()">
+            <button type="button" class="btn-importar" onclick="abrirModalImportacao()" <?= !$podeEditar ? 'disabled title="Você não tem permissão para importar"' : '' ?>>
                 <ion-icon name="cloud-upload-outline"></ion-icon>
                 Importar Planilha
             </button>
@@ -3359,11 +3359,16 @@ $descartes = [
 
 <script>
     // === Funções do Modal de Importação ===
+    const podeEditar = <?= $podeEditar ? 'true' : 'false' ?>;
 
     let dadosPlanilha = null; // Armazena dados lidos da planilha
     let parametrosImportacao = null;
 
     function abrirModalImportacao() {
+        if (!podeEditar) {
+            showToast('Você não tem permissão para importar planilhas', 'error');
+            return;
+        }
         document.getElementById('modalImportacao').style.display = 'flex';
         document.getElementById('formImportacao').reset();
         document.getElementById('resultadoImportacao').style.display = 'none';
