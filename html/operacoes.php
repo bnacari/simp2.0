@@ -150,7 +150,7 @@ $letrasTipoMedidor = [
                     <?php
                     $anoAtual = date('Y');
                     for ($ano = $anoAtual; $ano >= $anoAtual - 10; $ano--):
-                    ?>
+                        ?>
                         <option value="<?= $ano ?>" <?= $ano == $anoGet ? 'selected' : '' ?>><?= $ano ?></option>
                     <?php endfor; ?>
                 </select>
@@ -703,7 +703,7 @@ $letrasTipoMedidor = [
     // ============================================
     // Inicialização
     // ============================================
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         initChoices();
         initAutocompletePontoMedicao();
 
@@ -753,7 +753,7 @@ $letrasTipoMedidor = [
         // Não precisa setar via JavaScript, pois o PHP já coloca o 'selected' correto
 
         // Buscar informações do ponto de medição e preencher autocomplete
-        buscarEPreencherPontoAutocomplete(cdPonto, function(pontoInfo) {
+        buscarEPreencherPontoAutocomplete(cdPonto, function (pontoInfo) {
             // Buscar dados após preencher o ponto
             buscarDados();
 
@@ -838,7 +838,7 @@ $letrasTipoMedidor = [
         // Buscar informações detalhadas do ponto
         $.get('bd/pontoMedicao/getDadosMedidor.php', {
             cd_ponto_medicao: cdPonto
-        }, function(response) {
+        }, function (response) {
             if (response.success && response.data) {
                 const ponto = response.data;
                 const pontoCodigo = ponto.CD_CODIGO_FORMATADO || cdPonto;
@@ -873,7 +873,7 @@ $letrasTipoMedidor = [
                     });
                 }
             }
-        }, 'json').fail(function() {
+        }, 'json').fail(function () {
             input.value = `Ponto ${cdPonto}`;
             hidden.value = cdPonto;
             if (btnLimpar) {
@@ -938,7 +938,7 @@ $letrasTipoMedidor = [
         });
 
         // Event listener para carregar valores
-        document.getElementById('selectTipoEntidade').addEventListener('change', function() {
+        document.getElementById('selectTipoEntidade').addEventListener('change', function () {
             carregarValoresEntidade();
             limparPontoMedicao();
         });
@@ -946,7 +946,7 @@ $letrasTipoMedidor = [
         // Event listener para quando selecionar valor - guardar o valorEntidadeId e buscar
         const selectValorElement = document.getElementById('selectValorEntidade');
 
-        selectValorElement.addEventListener('addItem', function(event) {
+        selectValorElement.addEventListener('addItem', function (event) {
             const selectedValue = event.detail.value;
 
             if (selectedValue && valoresEntidadeMap[selectedValue]) {
@@ -962,7 +962,7 @@ $letrasTipoMedidor = [
         });
 
         // Também ouve o change para limpar quando necessário
-        selectValorElement.addEventListener('change', function() {
+        selectValorElement.addEventListener('change', function () {
             if (!this.value) {
                 valorEntidadeIdSelecionado = '';
                 document.getElementById('valorEntidadeIdHidden').value = '';
@@ -970,11 +970,11 @@ $letrasTipoMedidor = [
         });
 
         // Event listeners para busca automática ao mudar mês ou ano
-        document.getElementById('selectMes').addEventListener('change', function() {
+        document.getElementById('selectMes').addEventListener('change', function () {
             tentarBuscaAutomatica();
         });
 
-        document.getElementById('selectAno').addEventListener('change', function() {
+        document.getElementById('selectAno').addEventListener('change', function () {
             tentarBuscaAutomatica();
         });
 
@@ -1019,18 +1019,18 @@ $letrasTipoMedidor = [
         const btnLimpar = document.getElementById('btnLimparPonto');
 
         // Selecionar todo o texto ao focar no input
-        input.addEventListener('focus', function() {
+        input.addEventListener('focus', function () {
             setTimeout(() => this.select(), 0);
         });
         // Evento de foco - abre dropdown
-        input.addEventListener('focus', function() {
+        input.addEventListener('focus', function () {
             if (!hidden.value) {
                 buscarPontosMedicaoAutocomplete('');
             }
         });
 
         // Evento de digitação
-        input.addEventListener('input', function() {
+        input.addEventListener('input', function () {
             const termo = this.value.trim();
 
             // Limpa seleção anterior
@@ -1046,7 +1046,7 @@ $letrasTipoMedidor = [
         });
 
         // Navegação por teclado
-        input.addEventListener('keydown', function(e) {
+        input.addEventListener('keydown', function (e) {
             const items = dropdown.querySelectorAll('.autocomplete-item');
 
             if (e.key === 'ArrowDown') {
@@ -1068,14 +1068,14 @@ $letrasTipoMedidor = [
         });
 
         // Fecha ao clicar fora
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             if (!e.target.closest('.autocomplete-container')) {
                 dropdown.classList.remove('active');
             }
         });
 
         // Botão limpar
-        btnLimpar.addEventListener('click', function() {
+        btnLimpar.addEventListener('click', function () {
             input.value = '';
             hidden.value = '';
             btnLimpar.style.display = 'none';
@@ -1152,7 +1152,7 @@ $letrasTipoMedidor = [
                     dropdown.innerHTML = html;
 
                     dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
-                        item.addEventListener('click', function() {
+                        item.addEventListener('click', function () {
                             selecionarPontoMedicaoAutocomplete(this.dataset.value, this.dataset.label);
                         });
                     });
@@ -1583,7 +1583,7 @@ $letrasTipoMedidor = [
                     },
                     tooltip: {
                         callbacks: {
-                            label: function(context) {
+                            label: function (context) {
                                 return `${context.dataset.label}: ${formatarNumero(context.parsed.y)} ${data.unidade}`;
                             }
                         }
@@ -2157,7 +2157,7 @@ $letrasTipoMedidor = [
         // Plugin para desenhar as error bars
         const errorBarsPlugin = {
             id: 'errorBars',
-            afterDatasetsDraw: function(chart) {
+            afterDatasetsDraw: function (chart) {
                 const ctx = chart.ctx;
                 const meta = chart.getDatasetMeta(0);
 
@@ -2229,30 +2229,30 @@ $letrasTipoMedidor = [
                             font: {
                                 size: 10
                             },
-                            generateLabels: function(chart) {
+                            generateLabels: function (chart) {
                                 return [{
-                                        text: 'Média',
-                                        fillStyle: '#dc2626',
-                                        strokeStyle: '#dc2626',
-                                        lineWidth: 2,
-                                        hidden: false,
-                                        index: 0
-                                    },
-                                    {
-                                        text: 'Mín/Máx',
-                                        fillStyle: '#1e3a5f',
-                                        strokeStyle: '#1e3a5f',
-                                        lineWidth: 2,
-                                        hidden: false,
-                                        index: 1
-                                    }
+                                    text: 'Média',
+                                    fillStyle: '#dc2626',
+                                    strokeStyle: '#dc2626',
+                                    lineWidth: 2,
+                                    hidden: false,
+                                    index: 0
+                                },
+                                {
+                                    text: 'Mín/Máx',
+                                    fillStyle: '#1e3a5f',
+                                    strokeStyle: '#1e3a5f',
+                                    lineWidth: 2,
+                                    hidden: false,
+                                    index: 1
+                                }
                                 ];
                             }
                         }
                     },
                     tooltip: {
                         callbacks: {
-                            label: function(context) {
+                            label: function (context) {
                                 const idx = context.dataIndex;
                                 let lines = [];
                                 lines.push('Média: ' + formatarNumero(context.raw) + ' ' + unidade);
@@ -2292,7 +2292,7 @@ $letrasTipoMedidor = [
                             font: {
                                 size: 9
                             },
-                            callback: function(value) {
+                            callback: function (value) {
                                 return formatarNumero(value);
                             }
                         },
@@ -2309,7 +2309,7 @@ $letrasTipoMedidor = [
     }
 
     // Fechar popup ao clicar fora
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
         const popup = document.getElementById('graficoPopup');
         const isButton = e.target.closest('.btn-grafico-popup');
         if (popup && !popup.contains(e.target) && !isButton) {
@@ -2318,7 +2318,7 @@ $letrasTipoMedidor = [
     });
 
     // Fechar popup ao pressionar ESC
-    document.addEventListener('keydown', function(e) {
+    document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
             fecharGraficoPopup();
             fecharModalValidacao();
@@ -2614,7 +2614,7 @@ $letrasTipoMedidor = [
 
         // Atualizar cabeçalho da tabela conforme o tipo
         if (isTipoNivel && !desabilitarCheckbox) {
-            // Para tipo 6: Hora, Mínimo, Máximo, Min >= 100, Registros
+            // Para tipo 6: Hora, Mínimo, Máximo, Min >= 100, Registros, Tratado por
             thead.innerHTML = `
             <th style="width:100px;">
                 <label style="display:flex;align-items:center;gap:6px;cursor:${desabilitarCheckbox ? 'default' : 'pointer'};">
@@ -2626,6 +2626,7 @@ $letrasTipoMedidor = [
             <th>Máximo</th>
             <th>Min >= 100</th>
             <th>Registros</th>
+            <th>Tratado por</th>
         `;
         } else if (isTipoNivel && desabilitarCheckbox) {
             thead.innerHTML = `
@@ -2634,6 +2635,7 @@ $letrasTipoMedidor = [
             <th>Máximo</th>
             <th>Min >= 100</th>
             <th>Registros</th>
+            <th>Tratado por</th>
         `;
         } else if (desabilitarCheckbox) {
             thead.innerHTML = `
@@ -2642,6 +2644,7 @@ $letrasTipoMedidor = [
             <th>Mínimo</th>
             <th>Máximo</th>
             <th>Registros</th>
+            <th>Tratado por</th>
         `;
         } else {
             thead.innerHTML = `
@@ -2655,6 +2658,7 @@ $letrasTipoMedidor = [
             <th>Mínimo</th>
             <th>Máximo</th>
             <th>Registros</th>
+            <th>Tratado por</th>
         `;
         }
 
@@ -2697,6 +2701,7 @@ $letrasTipoMedidor = [
                 <td>${temDados ? formatarNumero(d.max) + ' ' + unidade : '<span style="color:#94a3b8">-</span>'}</td>
                 <td style="${d.soma_extravasou > 0 ? 'color:#dc2626;font-weight:600;' : ''}">${temDados ? (d.soma_extravasou || 0) + ' min' : '<span style="color:#94a3b8">0</span>'}</td>
                 <td>${d.qtd_registros > 0 ? d.qtd_registros : '<span style="color:#94a3b8">0</span>'}</td>
+                <td>${d.usuario_tratou ? '<span style="color:#059669;font-weight:500;">' + d.usuario_tratou + '</span>' : '<span style="color:#94a3b8">-</span>'}</td>
             </tr>`;
             } else {
                 // Layout padrão: Média, Mínimo, Máximo, Registros
@@ -2715,6 +2720,7 @@ $letrasTipoMedidor = [
                 <td>${temDados ? formatarNumero(d.min) + ' ' + unidade : '<span style="color:#94a3b8">-</span>'}</td>
                 <td>${temDados ? formatarNumero(d.max) + ' ' + unidade : '<span style="color:#94a3b8">-</span>'}</td>
                 <td>${d.qtd_registros > 0 ? d.qtd_registros : '<span style="color:#94a3b8">0</span>'}</td>
+                <td>${d.usuario_tratou ? '<span style="color:#059669;font-weight:500;">' + d.usuario_tratou + '</span>' : '<span style="color:#94a3b8">-</span>'}</td>
             </tr>`;
             }
         }
@@ -2858,7 +2864,7 @@ $letrasTipoMedidor = [
         // =====================================================
         const errorBarsPlugin = {
             id: 'errorBarsValidacao',
-            afterDatasetsDraw: function(chart) {
+            afterDatasetsDraw: function (chart) {
                 // Verificar se error bars estão ativos
                 if (!errorBarsPluginAtivo) return;
 
@@ -2926,7 +2932,7 @@ $letrasTipoMedidor = [
                         fill: false,
                         // Cor do segmento muda se ambos pontos são tratados
                         segment: {
-                            borderColor: function(ctx) {
+                            borderColor: function (ctx) {
                                 const prev = ctx.p0DataIndex;
                                 const curr = ctx.p1DataIndex;
                                 if (tratados[prev] && tratados[curr]) {
@@ -3014,7 +3020,7 @@ $letrasTipoMedidor = [
                             font: {
                                 size: 11
                             },
-                            generateLabels: function(chart) {
+                            generateLabels: function (chart) {
                                 return chart.data.datasets.map((dataset, i) => {
                                     return {
                                         text: dataset.label,
@@ -3028,7 +3034,7 @@ $letrasTipoMedidor = [
                     },
                     tooltip: {
                         callbacks: {
-                            label: function(context) {
+                            label: function (context) {
                                 const idx = context.dataIndex;
                                 let lines = [];
 
@@ -3087,7 +3093,7 @@ $letrasTipoMedidor = [
                             font: {
                                 size: 9
                             },
-                            callback: function(value) {
+                            callback: function (value) {
                                 return formatarNumero(value);
                             }
                         }
@@ -3265,8 +3271,8 @@ $letrasTipoMedidor = [
                 const dadoHora = validacaoDadosAtuais.dados.find(d => d.hora === hora);
                 document.getElementById('validacaoValorAtual').value =
                     dadoHora && dadoHora.media !== null ?
-                    formatarNumero(dadoHora.media) + ' ' + validacaoUnidadeAtual :
-                    'Sem dados';
+                        formatarNumero(dadoHora.media) + ' ' + validacaoUnidadeAtual :
+                        'Sem dados';
             } else {
                 document.getElementById('validacaoValorAtual').value =
                     validacaoHorasSelecionadas.length > 1 ? 'Múltiplas horas' : 'Sem dados';
@@ -3627,12 +3633,12 @@ $letrasTipoMedidor = [
         };
 
         fetch('bd/operacoes/validarDadosIA.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            })
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -3830,12 +3836,12 @@ $letrasTipoMedidor = [
         btn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon> Processando...';
 
         fetch('bd/operacoes/validarDados.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            })
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
@@ -4105,12 +4111,12 @@ $letrasTipoMedidor = [
         };
 
         return fetch('bd/operacoes/consultarDadosIA.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            })
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
             .then(response => {
                 return response.text();
             })
@@ -4612,12 +4618,12 @@ $letrasTipoMedidor = [
         };
 
         fetch('bd/operacoes/validarDadosIA.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            })
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {

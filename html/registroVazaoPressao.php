@@ -32,19 +32,18 @@ $podeEditar = podeEditarTela('Registro de Vazão e Pressão');
 $sqlUnidades = $pdoSIMP->query("SELECT CD_UNIDADE, DS_NOME, CD_CODIGO FROM SIMP.dbo.UNIDADE ORDER BY DS_NOME");
 $unidades = $sqlUnidades->fetchAll(PDO::FETCH_ASSOC);
 
-// Tipos de Registro
+// Tipos de Registro (ID_TIPO_REGISTRO)
 $tiposRegistro = [
-    1 => 'Vazão',
-    2 => 'Pressão',
-    3 => 'Volume',
-    4 => 'Nível'
+    2 => '2 - Sem Cálculo',
+    4 => '4 - Planilha',
+    6 => '6 - CesanLims',
+    8 => '8 - CCO'
 ];
 
-// Tipos de Vazão
+// Tipos de Vazão (ID_TIPO_VAZAO)
 $tiposVazao = [
-    1 => 'Estimada',
-    2 => 'Macromedida',
-    3 => 'Calculada'
+    1 => '1 - Estimado',
+    2 => '2 - Macromedido'
 ];
 
 // Descarte (ID_SITUACAO: 1 = Não, 2 = Sim)
