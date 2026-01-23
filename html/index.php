@@ -45,6 +45,8 @@ $sqlUltimaData = $pdoSIMP->query("SELECT MAX(DT_REFERENCIA) AS ULTIMA_DATA FROM 
 $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-m-d');
 ?>
 
+<link rel="stylesheet" href="/style/css/ia-dashboard-style.css" />
+
 <style>
     /* ============================================
        Page Container
@@ -58,10 +60,11 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
     /* ============================================
        Page Header
        ============================================ */
+    /* Page Header */
     .page-header {
         background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
         border-radius: 16px;
-        padding: 28px 32px;
+        padding: 24px 28px;
         margin-bottom: 24px;
         color: white;
     }
@@ -70,8 +73,7 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
         display: flex;
         justify-content: space-between;
         align-items: center;
-        flex-wrap: wrap;
-        gap: 16px;
+        gap: 20px;
     }
 
     .page-header-info {
@@ -81,27 +83,34 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
     }
 
     .page-header-icon {
-        width: 52px;
-        height: 52px;
+        width: 48px;
+        height: 48px;
         background: rgba(255, 255, 255, 0.15);
         border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 24px;
+        font-size: 22px;
+        flex-shrink: 0;
     }
 
     .page-header h1 {
-        font-size: 22px;
+        font-size: 20px;
         font-weight: 700;
-        margin: 0 0 4px 0;
+        margin: 0 0 2px 0;
         color: white;
     }
 
     .page-header-subtitle {
-        font-size: 13px;
+        font-size: 12px;
         color: rgba(255, 255, 255, 0.7);
         margin: 0;
+    }
+
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
 
     .header-data-ref {
@@ -119,15 +128,17 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
     }
 
     .header-data-ref-label {
-        font-size: 11px;
-        opacity: 0.8;
+        font-size: 10px;
+        opacity: 0.7;
         display: block;
+        line-height: 1.2;
     }
 
     .header-data-ref-value {
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 600;
         display: block;
+        line-height: 1.2;
     }
 
     /* ============================================
@@ -1636,17 +1647,22 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
     }
 
     /* Navegação de Datas */
+
+    /* Navegação de Datas */
     .navegacao-datas {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        padding: 6px;
+        border-radius: 12px;
     }
 
     .btn-nav-data {
-        width: 36px;
-        height: 36px;
+        width: 34px;
+        height: 34px;
         border: none;
-        background: rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.12);
         border-radius: 8px;
         color: white;
         cursor: pointer;
@@ -1666,69 +1682,122 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
     }
 
     .btn-nav-data ion-icon {
-        font-size: 18px;
+        font-size: 16px;
     }
 
     .data-ref-content {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 8px 16px;
+        gap: 10px;
+        padding: 6px 14px;
         background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
+        border-radius: 8px;
         cursor: pointer;
         position: relative;
         transition: background 0.2s;
+        min-width: 140px;
     }
 
     .data-ref-content:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.18);
     }
 
     .data-ref-content>ion-icon {
-        font-size: 24px;
+        font-size: 20px;
+        opacity: 0.9;
     }
 </style>
 
 <div class="page-container">
     <!-- Page Header -->
+    <!-- ============================================
+     HEADER CORRIGIDO - Substituir no index.php
+     ============================================ -->
+
+    <!-- Page Header -->
     <div class="page-header">
         <div class="page-header-content">
+            <!-- Lado Esquerdo: Título -->
             <div class="page-header-info">
                 <div class="page-header-icon">
                     <ion-icon name="analytics-outline"></ion-icon>
                 </div>
                 <div>
-                    <h1>Dashboard Metricas IA</h1>
-                    <p class="page-header-subtitle">Monitoramento inteligente dos pontos de medicao</p>
+                    <h1>Dashboard Métricas IA</h1>
+                    <p class="page-header-subtitle">Monitoramento inteligente dos pontos de medição</p>
                 </div>
             </div>
-            <!-- Navegação de Datas - Substituir o header-data-ref atual -->
-            <div class="header-data-ref navegacao-datas">
-                <button type="button" class="btn-nav-data" onclick="navegarData(-1)" title="Dia anterior">
-                    <ion-icon name="chevron-back-outline"></ion-icon>
-                </button>
 
-                <div class="data-ref-content" onclick="document.getElementById('inputDataRef').showPicker()">
-                    <ion-icon name="calendar-outline"></ion-icon>
-                    <div>
-                        <span class="header-data-ref-label">Data de Referência</span>
-                        <span class="header-data-ref-value" id="labelDataRef">
-                            <?= date('d/m/Y', strtotime($ultimaData)) ?>
-                        </span>
+            <!-- Lado Direito: Navegação de Datas + Botão IA -->
+            <div class="header-actions">
+                <!-- Navegação de Datas -->
+                <div class="navegacao-datas">
+                    <button type="button" class="btn-nav-data" onclick="navegarData(-1)" title="Dia anterior">
+                        <ion-icon name="chevron-back-outline"></ion-icon>
+                    </button>
+
+                    <div class="data-ref-content" onclick="document.getElementById('inputDataRef').showPicker()">
+                        <ion-icon name="calendar-outline"></ion-icon>
+                        <div>
+                            <span class="header-data-ref-label">Data de Referência</span>
+                            <span class="header-data-ref-value" id="labelDataRef">
+                                <?= date('d/m/Y', strtotime($ultimaData)) ?>
+                            </span>
+                        </div>
+                        <input type="date" id="inputDataRef" value="<?= $ultimaData ?>" max="<?= $ultimaData ?>"
+                            onchange="alterarDataReferencia(this.value)"
+                            style="position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;">
                     </div>
-                    <input type="date" id="inputDataRef" value="<?= $ultimaData ?>" max="<?= $ultimaData ?>"
-                        onchange="alterarDataReferencia(this.value)"
-                        style="position:absolute;opacity:0;width:1px;height:1px;">
+
+                    <button type="button" class="btn-nav-data" id="btnProximaData" onclick="navegarData(1)"
+                        title="Próximo dia" disabled>
+                        <ion-icon name="chevron-forward-outline"></ion-icon>
+                    </button>
                 </div>
 
-                <button type="button" class="btn-nav-data" id="btnProximaData" onclick="navegarData(1)"
-                    title="Próximo dia" disabled>
-                    <ion-icon name="chevron-forward-outline"></ion-icon>
+                <!-- Botão Análise IA -->
+                <button type="button" class="btn-analise-ia" id="btnAnaliseIA" onclick="analisarPeriodoIA()">
+                    <ion-icon name="sparkles-outline"></ion-icon>
+                    Análise IA
                 </button>
             </div>
         </div>
     </div>
+
+    <!-- NOVO: Card de Análise IA -->
+    <div class="ia-analise-card" id="iaAnaliseCard">
+        <div class="ia-analise-header">
+            <div class="ia-analise-title">
+                <ion-icon name="sparkles"></ion-icon>
+                Análise Inteligente do Período
+            </div>
+            <div class="ia-analise-meta">
+                <span id="iaAnaliseProvider">
+                    <ion-icon name="hardware-chip-outline"></ion-icon>
+                    <span>-</span>
+                </span>
+                <span id="iaAnaliseData">
+                    <ion-icon name="time-outline"></ion-icon>
+                    <span>-</span>
+                </span>
+            </div>
+            <div class="ia-analise-actions">
+                <button type="button" class="btn-ia-action" onclick="recarregarAnaliseIA()" title="Atualizar análise">
+                    <ion-icon name="refresh-outline"></ion-icon>
+                </button>
+                <button type="button" class="btn-ia-action" onclick="fecharAnaliseIA()" title="Fechar">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+        </div>
+        <div class="ia-analise-body">
+            <div class="ia-analise-content" id="iaAnaliseContent">
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards (já existe) -->
+    <div class="stats-grid" id="statsGrid"></div>
 
     <!-- Stats Cards -->
     <div class="stats-grid" id="statsGrid">
@@ -1882,8 +1951,8 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
                     Exibir
                 </label>
                 <select id="filtroLimite" class="form-control">
-                    <option value="50">50 registros</option>
-                    <option value="100" selected>100 registros</option>
+                    <option value="50" selected>50 registros</option>
+                    <option value="100">100 registros</option>
                     <option value="200">200 registros</option>
                 </select>
             </div>
@@ -2070,6 +2139,9 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
     let colunaOrdenacao = null;
     let direcaoOrdenacao = 'asc';
 
+    // Variáveis para análise IA
+    let ultimaAnaliseIA = null;
+    let dadosParaAnalise = null;
     // Tipos de medidor
     const tiposMedidor = {
         1: { nome: 'Macro', nomeCompleto: 'Macromedidor', icone: 'speedometer-outline' },
@@ -2904,6 +2976,240 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
                 }
             }
         });
+    }
+
+    /**
+     * Analisa o período com IA
+     */
+    async function analisarPeriodoIA() {
+        const btn = document.getElementById('btnAnaliseIA');
+        const card = document.getElementById('iaAnaliseCard');
+        const content = document.getElementById('iaAnaliseContent');
+
+        // Verificar se temos dados
+        if (!dadosAtuais || dadosAtuais.length === 0) {
+            alert('Carregue os dados primeiro antes de solicitar análise.');
+            return;
+        }
+
+        // Mostrar card e loading
+        card.classList.add('visible');
+        btn.classList.add('loading');
+        btn.disabled = true;
+
+        content.innerHTML = `
+        <div class="ia-analise-loading">
+            <ion-icon name="sparkles-outline"></ion-icon>
+            <p>Analisando dados do período...</p>
+        </div>
+    `;
+
+        // Scroll até o card
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        try {
+            // Coletar dados para análise
+            dadosParaAnalise = coletarDadosParaAnalise();
+
+            // Enviar para o endpoint
+            const response = await fetch('bd/dashboard/analisarPeriodoIA.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(dadosParaAnalise)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                ultimaAnaliseIA = data;
+
+                // Atualizar meta
+                document.querySelector('#iaAnaliseProvider span:last-child').textContent =
+                    (data.provider || 'IA') + ' / ' + (data.modelo || '');
+                document.querySelector('#iaAnaliseData span:last-child').textContent =
+                    new Date(data.dataAnalise).toLocaleString('pt-BR');
+
+                // Renderizar resposta (Markdown simples)
+                content.innerHTML = formatarMarkdownSimples(data.resposta);
+
+            } else {
+                throw new Error(data.error || 'Erro desconhecido');
+            }
+
+        } catch (error) {
+            console.error('Erro na análise IA:', error);
+            content.innerHTML = `
+            <div class="ia-analise-error">
+                <ion-icon name="alert-circle-outline"></ion-icon>
+                <div>
+                    <strong>Erro na análise</strong>
+                    <p>${error.message}</p>
+                </div>
+            </div>
+        `;
+        } finally {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+        }
+    }
+
+    /**
+     * Coleta dados atuais para enviar à IA
+     */
+    function coletarDadosParaAnalise() {
+        // Pegar resumo dos cards
+        const resumo = {
+            total: parseInt(document.getElementById('statTotal').textContent) || 0,
+            ok: parseInt(document.getElementById('statOk').textContent) || 0,
+            atencao: parseInt(document.getElementById('statAtencao').textContent) || 0,
+            critico: parseInt(document.getElementById('statCritico').textContent) || 0,
+            coberturaMedia: parseFloat(document.getElementById('statTotalTrend').textContent.match(/[\d.]+/)?.[0]) || 0,
+            pontosComTratamento: parseInt(document.getElementById('statTratados').textContent) || 0,
+            totalRegistrosTratados: 0,
+            percentualTratado: 0
+        };
+
+        // Extrair números do trend de tratados
+        const trendTratados = document.getElementById('statTratadosTrend').textContent;
+        const matchTratados = trendTratados.match(/([\d.,]+)\s*reg.*?([\d.,]+)%/);
+        if (matchTratados) {
+            resumo.totalRegistrosTratados = parseInt(matchTratados[1].replace(/[.,]/g, '')) || 0;
+            resumo.percentualTratado = parseFloat(matchTratados[2].replace(',', '.')) || 0;
+        }
+
+        // Pegar dados da evolução do gráfico
+        let evolucao = [];
+        if (graficoEvolucao && graficoEvolucao.data) {
+            const labels = graficoEvolucao.data.labels || [];
+            const datasets = graficoEvolucao.data.datasets || [];
+
+            evolucao = labels.map((label, i) => ({
+                DT_REFERENCIA: label,
+                QTD_OK: datasets[0]?.data[i] || 0,
+                QTD_ATENCAO: datasets[1]?.data[i] || 0,
+                QTD_CRITICO: datasets[2]?.data[i] || 0,
+                PONTOS_COM_TRATAMENTO: datasets[3]?.data[i] || 0
+            }));
+        }
+
+        // Pegar pontos críticos do ranking
+        const criticos = [];
+        document.querySelectorAll('#rankingCriticos .ranking-item').forEach(item => {
+            const nome = item.querySelector('.ranking-nome')?.textContent || '';
+            const detalhe = item.querySelector('.ranking-detalhe')?.textContent || '';
+            const status = item.querySelector('.ranking-valor')?.textContent?.trim() || '';
+            const cobertura = parseFloat(detalhe.match(/([\d.]+)%/)?.[1]) || 0;
+
+            criticos.push({
+                DS_NOME: nome,
+                DS_STATUS: status,
+                PERC_COBERTURA: cobertura
+            });
+        });
+
+        // Pegar pontos com maior tratamento
+        const maisTratados = [];
+        document.querySelectorAll('#rankingTratados .ranking-item').forEach(item => {
+            const nome = item.querySelector('.ranking-nome')?.textContent || '';
+            const detalhe = item.querySelector('.ranking-detalhe')?.textContent || '';
+
+            const matchQtd = detalhe.match(/([\d.,]+)\s*reg/);
+            const matchPerc = detalhe.match(/\(([\d.,]+)%\)/);
+            const matchDias = detalhe.match(/(\d+)\s*dias?/);
+
+            maisTratados.push({
+                DS_NOME: nome,
+                QTD_TRATADOS_MANUAL: parseInt((matchQtd?.[1] || '0').replace(/[.,]/g, '')),
+                PERC_TRATADO: parseFloat((matchPerc?.[1] || '0').replace(',', '.')),
+                DIAS_COM_TRATAMENTO: parseInt(matchDias?.[1] || '1')
+            });
+        });
+
+        // Filtros atuais
+        const filtros = {
+            unidade: document.getElementById('filtroUnidade')?.value || '',
+            tipo: document.getElementById('filtroTipo')?.value || '',
+            status: document.getElementById('filtroStatus')?.value || ''
+        };
+
+        return {
+            resumo: resumo,
+            evolucao: evolucao,
+            criticos: criticos,
+            maisTratados: maisTratados,
+            periodo: parseInt(document.getElementById('filtroPeriodo')?.value) || 7,
+            dataReferencia: dataReferencia,
+            filtros: filtros
+        };
+    }
+
+    /**
+     * Formata Markdown simples para HTML
+     */
+    function formatarMarkdownSimples(texto) {
+        if (!texto) return '';
+
+        let html = texto
+            // Escape HTML básico
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            // Headers
+            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+            // Bold e Italic
+            .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            // Code inline
+            .replace(/`(.*?)`/g, '<code>$1</code>')
+            // Listas não ordenadas
+            .replace(/^\s*[-*]\s+(.*)$/gim, '<li>$1</li>')
+            // Listas ordenadas
+            .replace(/^\s*\d+\.\s+(.*)$/gim, '<li>$1</li>')
+            // Blockquotes
+            .replace(/^>\s*(.*$)/gim, '<blockquote>$1</blockquote>')
+            // Quebras de linha
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>');
+
+        // Agrupar listas
+        html = html.replace(/(<li>.*<\/li>)/gs, function (match) {
+            if (!match.startsWith('<ul>') && !match.startsWith('<ol>')) {
+                return '<ul>' + match + '</ul>';
+            }
+            return match;
+        });
+
+        // Limpar listas consecutivas
+        html = html.replace(/<\/ul>\s*<ul>/g, '');
+
+        // Envolver em parágrafo
+        html = '<p>' + html + '</p>';
+        html = html.replace(/<p>\s*<\/p>/g, '');
+        html = html.replace(/<p>\s*(<h[1-3]>)/g, '$1');
+        html = html.replace(/(<\/h[1-3]>)\s*<\/p>/g, '$1');
+        html = html.replace(/<p>\s*(<ul>)/g, '$1');
+        html = html.replace(/(<\/ul>)\s*<\/p>/g, '$1');
+
+        return html;
+    }
+
+    /**
+      * Recarrega análise IA
+      */
+    function recarregarAnaliseIA() {
+        analisarPeriodoIA();
+    }
+
+    /**
+     * Fecha card de análise IA
+     */
+    function fecharAnaliseIA() {
+        const card = document.getElementById('iaAnaliseCard');
+        card.classList.remove('visible');
     }
 </script>
 
