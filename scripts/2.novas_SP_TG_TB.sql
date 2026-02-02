@@ -299,14 +299,19 @@ BEGIN
         PRINT 'Etapa 3: Horas sem dados identificadas.';
         
         -- ========================================
-        -- ETAPA 4: MÉDIA HISTÓRICA (4 semanas, mesmo dia)
+        -- ETAPA 4: MEDIA HISTORICA (4 semanas, mesmo dia)
         -- ========================================
         UPDATE IM
         SET 
             VL_MEDIA_HIST_4SEM = HIST.VL_MEDIA_HIST,
             VL_DESVIO_HIST_PERC = CASE 
                 WHEN ISNULL(HIST.VL_MEDIA_HIST, 0) > 0.001 
-                THEN CAST(((IM.VL_MEDIA - HIST.VL_MEDIA_HIST) / HIST.VL_MEDIA_HIST) * 100 AS DECIMAL(8,2))
+                THEN CAST(
+                    CASE 
+                        WHEN ABS(((IM.VL_MEDIA - HIST.VL_MEDIA_HIST) / HIST.VL_MEDIA_HIST) * 100) > 9999 
+                        THEN SIGN(((IM.VL_MEDIA - HIST.VL_MEDIA_HIST) / HIST.VL_MEDIA_HIST) * 100) * 9999
+                        ELSE ((IM.VL_MEDIA - HIST.VL_MEDIA_HIST) / HIST.VL_MEDIA_HIST) * 100 
+                    END AS DECIMAL(18,4))
                 ELSE NULL 
             END
         FROM [dbo].[IA_METRICAS_DIARIAS] IM
@@ -316,12 +321,12 @@ BEGIN
                 AVG(VL_MEDIA) AS VL_MEDIA_HIST
             FROM [dbo].[IA_METRICAS_DIARIAS]
             WHERE DT_REFERENCIA >= DATEADD(WEEK, -4, @DT_PROCESSAMENTO)
-              AND DT_REFERENCIA < @DT_PROCESSAMENTO
-              AND DATEPART(WEEKDAY, DT_REFERENCIA) = DATEPART(WEEKDAY, @DT_PROCESSAMENTO)
+            AND DT_REFERENCIA < @DT_PROCESSAMENTO
+            AND DATEPART(WEEKDAY, DT_REFERENCIA) = DATEPART(WEEKDAY, @DT_PROCESSAMENTO)
             GROUP BY CD_PONTO_MEDICAO
         ) HIST ON IM.CD_PONTO_MEDICAO = HIST.CD_PONTO_MEDICAO
         WHERE IM.DT_REFERENCIA = @DT_PROCESSAMENTO;
-        
+
         PRINT 'Etapa 4: Media historica calculada.';
         
         -- ========================================
@@ -613,35 +618,36 @@ PRINT '';
 -- -- -- -- ============================================================
 
 -- PRINT 'Populando historico de IA_METRICAS_DIARIAS...';
--- DECLARE @DIAS_PROCESSAR INT = 1;
+DECLARE @DIAS_PROCESSAR INT = 1;
 
 -- -- Tabela temporaria com as datas que possuem dados
--- DECLARE @DatasComDados TABLE (DT_LEITURA DATE);
 
--- INSERT INTO @DatasComDados
--- SELECT DISTINCT TOP (@DIAS_PROCESSAR) 
---     CAST(DT_LEITURA AS DATE) AS DT_LEITURA
--- FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO
--- WHERE ID_SITUACAO IN (1, 2)
--- ORDER BY CAST(DT_LEITURA AS DATE) DESC;
+DECLARE @DatasComDados TABLE (DT_LEITURA DATE);
 
--- -- Processar cada data (da mais antiga para a mais recente)
--- DECLARE @DATA DATE;
+INSERT INTO @DatasComDados
+SELECT DISTINCT TOP (@DIAS_PROCESSAR) 
+    CAST(DT_LEITURA AS DATE) AS DT_LEITURA
+FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO
+WHERE ID_SITUACAO IN (1, 2)
+ORDER BY CAST(DT_LEITURA AS DATE) DESC;
 
--- DECLARE cur CURSOR FOR 
---     SELECT DT_LEITURA FROM @DatasComDados ORDER BY DT_LEITURA ASC;
+-- Processar cada data (da mais antiga para a mais recente)
+DECLARE @DATA DATE;
 
--- OPEN cur;
--- FETCH NEXT FROM cur INTO @DATA;
+DECLARE cur CURSOR FOR 
+    SELECT DT_LEITURA FROM @DatasComDados ORDER BY DT_LEITURA ASC;
 
--- WHILE @@FETCH_STATUS = 0
--- BEGIN
---     PRINT 'Processando: ' + CONVERT(VARCHAR, @DATA, 103);
---     EXEC SP_PROCESSAR_MEDICAO_V2 @DT_PROCESSAMENTO = @DATA;
---     FETCH NEXT FROM cur INTO @DATA;
--- END
+OPEN cur;
+FETCH NEXT FROM cur INTO @DATA;
 
--- CLOSE cur;
--- DEALLOCATE cur;
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    PRINT 'Processando: ' + CONVERT(VARCHAR, @DATA, 103);
+    EXEC SP_PROCESSAR_MEDICAO_V2 @DT_PROCESSAMENTO = @DATA;
+    FETCH NEXT FROM cur INTO @DATA;
+END
 
--- PRINT 'Historico populado!';
+CLOSE cur;
+DEALLOCATE cur;
+
+PRINT 'Historico populado!';

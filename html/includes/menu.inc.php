@@ -1365,9 +1365,9 @@ if (isset($_SESSION['msg'])) {
                 <li class="sidebar-item">
                     <a href="cadastrosAuxiliares.php"
                         class="sidebar-link <?= $paginaAtual === 'cadastrosAuxiliares' ? 'active' : '' ?>"
-                        data-title="Cadastros Auxiliares">
+                        data-title="Cadastros Gerais">
                         <ion-icon name="list-outline"></ion-icon>
-                        <span class="sidebar-link-text">Cadastros Auxiliares</span>
+                        <span class="sidebar-link-text">Cadastros Gerais</span>
                     </a>
                 </li>
             </ul>
@@ -1505,7 +1505,6 @@ if (isset($_SESSION['msg'])) {
     <div class="sidebar-divider"></div>
 
     <!-- Seção: Administração -->
-    <!-- Seção: Administração -->
     <div class="sidebar-section">
         <div class="sidebar-section-title" onclick="toggleSection(this)" data-section="administracao">
             <span class="section-icon">
@@ -1521,7 +1520,7 @@ if (isset($_SESSION['msg'])) {
                         class="sidebar-link <?= $paginaAtual === 'cadastrosAdministrativos' ? 'active' : '' ?>"
                         data-title="Cadastros Administrativos">
                         <ion-icon name="shield-checkmark-outline"></ion-icon>
-                        <span class="sidebar-link-text">Cadastros Administrativos</span>
+                        <span class="sidebar-link-text">Cadastros Adm</span>
                     </a>
                 </li>
                 <li class="sidebar-item">

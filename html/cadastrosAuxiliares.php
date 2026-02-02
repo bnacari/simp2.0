@@ -1016,8 +1016,8 @@ $tiposCalculo = [
                     <ion-icon name="settings-outline"></ion-icon>
                 </div>
                 <div>
-                    <h1>Cadastros Auxiliares</h1>
-                    <p class="page-header-subtitle">Gerencie os cadastros auxiliares do sistema</p>
+                    <h1>Cadastros Gerais</h1>
+                    <p class="page-header-subtitle">Gerencie os cadastros gerais do sistema</p>
                 </div>
             </div>
         </div>
