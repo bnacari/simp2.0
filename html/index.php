@@ -1970,14 +1970,13 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
             </div>
         </div>
         <!-- Legenda de Tipos -->
-        <div class="legenda-tipos"
-            style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
-            <span style="font-size: 12px; color: #64748b; margin-right: 8px;">Tipos:</span>
+        <div class="legenda-tipos" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px;">
+            <!-- <span style="font-size: 12px; color: #64748b; margin-right: 8px;">Tipos:</span>
             <span class="badge-tipo-medidor tipo-1"><ion-icon name="speedometer-outline"></ion-icon> Macro</span>
             <span class="badge-tipo-medidor tipo-2"><ion-icon name="pulse-outline"></ion-icon> Pito</span>
             <span class="badge-tipo-medidor tipo-4"><ion-icon name="thermometer-outline"></ion-icon> Pressão</span>
             <span class="badge-tipo-medidor tipo-6"><ion-icon name="water-outline"></ion-icon> Nível</span>
-            <span class="badge-tipo-medidor tipo-8"><ion-icon name="watch-outline"></ion-icon> Hidro</span>
+            <span class="badge-tipo-medidor tipo-8"><ion-icon name="watch-outline"></ion-icon> Hidro</span> -->
         </div>
     </div>
 

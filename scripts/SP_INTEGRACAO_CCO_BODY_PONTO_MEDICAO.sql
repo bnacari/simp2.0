@@ -12,7 +12,7 @@ ALTER PROCEDURE [dbo].[SP_INTEGRACAO_CCO_BODY_PONTO_MEDICAO]
     @p_cd_ponto_medicao     int
 )
 AS
-SET NOCOUNT ON; -- Evita retorno de contagem de linhas (reduz tráfego de rede)
+SET NOCOUNT ON;
 
 -- Declara constantes
 DECLARE @log_erro               tinyint = 1,
@@ -26,7 +26,7 @@ DECLARE @today                  datetime,
     
 -- Inicializa variáveis
 SET @now = ISNULL(@now, GETDATE());
-SET @today = DATEADD(mi, -1, DATEDIFF(DD, 0, @now));
+SET @today = @now;  -- <<< ALTERADO: agora inclui até o momento atual
 SET @DT_EVENTO_MEDICAO = CONVERT(varchar, @now, 20);
 
 BEGIN TRY
@@ -75,8 +75,12 @@ BEGIN TRY
             l.CD_UNIDADE
         FROM PONTO_MEDICAO p
         INNER JOIN LOCALIDADE l ON l.CD_CHAVE = p.CD_LOCALIDADE
-        LEFT JOIN ULTIMA_LEITURA_PONTO_MEDICAO maxLeitura 
-            ON p.CD_PONTO_MEDICAO = maxLeitura.CD_PONTO_MEDICAO
+        LEFT JOIN (
+    SELECT CD_PONTO_MEDICAO, MAX(DT_LEITURA) AS DT_LEITURA
+    FROM REGISTRO_VAZAO_PRESSAO
+    WHERE ID_SITUACAO = 1
+    GROUP BY CD_PONTO_MEDICAO
+) maxLeitura ON p.CD_PONTO_MEDICAO = maxLeitura.CD_PONTO_MEDICAO
         CROSS APPLY (
             SELECT 1 AS CD_TAG WHERE p.DS_TAG_VAZAO IS NOT NULL UNION ALL
             SELECT 2 WHERE p.DS_TAG_PRESSAO IS NOT NULL UNION ALL
@@ -335,7 +339,6 @@ BEGIN CATCH
     PRINT 'ERRO: ' + @sp_msg_erro;
     RETURN -1;
 END CATCH
-GO
 
 
 
@@ -354,7 +357,7 @@ EXEC SP_INTEGRACAO_CCO_BODY_PONTO_MEDICAO
 -- Verificar resultado
 IF @msg IS NOT NULL
     PRINT 'Erro: ' + @msg;
-
+GO
 
 -- Executar para uma data específica ==============================================================================
 DECLARE @msg VARCHAR(4000);
