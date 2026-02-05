@@ -1738,11 +1738,38 @@ if ($isEdicao) {
     }
 
     /**
-     * Área Efetiva = π × (DR / 2000)²
-     * Usa Diâmetro REAL
+     * Área Efetiva (Sef) - busca por Diâmetro Nominal (DN)
+     * Valores da tabela pitométrica padrão (em m²)
      */
-    function obterAreaEfetiva(dr) {
-        return PI * Math.pow(dr / 2000, 2);
+    function obterAreaEfetiva(dn) {
+        var tabelaSef = {
+            50: 0.001963,
+            75: 0.004418,
+            100: 0.007854,
+            150: 0.017671,
+            200: 0.031416,
+            250: 0.049087,
+            300: 0.070686,
+            350: 0.096211,
+            400: 0.125664,
+            450: 0.159043,
+            500: 0.196350,
+            600: 0.282743,
+            700: 0.384845,
+            800: 0.502655,
+            900: 0.636173,
+            1000: 0.785398,
+            1100: 0.950332,
+            1200: 1.130973
+        };
+        
+        // Se o diâmetro exato existir na tabela, usa o valor da tabela
+        if (tabelaSef[dn] !== undefined) {
+            return tabelaSef[dn];
+        }
+        
+        // Senão, calcula usando fórmula: Sef = π × (DN/2000)²
+        return PI * Math.pow(dn / 2000, 2);
     }
 
     /**
@@ -1914,8 +1941,8 @@ if ($isEdicao) {
         // 5. Correção de Diâmetro = (DR / DN)² (AO QUADRADO!)
         var cd = Math.pow(dr / dn, 2);
 
-        // 6. Área Efetiva = π × (DR / 2000)² (USA DIÂMETRO REAL!)
-        var ae = obterAreaEfetiva(dr);
+        // 6. Área Efetiva - busca na tabela por Diâmetro Nominal (DN)
+        var ae = obterAreaEfetiva(dn);
 
         // 7. Correção Projeção TAP
         var cp = obterCorrecaoProjecaoTap(pt, dn);
@@ -1990,10 +2017,6 @@ if ($isEdicao) {
             return;
         }
 
-        dadosGrafico.sort(function(a, b) {
-            return a.posicao - b.posicao;
-        });
-
         var modal = document.getElementById('modalGraficoOverlay');
         if (modal) {
             modal.classList.add('ativo');
@@ -2054,6 +2077,11 @@ if ($isEdicao) {
             Chart.register(ChartDataLabels);
         }
 
+        // Ordenar por posição para exibição correta da curva
+        dadosGrafico.sort(function(a, b) {
+            return a.posicao - b.posicao;
+        });
+
         var chartData = dadosGrafico.map(function(d) {
             return {
                 x: d.deflexao,
@@ -2094,24 +2122,68 @@ if ($isEdicao) {
                             size: 16,
                             weight: 'bold'
                         }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                var data = context.raw;
+                                return 'Ponto: ' + data.ponto + ' | Posição: ' + data.y.toFixed(2) + ' mm | Deflexão: ' + data.x.toFixed(4) + ' mm';
+                            }
+                        }
+                    },
+                    datalabels: {
+                        display: true,
+                        align: 'right',
+                        anchor: 'end',
+                        offset: 6,
+                        color: '#666',
+                        font: {
+                            size: 10,
+                            weight: 'bold'
+                        },
+                        formatter: function(value) {
+                            return value.y.toFixed(0) + ': ' + value.x.toFixed(4);
+                        },
+                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                        borderRadius: 3,
+                        padding: {
+                            top: 2,
+                            bottom: 2,
+                            left: 4,
+                            right: 4
+                        }
                     }
                 },
                 scales: {
                     x: {
                         title: {
                             display: true,
-                            text: 'Deflexão Média (mm)'
+                            text: 'Deflexão Média (mm)',
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            }
                         },
                         min: 0,
-                        max: limiteX
+                        max: limiteX,
+                        grid: {
+                            color: '#e5e7eb'
+                        }
                     },
                     y: {
                         title: {
                             display: true,
-                            text: 'Posição (mm)'
+                            text: 'Posição (mm)',
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            }
                         },
                         min: 0,
-                        max: limiteY
+                        max: limiteY,
+                        grid: {
+                            color: '#e5e7eb'
+                        }
                     }
                 }
             }

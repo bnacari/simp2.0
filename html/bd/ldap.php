@@ -6,25 +6,9 @@
  * VERSÃO COM REGISTRO DE LOG DE ATIVIDADES
  */
 
-// DEBUG - Adicionar no topo do ldap.php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// Log do erro em arquivo
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/ldap_debug.log');
-
-error_log("=== LDAP DEBUG " . date('Y-m-d H:i:s') . " ===");
-error_log("POST: " . print_r($_POST, true));
-
-// Verifica se extensão LDAP está habilitada
-if (!extension_loaded('ldap')) {
-    error_log("ERRO: Extensão LDAP não está instalada!");
-    die(json_encode(['erro' => 'Extensão LDAP não instalada no servidor']));
-}
-
-error_log("Extensão LDAP: OK");
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
+error_reporting(0);
 
 session_start();
 

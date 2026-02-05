@@ -1213,7 +1213,7 @@ if (isset($_SESSION['msg'])) {
             <ion-icon name="menu-outline"></ion-icon>
         </button>
 
-        <a href="index.php">
+        <a href="dashboard.php">
             <img src="imagens/logo_icon.png" class="modern-header-logo" alt="Logo SIMP">
             <div class="modern-header-title">
                 <span class="brand-name">
@@ -1537,11 +1537,392 @@ if (isset($_SESSION['msg'])) {
                         <span class="sidebar-link-text">Consulta de Log</span>
                     </a>
                 </li>
+                <?php if (temPermissaoTela('Integração CCO')): ?>
+                <li class="sidebar-item">
+                    <a href="#" class="sidebar-link" data-title="Integração CCO" onclick="abrirModalIntegracaoCCO(); return false;">
+                        <ion-icon name="sync-outline"></ion-icon>
+                        <span class="sidebar-link-text">Integração CCO por PM</span>
+                    </a>
+                </li>
+                <?php endif; ?>
             </ul>
         </div>
     </div>
 
 </aside>
+
+<!-- Modal Integração CCO -->
+<div id="modalIntegracaoCCO" class="modal-integracao-cco" style="display: none;">
+    <div class="modal-integracao-cco-overlay" onclick="fecharModalIntegracaoCCO()"></div>
+    <div class="modal-integracao-cco-content">
+        <div class="modal-integracao-cco-header">
+            <h3><ion-icon name="sync-outline"></ion-icon> Integração CCO - Ponto de Medição</h3>
+            <button class="modal-integracao-cco-close" onclick="fecharModalIntegracaoCCO()">
+                <ion-icon name="close-outline"></ion-icon>
+            </button>
+        </div>
+        <div class="modal-integracao-cco-body">
+            <form id="formIntegracaoCCO" onsubmit="executarIntegracaoCCO(event)">
+                <div class="form-group-cco">
+                    <label for="pontosIntegracaoInput">
+                        <ion-icon name="speedometer-outline"></ion-icon>
+                        Ponto de Medição
+                    </label>
+                    <div class="autocomplete-container-cco">
+                        <input type="text" id="pontosIntegracaoInput" class="form-control-cco"
+                            placeholder="Clique para selecionar ou digite para filtrar..." autocomplete="off">
+                        <input type="hidden" id="pontosIntegracao" name="pontos" value="">
+                        <div id="pontosIntegracaoDropdown" class="autocomplete-dropdown-cco"></div>
+                        <button type="button" id="btnLimparPontoCCO" class="btn-limpar-autocomplete-cco" style="display: none;"
+                            title="Limpar">
+                            <ion-icon name="close-circle"></ion-icon>
+                        </button>
+                    </div>
+                    <small class="form-help">Selecione o ponto de medição para sincronizar com o CCO</small>
+                </div>
+                <div class="form-actions-cco">
+                    <button type="button" class="btn-cco btn-cco-secondary" onclick="fecharModalIntegracaoCCO()">
+                        <ion-icon name="close-outline"></ion-icon> Cancelar
+                    </button>
+                    <button type="submit" class="btn-cco btn-cco-primary" id="btnExecutarIntegracao">
+                        <ion-icon name="play-outline"></ion-icon> Executar
+                    </button>
+                </div>
+            </form>
+            <div id="resultadoIntegracao" class="resultado-integracao" style="display: none;"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Modal Integração CCO */
+.modal-integracao-cco {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-integracao-cco-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+}
+
+.modal-integracao-cco-content {
+    position: relative;
+    background: #fff;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 550px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-integracao-cco-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    border-radius: 16px 16px 0 0;
+    color: #fff;
+}
+
+.modal-integracao-cco-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.modal-integracao-cco-header h3 ion-icon {
+    font-size: 22px;
+}
+
+.modal-integracao-cco-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #fff;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.modal-integracao-cco-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.modal-integracao-cco-close ion-icon {
+    font-size: 20px;
+}
+
+.modal-integracao-cco-body {
+    padding: 24px;
+}
+
+.form-group-cco {
+    margin-bottom: 20px;
+}
+
+.form-group-cco label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.form-group-cco label ion-icon {
+    font-size: 18px;
+    color: #64748b;
+}
+
+/* Autocomplete CCO */
+.autocomplete-container-cco {
+    position: relative;
+}
+
+.form-control-cco {
+    width: 100%;
+    padding: 12px 40px 12px 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.2s;
+    box-sizing: border-box;
+    background-color: #f8fafc;
+}
+
+.form-control-cco:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    background-color: #ffffff;
+}
+
+.autocomplete-dropdown-cco {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 10001;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.autocomplete-dropdown-cco.active {
+    display: block;
+}
+
+.autocomplete-item-cco {
+    padding: 12px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+    transition: all 0.15s;
+}
+
+.autocomplete-item-cco:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-item-cco:hover,
+.autocomplete-item-cco.highlighted {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.autocomplete-item-cco .item-code-cco {
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    font-size: 12px;
+    color: #3b82f6;
+    font-weight: 600;
+}
+
+.autocomplete-item-cco:hover .item-code-cco,
+.autocomplete-item-cco.highlighted .item-code-cco {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.autocomplete-item-cco .item-name-cco {
+    display: block;
+    margin-top: 4px;
+    color: #475569;
+}
+
+.autocomplete-item-cco:hover .item-name-cco,
+.autocomplete-item-cco.highlighted .item-name-cco {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.autocomplete-loading-cco,
+.autocomplete-empty-cco {
+    padding: 16px;
+    text-align: center;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.btn-limpar-autocomplete-cco {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.btn-limpar-autocomplete-cco:hover {
+    color: #ef4444;
+}
+
+.btn-limpar-autocomplete-cco ion-icon {
+    font-size: 20px;
+}
+
+.form-help {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.form-actions-cco {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+}
+
+.btn-cco {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-cco ion-icon {
+    font-size: 18px;
+}
+
+.btn-cco-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: #fff;
+}
+
+.btn-cco-primary:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-cco-primary:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-cco-secondary {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.btn-cco-secondary:hover {
+    background: #e2e8f0;
+}
+
+.resultado-integracao {
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 10px;
+    font-size: 14px;
+}
+
+.resultado-integracao.sucesso {
+    background: #dcfce7;
+    border: 1px solid #86efac;
+    color: #166534;
+}
+
+.resultado-integracao.erro {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+}
+
+.resultado-integracao.loading {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    color: #0369a1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.spinner-cco {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #0369a1;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+</style>
 
 <!-- Toast Container -->
 <div class="toast-container" id="toastContainer"></div>
@@ -1711,8 +2092,267 @@ if (isset($_SESSION['msg'])) {
             const userInfo = document.querySelector('.user-info');
             if (dropdown) dropdown.classList.remove('active');
             if (userInfo) userInfo.classList.remove('active');
+            // Fechar modal de integração CCO
+            fecharModalIntegracaoCCO();
         }
     });
+
+    // ============================================
+    // Modal Integração CCO
+    // ============================================
+    let autocompleteCCOTimeout = null;
+    let autocompleteCCOIndex = -1;
+
+    // Mapeamento de letras por tipo de medidor
+    const letrasTipoMedidorCCO = {
+        1: 'M', // Macromedidor
+        2: 'E', // Estação Pitométrica
+        4: 'P', // Medidor Pressão
+        6: 'R', // Nível Reservatório
+        8: 'H'  // Hidrômetro
+    };
+
+    function abrirModalIntegracaoCCO() {
+        const modal = document.getElementById('modalIntegracaoCCO');
+        if (modal) {
+            modal.style.display = 'flex';
+            
+            // Limpar campos
+            document.getElementById('pontosIntegracaoInput').value = '';
+            document.getElementById('pontosIntegracao').value = '';
+            document.getElementById('btnLimparPontoCCO').style.display = 'none';
+            
+            // Limpar resultado anterior
+            const resultado = document.getElementById('resultadoIntegracao');
+            resultado.style.display = 'none';
+            resultado.innerHTML = '';
+            resultado.className = 'resultado-integracao';
+            
+            // Inicializar autocomplete
+            initAutocompleteCCO();
+            
+            // NÃO dar foco automático para evitar abrir dropdown
+        }
+    }
+
+    function fecharModalIntegracaoCCO() {
+        const modal = document.getElementById('modalIntegracaoCCO');
+        if (modal) {
+            modal.style.display = 'none';
+            document.getElementById('formIntegracaoCCO').reset();
+            document.getElementById('pontosIntegracao').value = '';
+            document.getElementById('btnLimparPontoCCO').style.display = 'none';
+            document.getElementById('pontosIntegracaoDropdown').classList.remove('active');
+        }
+    }
+
+    function initAutocompleteCCO() {
+        const input = document.getElementById('pontosIntegracaoInput');
+        const hidden = document.getElementById('pontosIntegracao');
+        const dropdown = document.getElementById('pontosIntegracaoDropdown');
+        const btnLimpar = document.getElementById('btnLimparPontoCCO');
+
+        // Remove listeners anteriores clonando o elemento
+        const newInput = input.cloneNode(true);
+        input.parentNode.replaceChild(newInput, input);
+        
+        const newBtnLimpar = btnLimpar.cloneNode(true);
+        btnLimpar.parentNode.replaceChild(newBtnLimpar, btnLimpar);
+
+        // Referências atualizadas
+        const inputEl = document.getElementById('pontosIntegracaoInput');
+        const btnLimparEl = document.getElementById('btnLimparPontoCCO');
+
+        // Evento de clique - abre dropdown (não no foco)
+        inputEl.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (!hidden.value && !dropdown.classList.contains('active')) {
+                buscarPontosMedicaoCCO('');
+            }
+        });
+
+        // Evento de digitação
+        inputEl.addEventListener('input', function () {
+            const termo = this.value.trim();
+
+            // Limpa seleção anterior
+            hidden.value = '';
+            btnLimparEl.style.display = 'none';
+            autocompleteCCOIndex = -1;
+
+            // Debounce
+            clearTimeout(autocompleteCCOTimeout);
+            autocompleteCCOTimeout = setTimeout(() => {
+                buscarPontosMedicaoCCO(termo);
+            }, 300);
+        });
+
+        // Navegação por teclado
+        inputEl.addEventListener('keydown', function (e) {
+            const items = dropdown.querySelectorAll('.autocomplete-item-cco');
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                autocompleteCCOIndex = Math.min(autocompleteCCOIndex + 1, items.length - 1);
+                atualizarHighlightCCO(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                autocompleteCCOIndex = Math.max(autocompleteCCOIndex - 1, 0);
+                atualizarHighlightCCO(items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (autocompleteCCOIndex >= 0 && items[autocompleteCCOIndex]) {
+                    items[autocompleteCCOIndex].click();
+                }
+            } else if (e.key === 'Escape') {
+                dropdown.classList.remove('active');
+            }
+        });
+
+        // Botão limpar
+        btnLimparEl.addEventListener('click', function () {
+            inputEl.value = '';
+            hidden.value = '';
+            btnLimparEl.style.display = 'none';
+            dropdown.classList.remove('active');
+            inputEl.focus();
+        });
+
+        // Fecha ao clicar fora
+        document.addEventListener('click', function (e) {
+            if (!e.target.closest('.autocomplete-container-cco') && !e.target.closest('.modal-integracao-cco-content')) {
+                dropdown.classList.remove('active');
+            }
+        });
+    }
+
+    function atualizarHighlightCCO(items) {
+        items.forEach((item, index) => {
+            if (index === autocompleteCCOIndex) {
+                item.classList.add('highlighted');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('highlighted');
+            }
+        });
+    }
+
+    function buscarPontosMedicaoCCO(termo) {
+        const dropdown = document.getElementById('pontosIntegracaoDropdown');
+
+        dropdown.innerHTML = '<div class="autocomplete-loading-cco">🔍 Buscando pontos de medição...</div>';
+        dropdown.classList.add('active');
+
+        const params = new URLSearchParams({ busca: termo });
+
+        fetch(`bd/pontoMedicao/buscarPontosMedicao.php?${params}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.data.length > 0) {
+                    let html = '';
+                    data.data.forEach(item => {
+                        const letraTipo = letrasTipoMedidorCCO[item.ID_TIPO_MEDIDOR] || 'X';
+                        const codigoPonto = (item.CD_LOCALIDADE || '000') + '-' +
+                            String(item.CD_PONTO_MEDICAO).padStart(6, '0') + '-' +
+                            letraTipo + '-' +
+                            (item.CD_UNIDADE || '00');
+                        html += `
+                            <div class="autocomplete-item-cco" 
+                                 data-value="${item.CD_PONTO_MEDICAO}" 
+                                 data-label="${codigoPonto} - ${item.DS_NOME || ''}">
+                                <span class="item-code-cco">${codigoPonto}</span>
+                                <span class="item-name-cco">${item.DS_NOME || 'Sem nome'}</span>
+                            </div>
+                        `;
+                    });
+                    dropdown.innerHTML = html;
+
+                    // Adiciona eventos de clique
+                    dropdown.querySelectorAll('.autocomplete-item-cco').forEach(item => {
+                        item.addEventListener('click', function () {
+                            selecionarPontoCCO(this.dataset.value, this.dataset.label);
+                        });
+                    });
+                } else {
+                    dropdown.innerHTML = '<div class="autocomplete-empty-cco">Nenhum ponto de medição encontrado</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao buscar pontos:', error);
+                dropdown.innerHTML = '<div class="autocomplete-empty-cco">Erro ao buscar pontos</div>';
+            });
+    }
+
+    function selecionarPontoCCO(value, label) {
+        const input = document.getElementById('pontosIntegracaoInput');
+        const hidden = document.getElementById('pontosIntegracao');
+        const dropdown = document.getElementById('pontosIntegracaoDropdown');
+        const btnLimpar = document.getElementById('btnLimparPontoCCO');
+
+        input.value = label;
+        hidden.value = value;
+        dropdown.classList.remove('active');
+        btnLimpar.style.display = 'flex';
+    }
+
+    function executarIntegracaoCCO(event) {
+        event.preventDefault();
+        
+        const pontos = document.getElementById('pontosIntegracao').value.trim();
+        const pontosLabel = document.getElementById('pontosIntegracaoInput').value.trim();
+        const btnExecutar = document.getElementById('btnExecutarIntegracao');
+        const resultado = document.getElementById('resultadoIntegracao');
+        
+        if (!pontos) {
+            resultado.innerHTML = '<strong>❌ Erro:</strong> Selecione um ponto de medição.';
+            resultado.className = 'resultado-integracao erro';
+            resultado.style.display = 'block';
+            return;
+        }
+
+        // Mostrar loading
+        btnExecutar.disabled = true;
+        btnExecutar.innerHTML = '<div class="spinner-cco"></div> Executando...';
+        resultado.innerHTML = '<div class="spinner-cco"></div> Executando integração CCO para: <strong>' + pontosLabel + '</strong>';
+        resultado.className = 'resultado-integracao loading';
+        resultado.style.display = 'flex';
+
+        // Fazer requisição AJAX
+        fetch('bd/integracaoCCO/executarIntegracaoCCO.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'pontos=' + encodeURIComponent(pontos)
+        })
+        .then(response => response.json())
+        .then(data => {
+            let debugHtml = '';
+            if (data.debug) {
+                debugHtml = '<details style="margin-top: 12px; font-size: 12px;"><summary style="cursor: pointer; color: #64748b;">🔍 Debug Info</summary><pre style="background: #f1f5f9; padding: 10px; border-radius: 6px; overflow-x: auto; margin-top: 8px; font-size: 11px;">' + JSON.stringify(data.debug, null, 2) + '</pre></details>';
+            }
+            
+            if (data.sucesso) {
+                resultado.innerHTML = '<strong>✅ Sucesso!</strong><br>' + data.mensagem + debugHtml;
+                resultado.className = 'resultado-integracao sucesso';
+                showToast('Integração CCO executada com sucesso!', 'sucesso');
+            } else {
+                resultado.innerHTML = '<strong>❌ Erro:</strong><br>' + data.mensagem + debugHtml;
+                resultado.className = 'resultado-integracao erro';
+                showToast('Erro na integração CCO', 'erro');
+            }
+        })
+        .catch(error => {
+            resultado.innerHTML = '<strong>❌ Erro de conexão:</strong><br>' + error.message;
+            resultado.className = 'resultado-integracao erro';
+            showToast('Erro de conexão', 'erro');
+        })
+        .finally(() => {
+            btnExecutar.disabled = false;
+            btnExecutar.innerHTML = '<ion-icon name="play-outline"></ion-icon> Executar';
+            resultado.style.display = 'block';
+        });
+    }
 </script>
 
 <?php if (!empty($msgSistema)): ?>
