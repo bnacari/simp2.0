@@ -11,8 +11,14 @@
  *   - Kp:  GetDataByFiltro(projecao_tap, diametro_nominal, "Kp") | DN >= 301 → 1
  *   - Densidade: GetDataByFiltro(temperatura, null, "Densidade")
  * 
+ * CORREÇÃO v2.1 - As queries agora usam JOIN com CONSTANTE_FISICA para
+ * resolver DS_NOME, e usam VL_REFERENCIA (não VL_REFERENCIA_A) na tabela
+ * CONSTANTE_FISICA_TABELA conforme estrutura real do banco:
+ *   - CONSTANTE_FISICA: CD_CHAVE, DS_NOME, DS_UNIDADE_REFERENCIA, DS_UNIDADE_REFERENCIA_B, DS_UNIDADE_VALOR
+ *   - CONSTANTE_FISICA_TABELA: CD_CHAVE, CD_CONSTANTE_FISICA, VL_REFERENCIA, VL_REFERENCIA_B, VL_VALOR
+ * 
  * @author Bruno - SIMP
- * @version 2.0 - Alinhado com CalculoPitometria.cs
+ * @version 2.1 - Corrigido mapeamento de colunas do banco
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -75,12 +81,19 @@ try {
 /**
  * Obtém a Área Efetiva (Sef) baseada no diâmetro nominal
  * Legado: objConstanteFisicaTabelaTableAdapter.GetDataBySef(VL_DIAMETRO_NOMINAL)
+ * 
+ * CORREÇÃO v2.1: A tabela CONSTANTE_FISICA_TABELA não possui coluna DS_NOME
+ * nem VL_REFERENCIA_A. A estrutura real é:
+ *   CD_CONSTANTE_FISICA (FK → CONSTANTE_FISICA.CD_CHAVE) e VL_REFERENCIA
+ * Necessário JOIN com CONSTANTE_FISICA para filtrar por DS_NOME = 'Sef'
  */
 function obterSef($pdo, $diametroNominal) {
-    // 1. Tenta buscar na tabela CONSTANTE_FISICA_TABELA (mesma do legado)
+    // 1. Tenta buscar na tabela CONSTANTE_FISICA_TABELA via JOIN com CONSTANTE_FISICA
     try {
-        $sql = "SELECT VL_VALOR FROM SIMP.dbo.CONSTANTE_FISICA_TABELA 
-                WHERE DS_NOME = 'Sef' AND VL_REFERENCIA_A = :dn";
+        $sql = "SELECT cft.VL_VALOR 
+                FROM SIMP.dbo.CONSTANTE_FISICA_TABELA cft
+                INNER JOIN SIMP.dbo.CONSTANTE_FISICA cf ON cf.CD_CHAVE = cft.CD_CONSTANTE_FISICA
+                WHERE cf.DS_NOME = 'Sef' AND cft.VL_REFERENCIA = :dn";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([':dn' => $diametroNominal]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -89,10 +102,12 @@ function obterSef($pdo, $diametroNominal) {
             return ['success' => true, 'valor' => (float)$row['VL_VALOR'], 'fonte' => 'banco'];
         }
     } catch (Exception $e) {
-        // Tabela pode não existir
+        error_log('obterSef - Erro ao buscar no banco: ' . $e->getMessage());
     }
 
-    // 2. Tabela padrão pitométrica (em m²)
+    // 2. Tabela padrão pitométrica (em m²) - fallback apenas se o banco não retornar
+    //    NOTA: Estes valores são teóricos (π × (DN/2000)²). O banco pode ter valores
+    //    calibrados/reais diferentes. Priorizar sempre o banco.
     $tabelaSef = [
         50 => 0.001963, 75 => 0.004418, 100 => 0.007854, 150 => 0.017671,
         200 => 0.031416, 250 => 0.049087, 300 => 0.070686, 350 => 0.096211,
@@ -113,6 +128,8 @@ function obterSef($pdo, $diametroNominal) {
 /**
  * Obtém a Correção de Projeção TAP (Kp)
  * Legado: se DN >= 301 → 1; senão GetDataByFiltro(projecao_tap, diametro_nominal, "Kp")
+ * 
+ * CORREÇÃO v2.1: Mesma correção de colunas - usar JOIN e VL_REFERENCIA/VL_REFERENCIA_B
  */
 function obterKp($pdo, $projecaoTap, $diametroNominal) {
     // Regra do legado: DN >= 301 retorna 1
@@ -122,10 +139,12 @@ function obterKp($pdo, $projecaoTap, $diametroNominal) {
 
     // 1. Busca exata no banco (mesmo comportamento do legado)
     try {
-        $sql = "SELECT VL_VALOR FROM SIMP.dbo.CONSTANTE_FISICA_TABELA 
-                WHERE DS_NOME = 'Kp' 
-                AND VL_REFERENCIA_A = :pt 
-                AND VL_REFERENCIA_B = :dn";
+        $sql = "SELECT cft.VL_VALOR 
+                FROM SIMP.dbo.CONSTANTE_FISICA_TABELA cft
+                INNER JOIN SIMP.dbo.CONSTANTE_FISICA cf ON cf.CD_CHAVE = cft.CD_CONSTANTE_FISICA
+                WHERE cf.DS_NOME = 'Kp' 
+                AND cft.VL_REFERENCIA = :pt 
+                AND cft.VL_REFERENCIA_B = :dn";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([':pt' => $projecaoTap, ':dn' => $diametroNominal]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -134,65 +153,65 @@ function obterKp($pdo, $projecaoTap, $diametroNominal) {
             return ['success' => true, 'valor' => (float)$row['VL_VALOR'], 'fonte' => 'banco'];
         }
     } catch (Exception $e) {
-        // Tabela pode não existir
+        error_log('obterKp - Erro ao buscar no banco: ' . $e->getMessage());
     }
 
-    // 2. Tabela padrão com busca por valor mais próximo
+    // 2. Tabela de fallback local
     $tabelaKp = [
         25 => [50 => 0.98, 75 => 0.99, 100 => 0.995, 150 => 0.998, 200 => 0.999, 250 => 1.0, 300 => 1.0],
-        30 => [50 => 0.97, 75 => 0.98, 100 => 0.99,  150 => 0.995, 200 => 0.998, 250 => 0.999, 300 => 1.0],
-        35 => [50 => 0.96, 75 => 0.97, 100 => 0.98,  150 => 0.99,  200 => 0.995, 250 => 0.998, 300 => 1.0],
-        40 => [50 => 0.95, 75 => 0.96, 100 => 0.97,  150 => 0.98,  200 => 0.99,  250 => 0.995, 300 => 1.0],
-        45 => [50 => 0.94, 75 => 0.95, 100 => 0.96,  150 => 0.97,  200 => 0.98,  250 => 0.99,  300 => 1.0],
-        50 => [50 => 0.93, 75 => 0.94, 100 => 0.95,  150 => 0.96,  200 => 0.97,  250 => 0.98,  300 => 1.0]
+        30 => [50 => 0.97, 75 => 0.98, 100 => 0.99, 150 => 0.995, 200 => 0.998, 250 => 0.999, 300 => 1.0],
+        35 => [50 => 0.96, 75 => 0.97, 100 => 0.98, 150 => 0.99, 200 => 0.995, 250 => 0.998, 300 => 1.0],
+        40 => [50 => 0.95, 75 => 0.96, 100 => 0.97, 150 => 0.98, 200 => 0.99, 250 => 0.995, 300 => 1.0],
+        45 => [50 => 0.94, 75 => 0.95, 100 => 0.96, 150 => 0.97, 200 => 0.98, 250 => 0.99, 300 => 1.0],
+        50 => [50 => 0.93, 75 => 0.94, 100 => 0.95, 150 => 0.96, 200 => 0.97, 250 => 0.98, 300 => 1.0]
     ];
 
-    $projecaoMaisProxima = null;
-    $diferencaMinima = PHP_INT_MAX;
-    foreach (array_keys($tabelaKp) as $pt) {
-        $diferenca = abs($pt - $projecaoTap);
-        if ($diferenca < $diferencaMinima) {
-            $diferencaMinima = $diferenca;
-            $projecaoMaisProxima = $pt;
+    // Encontra a projeção mais próxima
+    $ptProxima = 25;
+    $menorDif = abs($projecaoTap - 25);
+    foreach ($tabelaKp as $p => $valores) {
+        $dif = abs($projecaoTap - $p);
+        if ($dif < $menorDif) {
+            $menorDif = $dif;
+            $ptProxima = $p;
         }
     }
 
-    if ($projecaoMaisProxima !== null && isset($tabelaKp[$projecaoMaisProxima])) {
-        $diametroMaisProximo = null;
-        $diferencaMinima = PHP_INT_MAX;
-        foreach (array_keys($tabelaKp[$projecaoMaisProxima]) as $dn) {
-            $diferenca = abs($dn - $diametroNominal);
-            if ($diferenca < $diferencaMinima) {
-                $diferencaMinima = $diferenca;
-                $diametroMaisProximo = $dn;
+    if (isset($tabelaKp[$ptProxima])) {
+        // Encontra DN mais próximo
+        $dnProximo = 50;
+        $menorDifDn = abs($diametroNominal - 50);
+        foreach ($tabelaKp[$ptProxima] as $d => $valor) {
+            $difDn = abs($diametroNominal - $d);
+            if ($difDn < $menorDifDn) {
+                $menorDifDn = $difDn;
+                $dnProximo = $d;
             }
         }
-        if ($diametroMaisProximo !== null) {
-            return ['success' => true, 'valor' => $tabelaKp[$projecaoMaisProxima][$diametroMaisProximo], 'fonte' => 'tabela_padrao_interpolada'];
-        }
+        return ['success' => true, 'valor' => $tabelaKp[$ptProxima][$dnProximo], 'fonte' => 'tabela_padrao'];
     }
 
     return ['success' => true, 'valor' => 1.0, 'fonte' => 'padrao'];
 }
 
 /**
- * Obtém a densidade da água baseada na temperatura
+ * Obtém a Densidade baseada na temperatura
  * Legado: GetDataByFiltro(temperatura, null, "Densidade")
  * 
- * IMPORTANTE: O legado usa o valor do banco DIRETAMENTE na fórmula:
- *   Velocidade = (deflexão/1000)^0.4931 × 3.8078 × Densidade
+ * CORREÇÃO v2.1: Mesma correção de colunas - usar JOIN e VL_REFERENCIA
  * 
- * O valor no banco é tipicamente adimensional (~0.997) ou kg/L.
  * Esta função NORMALIZA o retorno para ser usado direto na fórmula:
  *   - Se valor do banco > 10 → divide por 1000 (era kg/m³)
  *   - Se valor do banco <= 10 → usa direto (já é adimensional)
  */
 function obterDensidade($pdo, $temperatura) {
-    // 1. Busca no banco (mesmo que o legado)
+    // 1. Busca exata no banco
     try {
-        $sql = "SELECT VL_VALOR FROM SIMP.dbo.CONSTANTE_FISICA_TABELA 
-                WHERE DS_NOME = 'Densidade' 
-                AND VL_REFERENCIA_A = :temp";
+        $sql = "SELECT cft.VL_VALOR 
+                FROM SIMP.dbo.CONSTANTE_FISICA_TABELA cft
+                INNER JOIN SIMP.dbo.CONSTANTE_FISICA cf ON cf.CD_CHAVE = cft.CD_CONSTANTE_FISICA
+                WHERE cf.DS_NOME = 'Densidade' 
+                AND cft.VL_REFERENCIA = :temp";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([':temp' => $temperatura]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -208,23 +227,25 @@ function obterDensidade($pdo, $temperatura) {
             return ['success' => true, 'valor' => $valor, 'fonte' => 'banco', 'formato' => $formato];
         }
     } catch (Exception $e) {
-        // Tabela pode não existir
+        error_log('obterDensidade - Erro ao buscar no banco: ' . $e->getMessage());
     }
 
     // 2. Busca por interpolação no banco (para temperaturas intermediárias)
     try {
-        $sql = "SELECT TOP 1 VL_REFERENCIA_A AS temp, VL_VALOR 
-                FROM SIMP.dbo.CONSTANTE_FISICA_TABELA 
-                WHERE DS_NOME = 'Densidade' AND VL_REFERENCIA_A <= :temp
-                ORDER BY VL_REFERENCIA_A DESC";
+        $sql = "SELECT TOP 1 cft.VL_REFERENCIA AS temp, cft.VL_VALOR 
+                FROM SIMP.dbo.CONSTANTE_FISICA_TABELA cft
+                INNER JOIN SIMP.dbo.CONSTANTE_FISICA cf ON cf.CD_CHAVE = cft.CD_CONSTANTE_FISICA
+                WHERE cf.DS_NOME = 'Densidade' AND cft.VL_REFERENCIA <= :temp
+                ORDER BY cft.VL_REFERENCIA DESC";
         $stmtInf = $pdo->prepare($sql);
         $stmtInf->execute([':temp' => $temperatura]);
         $rowInf = $stmtInf->fetch(PDO::FETCH_ASSOC);
 
-        $sql = "SELECT TOP 1 VL_REFERENCIA_A AS temp, VL_VALOR 
-                FROM SIMP.dbo.CONSTANTE_FISICA_TABELA 
-                WHERE DS_NOME = 'Densidade' AND VL_REFERENCIA_A >= :temp
-                ORDER BY VL_REFERENCIA_A ASC";
+        $sql = "SELECT TOP 1 cft.VL_REFERENCIA AS temp, cft.VL_VALOR 
+                FROM SIMP.dbo.CONSTANTE_FISICA_TABELA cft
+                INNER JOIN SIMP.dbo.CONSTANTE_FISICA cf ON cf.CD_CHAVE = cft.CD_CONSTANTE_FISICA
+                WHERE cf.DS_NOME = 'Densidade' AND cft.VL_REFERENCIA >= :temp
+                ORDER BY cft.VL_REFERENCIA ASC";
         $stmtSup = $pdo->prepare($sql);
         $stmtSup->execute([':temp' => $temperatura]);
         $rowSup = $stmtSup->fetch(PDO::FETCH_ASSOC);
@@ -243,38 +264,46 @@ function obterDensidade($pdo, $temperatura) {
         
         if ($rowInf) {
             $valor = (float)$rowInf['VL_VALOR'];
-            if ($valor > 10) $valor = $valor / 1000;
-            return ['success' => true, 'valor' => $valor, 'fonte' => 'banco_aproximado', 'formato' => 'normalizado'];
+            $formato = 'adimensional';
+            if ($valor > 10) {
+                $valor = $valor / 1000;
+                $formato = 'normalizado_de_kgm3';
+            }
+            return ['success' => true, 'valor' => $valor, 'fonte' => 'banco_aproximado', 'formato' => $formato];
         }
     } catch (Exception $e) {
-        // Continua para tabela de fallback
+        error_log('obterDensidade - Erro na interpolação: ' . $e->getMessage());
     }
 
-    // 3. Tabela de fallback - valores em kg/m³, já normalizados para adimensional
+    // 3. Tabela de fallback local (em kg/m³ - será normalizada pelo JS)
     $tabelaDensidade = [
-        0  => 0.99984, 5  => 0.99996, 10 => 0.99970,
-        15 => 0.99910, 20 => 0.99820, 25 => 0.99705,
-        30 => 0.99565, 35 => 0.99403, 40 => 0.99222,
-        45 => 0.99021, 50 => 0.98803
+        0 => 999.84, 5 => 999.96, 10 => 999.70, 15 => 999.10, 20 => 998.20,
+        25 => 997.05, 30 => 995.65, 35 => 994.03, 40 => 992.22, 45 => 990.21, 50 => 988.03
     ];
 
     if (isset($tabelaDensidade[$temperatura])) {
-        return ['success' => true, 'valor' => $tabelaDensidade[$temperatura], 'fonte' => 'tabela_padrao', 'formato' => 'adimensional'];
+        $valor = $tabelaDensidade[$temperatura] / 1000; // Normaliza para adimensional
+        return ['success' => true, 'valor' => $valor, 'fonte' => 'tabela_padrao', 'formato' => 'normalizado_de_kgm3'];
     }
 
-    // 4. Interpolação linear local
-    $tempInferior = null;
-    $tempSuperior = null;
-    foreach (array_keys($tabelaDensidade) as $t) {
-        if ($t <= $temperatura) $tempInferior = $t;
-        if ($t >= $temperatura && $tempSuperior === null) $tempSuperior = $t;
+    // Interpolação local
+    $temps = array_keys($tabelaDensidade);
+    sort($temps);
+    $tempInf = $temps[0];
+    $tempSup = $temps[count($temps) - 1];
+
+    foreach ($temps as $t) {
+        if ($t <= $temperatura) $tempInf = $t;
+        if ($t >= $temperatura) { $tempSup = $t; break; }
     }
 
-    if ($tempInferior !== null && $tempSuperior !== null && $tempInferior !== $tempSuperior) {
-        $fator = ($temperatura - $tempInferior) / ($tempSuperior - $tempInferior);
-        $densidade = $tabelaDensidade[$tempInferior] + $fator * ($tabelaDensidade[$tempSuperior] - $tabelaDensidade[$tempInferior]);
-        return ['success' => true, 'valor' => $densidade, 'fonte' => 'interpolado_local', 'formato' => 'adimensional'];
+    if ($tempInf !== $tempSup) {
+        $fator = ($temperatura - $tempInf) / ($tempSup - $tempInf);
+        $valor = $tabelaDensidade[$tempInf] + $fator * ($tabelaDensidade[$tempSup] - $tabelaDensidade[$tempInf]);
+    } else {
+        $valor = $tabelaDensidade[$tempInf] ?? 997.05;
     }
 
-    return ['success' => true, 'valor' => 0.99705, 'fonte' => 'padrao', 'formato' => 'adimensional'];
+    $valor = $valor / 1000; // Normaliza para adimensional
+    return ['success' => true, 'valor' => $valor, 'fonte' => 'tabela_padrao_interpolada', 'formato' => 'normalizado_de_kgm3'];
 }
