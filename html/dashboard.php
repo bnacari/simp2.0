@@ -1989,6 +1989,20 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
     .btn-refresh-sinc.loading ion-icon {
         animation: spin 1s linear infinite;
     }
+
+    .sinc-ponto-link {
+        font-weight: 600;
+        font-family: monospace;
+        font-size: 12px;
+        color: #2563eb;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .sinc-ponto-link:hover {
+        color: #1d4ed8;
+        text-decoration: underline;
+    }
 </style>
 
 <div class="page-container">
@@ -3550,7 +3564,18 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
             if (busca) {
                 const cdPonto = String(item.CD_PONTO_MEDICAO).toLowerCase();
                 const nome = (item.DS_NOME || '').toLowerCase();
-                if (!cdPonto.includes(busca) && !nome.includes(busca)) return false;
+                const tagVazao = (item.DS_TAG_VAZAO || '').toLowerCase();
+                const tagPressao = (item.DS_TAG_PRESSAO || '').toLowerCase();
+                const tagVolume = (item.DS_TAG_VOLUME || '').toLowerCase();
+                const tagReservatorio = (item.DS_TAG_RESERVATORIO || '').toLowerCase();
+                const tagTempAgua = (item.DS_TAG_TEMP_AGUA || '').toLowerCase();
+                const tagTempAmbiente = (item.DS_TAG_TEMP_AMBIENTE || '').toLowerCase();
+                const cdLocalidade = (item.CD_LOCALIDADE_CODIGO || '').toLowerCase();
+                if (!cdPonto.includes(busca) && !nome.includes(busca)
+                    && !tagVazao.includes(busca) && !tagPressao.includes(busca)
+                    && !tagVolume.includes(busca) && !tagReservatorio.includes(busca)
+                    && !tagTempAgua.includes(busca) && !tagTempAmbiente.includes(busca)
+                    && !cdLocalidade.includes(busca)) return false;
             }
             // Filtro situacao
             if (situacao && item.SITUACAO !== situacao) return false;
@@ -3603,7 +3628,18 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
             if (busca) {
                 const cdPonto = String(item.CD_PONTO_MEDICAO).toLowerCase();
                 const nome = (item.DS_NOME || '').toLowerCase();
-                if (!cdPonto.includes(busca) && !nome.includes(busca)) return false;
+                const tagVazao = (item.DS_TAG_VAZAO || '').toLowerCase();
+                const tagPressao = (item.DS_TAG_PRESSAO || '').toLowerCase();
+                const tagVolume = (item.DS_TAG_VOLUME || '').toLowerCase();
+                const tagReservatorio = (item.DS_TAG_RESERVATORIO || '').toLowerCase();
+                const tagTempAgua = (item.DS_TAG_TEMP_AGUA || '').toLowerCase();
+                const tagTempAmbiente = (item.DS_TAG_TEMP_AMBIENTE || '').toLowerCase();
+                const cdLocalidade = (item.CD_LOCALIDADE_CODIGO || '').toLowerCase();
+                if (!cdPonto.includes(busca) && !nome.includes(busca)
+                    && !tagVazao.includes(busca) && !tagPressao.includes(busca)
+                    && !tagVolume.includes(busca) && !tagReservatorio.includes(busca)
+                    && !tagTempAgua.includes(busca) && !tagTempAmbiente.includes(busca)
+                    && !cdLocalidade.includes(busca)) return false;
             }
             if (unidade && item.CD_UNIDADE !== unidade) return false;
             return true;
@@ -3632,10 +3668,13 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
      */
     function renderizarTabelaSinc() {
         if (!sincDadosFiltrados || sincDadosFiltrados.length === 0) {
-            $('#sincTabelaBody').html('<tr><td colspan="6" style="text-align:center;color:#64748b;padding:32px;"><ion-icon name="search-outline" style="font-size:24px;display:block;margin-bottom:8px;"></ion-icon>Nenhum ponto encontrado</td></tr>');
+            $('#sincTabelaBody').html('<tr><td colspan="7" style="text-align:center;color:#64748b;padding:32px;"><ion-icon name="search-outline" style="font-size:24px;display:block;margin-bottom:8px;"></ion-icon>Nenhum ponto encontrado</td></tr>');
             $('#sincContador').text('0 pontos');
             return;
         }
+
+        // Mapa de tipo de medidor para letra
+        const letrasTipoMedidor = { 1: 'M', 2: 'E', 4: 'P', 6: 'R', 8: 'H' };
 
         const mapClasseRow = { 'Ultimo mes': 'sinc-row-atencao', 'Ultimos 60 dias': 'sinc-row-alerta', 'Mais de 60 dias': 'sinc-row-critico', 'Nunca teve leitura': 'sinc-row-critico' };
         const mapBadge = { 'Ultima semana': 'ok', 'Ultimo mes': 'atencao', 'Ultimos 60 dias': 'alerta', 'Mais de 60 dias': 'critico', 'Nunca teve leitura': 'inativo' };
@@ -3654,14 +3693,50 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
             }
             let dtAtiv = item.DT_ATIVACAO ? new Date(item.DT_ATIVACAO).toLocaleDateString('pt-BR') : '';
 
+            // Formatar código do ponto: LOCALIDADE-CDPONTO_PADDED-LETRA-UNIDADE
+            const cdLocalidade = item.CD_LOCALIDADE_CODIGO || '0000';
+            const cdPonto = String(item.CD_PONTO_MEDICAO).padStart(6, '0');
+            const letraTipo = letrasTipoMedidor[item.ID_TIPO_MEDIDOR] || 'X';
+            const cdUnidade = item.CD_UNIDADE || '0';
+            const codigoFormatado = cdLocalidade + '-' + cdPonto + '-' + letraTipo + '-' + cdUnidade;
+
+            // Determinar TAG preenchida (prioridade: Vazão > Pressão > Volume > Reservatório > Temp. Água > Temp. Ambiente)
+            let tagExibir = '';
+            if (item.DS_TAG_VAZAO) tagExibir = item.DS_TAG_VAZAO;
+            else if (item.DS_TAG_PRESSAO) tagExibir = item.DS_TAG_PRESSAO;
+            else if (item.DS_TAG_VOLUME) tagExibir = item.DS_TAG_VOLUME;
+            else if (item.DS_TAG_RESERVATORIO) tagExibir = item.DS_TAG_RESERVATORIO;
+            else if (item.DS_TAG_TEMP_AGUA) tagExibir = item.DS_TAG_TEMP_AGUA;
+            else if (item.DS_TAG_TEMP_AMBIENTE) tagExibir = item.DS_TAG_TEMP_AMBIENTE;
+
+            // Se houver múltiplas TAGs, listar todas no tooltip
+            const tagsPreenchidas = [];
+            if (item.DS_TAG_VAZAO) tagsPreenchidas.push('Vazão: ' + item.DS_TAG_VAZAO);
+            if (item.DS_TAG_PRESSAO) tagsPreenchidas.push('Pressão: ' + item.DS_TAG_PRESSAO);
+            if (item.DS_TAG_VOLUME) tagsPreenchidas.push('Volume: ' + item.DS_TAG_VOLUME);
+            if (item.DS_TAG_RESERVATORIO) tagsPreenchidas.push('Reservatório: ' + item.DS_TAG_RESERVATORIO);
+            if (item.DS_TAG_TEMP_AGUA) tagsPreenchidas.push('Temp. Água: ' + item.DS_TAG_TEMP_AGUA);
+            if (item.DS_TAG_TEMP_AMBIENTE) tagsPreenchidas.push('Temp. Ambiente: ' + item.DS_TAG_TEMP_AMBIENTE);
+            const tooltipTags = tagsPreenchidas.join('\n');
+
+            // Montar HTML da coluna TAG
+            let tagHtml = '<span style="color:#94a3b8">-</span>';
+            if (tagExibir) {
+                const badgeExtra = tagsPreenchidas.length > 1
+                    ? ` <span style="background:#eff6ff;color:#3b82f6;font-size:9px;padding:1px 5px;border-radius:4px;font-weight:600;cursor:help;" title="${tooltipTags.replace(/"/g, '&quot;')}">+${tagsPreenchidas.length - 1}</span>`
+                    : '';
+                tagHtml = `<span style="font-family:monospace;font-size:11px;color:#475569;" title="${tooltipTags.replace(/"/g, '&quot;')}">${tagExibir}</span>${badgeExtra}`;
+            }
+
             html += `<tr class="${mapClasseRow[sit] || ''}">
-                <td><span style="font-weight:600;">${item.CD_PONTO_MEDICAO}</span></td>
-                <td><div class="ponto-info"><span class="ponto-nome">${item.DS_NOME || '-'}</span>${dtAtiv ? '<span class="ponto-tipo">Ativado em ' + dtAtiv + '</span>' : ''}</div></td>
-                <td><span style="font-size:12px;color:#475569;">${item.DS_UNIDADE || '-'}</span></td>
-                <td><span style="font-size:12px;">${ultLeitura}</span></td>
-                <td><div class="sinc-dias-bar"><span class="sinc-dias-valor" style="color:${corDias}">${dias !== null ? dias : '&#8734;'}</span><div class="sinc-dias-track"><div class="sinc-dias-fill" style="width:${percBarra}%;background:${corDias};"></div></div></div></td>
-                <td><span class="sinc-badge ${mapBadge[sit] || ''}">${sit}</span></td>
-            </tr>`;
+            <td><a href="pontoMedicaoView.php?id=${item.CD_PONTO_MEDICAO}" class="sinc-ponto-link" title="Ver detalhes do ponto">${codigoFormatado}</a></td>
+            <td><div class="ponto-info"><span class="ponto-nome">${item.DS_NOME || '-'}</span>${dtAtiv ? '<span class="ponto-tipo">Ativado em ' + dtAtiv + '</span>' : ''}</div></td>
+            <td>${tagHtml}</td>
+            <td><span style="font-size:12px;color:#475569;">${item.DS_UNIDADE || '-'}</span></td>
+            <td><span style="font-size:12px;">${ultLeitura}</span></td>
+            <td><div class="sinc-dias-bar"><span class="sinc-dias-valor" style="color:${corDias}">${dias !== null ? dias : '&#8734;'}</span><div class="sinc-dias-track"><div class="sinc-dias-fill" style="width:${percBarra}%;background:${corDias};"></div></div></div></td>
+            <td><span class="sinc-badge ${mapBadge[sit] || ''}">${sit}</span></td>
+        </tr>`;
         });
 
         $('#sincTabelaBody').html(html);
@@ -3872,6 +3947,7 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
                             <th onclick="ordenarSinc('DS_NOME')" data-col="DS_NOME">
                                 Nome <span class="sort-icon">&#9650;&#9660;</span>
                             </th>
+                            <th>TAG</th>
                             <th onclick="ordenarSinc('DS_UNIDADE')" data-col="DS_UNIDADE">
                                 Unidade <span class="sort-icon">&#9650;&#9660;</span>
                             </th>

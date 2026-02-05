@@ -37,9 +37,10 @@ DECLARE @rtn								int,
 		@registros_duplicados				int = 0;
     
 -- Inicializa variáveis
-SET @now = ISNULL(@now, DATEADD(SECOND, -1, CAST(CAST(GETDATE() AS DATE) AS DATETIME)));
-SET @today = @now;
-SET @dt_limite_minimo = DATEADD(DAY, -@dias_retroativos, @now);
+-- Se @now não foi informado, calcula o último instante da hora completa anterior
+SET @now = ISNULL(@now, GETDATE());
+SET @today = DATEADD(MILLISECOND, -3, DATEADD(HOUR, DATEDIFF(HOUR, 0, @now), 0));
+SET @dt_limite_minimo = DATEADD(DAY, -@dias_retroativos, @today);
 SET @DT_EVENTO_MEDICAO = CONVERT(VARCHAR, @now, 20);
 
 -- Inicio do processo
@@ -118,11 +119,21 @@ BEGIN TRY
 					CD_PONTO_MEDICAO,
 					DS_NOME,
 					OP_PERIODICIDADE_LEITURA,
-					CASE WHEN OP_PERIODICIDADE_LEITURA = 1 THEN DATEADD(ss, CASE WHEN CD_TAG <> 5 THEN 1 ELSE 0 END, DT_INICIAL)
-						WHEN OP_PERIODICIDADE_LEITURA = 2 THEN DATEADD(mi, CASE WHEN CD_TAG <> 5 THEN 1 ELSE 0 END, DT_INICIAL)
-						WHEN OP_PERIODICIDADE_LEITURA = 3 THEN DATEADD(hh, CASE WHEN CD_TAG <> 5 THEN 1 ELSE 0 END, DT_INICIAL)
-						WHEN OP_PERIODICIDADE_LEITURA = 4 THEN DATEADD(dd, CASE WHEN CD_TAG <> 5 THEN 1 ELSE 0 END, DT_INICIAL)
-						ELSE NULL
+					-- Trunca DT_INICIAL para a unidade inferior e soma 1 (exceto tag 5)
+					-- Isso garante timestamps alinhados no Historiador (Cyclic)
+					CASE WHEN OP_PERIODICIDADE_LEITURA = 1 
+						 THEN DATEADD(ss, CASE WHEN CD_TAG <> 5 THEN 1 ELSE 0 END, 
+						      DATEADD(mi, DATEDIFF(mi, 0, DT_INICIAL), 0))        -- trunca para minuto, soma 1 segundo
+						 WHEN OP_PERIODICIDADE_LEITURA = 2 
+						 THEN DATEADD(mi, CASE WHEN CD_TAG <> 5 THEN 1 ELSE 0 END, 
+						      DATEADD(hh, DATEDIFF(hh, 0, DT_INICIAL), 0))        -- trunca para hora, soma 1 minuto
+						 WHEN OP_PERIODICIDADE_LEITURA = 3 
+						 THEN DATEADD(hh, CASE WHEN CD_TAG <> 5 THEN 1 ELSE 0 END, 
+						      DATEADD(dd, DATEDIFF(dd, 0, DT_INICIAL), 0))        -- trunca para dia, soma 1 hora
+						 WHEN OP_PERIODICIDADE_LEITURA = 4 
+						 THEN DATEADD(dd, CASE WHEN CD_TAG <> 5 THEN 1 ELSE 0 END, 
+						      DATEADD(mm, DATEDIFF(mm, 0, DT_INICIAL), 0))        -- trunca para mês, soma 1 dia
+						 ELSE NULL
 					END AS DT_INICIAL,
 					DT_FINAL,
 					CD_USUARIO_RESPONSAVEL,
@@ -235,6 +246,8 @@ BEGIN TRY
 			      AND h.vvalue IS NOT NULL';
 			
 			EXEC sp_executesql @sql;
+
+			DELETE FROM #registro_raw WHERE DT_LEITURA > @dtFinal;
 
 			-- =================================================
 			-- PASSO 2: Truncar para o minuto e pegar 1 por minuto
@@ -381,7 +394,7 @@ BEGIN TRY
 			BEGIN
 				INSERT INTO LOG (CD_USUARIO, CD_FUNCIONALIDADE, CD_UNIDADE, DT_LOG, TP_LOG, NM_LOG, DS_LOG, DS_VERSAO, NM_SERVIDOR)
 				VALUES (@cd_usuario, @cd_funcionalidade, @cdUnidade, GETDATE(), @log_alerta, 'Job de Integração do CCO',
-						'Ponto ' + CAST(@cdPontoMedicao AS VARCHAR) + '-' + RTRIM(@dsNome) + ' TAG: ' + RTRIM(@dsTag) + ', sem registros novos.',
+						'Ponto ' + CAST(@cdPontoMedicao AS VARCHAR) + '-' + RTRIM(@dsNome) + ' TAG(' + CAST(@cdTag AS VARCHAR) + '): ' + ISNULL(RTRIM(@dsTag), '(vazio)') + ', sem registros novos.',
 						@ds_versao, CAST(SERVERPROPERTY('MachineName') AS VARCHAR));
 			END
 
@@ -389,8 +402,8 @@ BEGIN TRY
 		BEGIN CATCH
 			INSERT INTO LOG (CD_USUARIO, CD_FUNCIONALIDADE, CD_UNIDADE, DT_LOG, TP_LOG, NM_LOG, DS_LOG, DS_VERSAO, NM_SERVIDOR)
 			VALUES (@cd_usuario, @cd_funcionalidade, @cdUnidade, GETDATE(), @log_erro, 'Erro no Job de Integração do CCO',
-					'Erro no Ponto ' + CAST(@cdPontoMedicao AS VARCHAR) + ' TAG: ' + @dsTag + ' - ' + CAST(ERROR_NUMBER() AS VARCHAR) + ': ' + ERROR_MESSAGE(),
-					@ds_versao, CAST(SERVERPROPERTY('MachineName') AS VARCHAR));
+				'Erro no Ponto ' + CAST(@cdPontoMedicao AS VARCHAR) + '-' + RTRIM(@dsNome) + ' TAG(' + CAST(@cdTag AS VARCHAR) + '): ' + ISNULL(RTRIM(@dsTag), '(vazio)') + ' - ' + CAST(ERROR_NUMBER() AS VARCHAR) + ': ' + ERROR_MESSAGE(),
+				@ds_versao, CAST(SERVERPROPERTY('MachineName') AS VARCHAR));
 		END CATCH
 
 		FETCH NEXT FROM cs_ponto INTO @cdPontoMedicao, @cdTag, @dsTag, @qtCycles, @dtInicial, @dtFinal,

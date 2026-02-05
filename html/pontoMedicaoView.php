@@ -1195,24 +1195,6 @@ $dsObservacao = isset($pm['DS_OBSERVACAO']) ? trim($pm['DS_OBSERVACAO']) : '';
         </div>
     </div>
 
-    <!-- Dados do Equipamento -->
-    <div class="view-card">
-        <div class="view-card-header">
-            <ion-icon name="hardware-chip-outline"></ion-icon>
-            <h2 id="tituloEquipamento">Dados do Equipamento</h2>
-        </div>
-        <div class="view-card-body">
-            <div id="conteudoEquipamento" class="view-grid">
-                <div class="view-item full-width">
-                    <div class="empty-state-mini">
-                        <ion-icon name="hourglass-outline"></ion-icon>
-                        Carregando dados do equipamento...
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Observações -->
     <div class="view-card">
         <div class="view-card-header">
