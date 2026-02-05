@@ -1709,6 +1709,286 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
         font-size: 20px;
         opacity: 0.9;
     }
+
+    /* ============================================
+       Secao Sincronizacao Historiador
+       ============================================ */
+    .sinc-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+
+    @media (max-width: 1400px) {
+        .sinc-stats-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 640px) {
+        .sinc-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    .sinc-stat-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 20px;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .sinc-stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+    }
+
+    .sinc-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .sinc-stat-card.ativo {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    .sinc-stat-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+    }
+
+    .sinc-stat-card-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+    }
+
+    .sinc-stat-card-value {
+        font-size: 28px;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 4px;
+        color: #1e293b;
+    }
+
+    .sinc-stat-card-label {
+        font-size: 13px;
+        color: #64748b;
+    }
+
+    .sinc-stat-card.ok::before {
+        background: linear-gradient(90deg, #10b981, #34d399);
+    }
+
+    .sinc-stat-card.ok .sinc-stat-card-icon {
+        background: #ecfdf5;
+        color: #10b981;
+    }
+
+    .sinc-stat-card.atencao::before {
+        background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    }
+
+    .sinc-stat-card.atencao .sinc-stat-card-icon {
+        background: #fffbeb;
+        color: #f59e0b;
+    }
+
+    .sinc-stat-card.alerta::before {
+        background: linear-gradient(90deg, #f97316, #fb923c);
+    }
+
+    .sinc-stat-card.alerta .sinc-stat-card-icon {
+        background: #fff7ed;
+        color: #f97316;
+    }
+
+    .sinc-stat-card.critico::before {
+        background: linear-gradient(90deg, #ef4444, #f87171);
+    }
+
+    .sinc-stat-card.critico .sinc-stat-card-icon {
+        background: #fef2f2;
+        color: #ef4444;
+    }
+
+    .sinc-stat-card.inativo::before {
+        background: linear-gradient(90deg, #64748b, #94a3b8);
+    }
+
+    .sinc-stat-card.inativo .sinc-stat-card-icon {
+        background: #f1f5f9;
+        color: #64748b;
+    }
+
+    .sinc-tabela-scroll {
+        overflow-x: auto;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    .sinc-tabela {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .sinc-tabela th {
+        background: #f8fafc;
+        padding: 12px 16px;
+        text-align: left;
+        font-weight: 600;
+        color: #475569;
+        border-bottom: 2px solid #e2e8f0;
+        white-space: nowrap;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .sinc-tabela th:hover {
+        background: #eef2ff;
+    }
+
+    .sinc-tabela th .sort-icon {
+        font-size: 10px;
+        margin-left: 4px;
+        opacity: 0.4;
+    }
+
+    .sinc-tabela th.sorted .sort-icon {
+        opacity: 1;
+        color: #3b82f6;
+    }
+
+    .sinc-tabela td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #1e293b;
+        vertical-align: middle;
+    }
+
+    .sinc-tabela tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .sinc-tabela tbody tr.sinc-row-critico {
+        background: #fef2f2;
+    }
+
+    .sinc-tabela tbody tr.sinc-row-alerta {
+        background: #fff7ed;
+    }
+
+    .sinc-tabela tbody tr.sinc-row-atencao {
+        background: #fffbeb;
+    }
+
+    .sinc-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 100px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .sinc-badge.ok {
+        background: #ecfdf5;
+        color: #059669;
+    }
+
+    .sinc-badge.atencao {
+        background: #fffbeb;
+        color: #d97706;
+    }
+
+    .sinc-badge.alerta {
+        background: #fff7ed;
+        color: #ea580c;
+    }
+
+    .sinc-badge.critico {
+        background: #fef2f2;
+        color: #dc2626;
+    }
+
+    .sinc-badge.inativo {
+        background: #f1f5f9;
+        color: #64748b;
+    }
+
+    .sinc-dias-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .sinc-dias-valor {
+        font-weight: 700;
+        font-size: 14px;
+        min-width: 36px;
+        text-align: right;
+    }
+
+    .sinc-dias-track {
+        flex: 1;
+        height: 6px;
+        background: #e2e8f0;
+        border-radius: 3px;
+        overflow: hidden;
+        min-width: 40px;
+        max-width: 80px;
+    }
+
+    .sinc-dias-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s;
+    }
+
+    .btn-refresh-sinc {
+        padding: 6px 12px;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        color: white;
+        font-size: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: background 0.2s;
+    }
+
+    .btn-refresh-sinc:hover {
+        background: rgba(255, 255, 255, 0.25);
+    }
+
+    .btn-refresh-sinc.loading ion-icon {
+        animation: spin 1s linear infinite;
+    }
 </style>
 
 <div class="page-container">
@@ -1970,7 +2250,8 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
             </div>
         </div>
         <!-- Legenda de Tipos -->
-        <div class="legenda-tipos" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px;">
+        <div class="legenda-tipos"
+            style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px;">
             <!-- <span style="font-size: 12px; color: #64748b; margin-right: 8px;">Tipos:</span>
             <span class="badge-tipo-medidor tipo-1"><ion-icon name="speedometer-outline"></ion-icon> Macro</span>
             <span class="badge-tipo-medidor tipo-2"><ion-icon name="pulse-outline"></ion-icon> Pito</span>
@@ -3213,6 +3494,409 @@ $ultimaData = $sqlUltimaData->fetch(PDO::FETCH_ASSOC)['ULTIMA_DATA'] ?? date('Y-
         const card = document.getElementById('iaAnaliseCard');
         card.classList.remove('visible');
     }
+
+    // ============================================
+    // SINCRONIZACAO HISTORIADOR
+    // Dados carregados 1x do servidor, filtros client-side
+    // ============================================
+    let sincDadosCompletos = [];   // todos os dados do servidor
+    let sincDadosFiltrados = [];   // dados apos filtro
+    let sincOrdenacao = 'DIAS_SEM_LEITURA';
+    let sincDirecao = 'DESC';
+
+    /**
+     * Carrega dados do servidor (chamado apenas 1x ou no botao Atualizar)
+     */
+    function carregarSincServidor() {
+        const btn = $('#btnRefreshSinc');
+        btn.addClass('loading').prop('disabled', true);
+
+        $('#sincTabelaBody').html('<tr><td colspan="6"><div class="loading-container"><ion-icon name="sync-outline"></ion-icon><span>Carregando dados do servidor...</span></div></td></tr>');
+        $('#sincContador').text('Carregando...');
+
+        $.ajax({
+            url: 'bd/dashboard/getSincronizacaoHistoriador.php',
+            method: 'GET',
+            dataType: 'json',
+            success: function (resp) {
+                btn.removeClass('loading').prop('disabled', false);
+                if (resp.success) {
+                    sincDadosCompletos = resp.dados || [];
+                    aplicarFiltrosSinc(); // aplica filtros + renderiza
+                } else {
+                    $('#sincTabelaBody').html('<tr><td colspan="6" style="text-align:center;color:#dc2626;padding:24px;">' + (resp.message || 'Erro ao carregar') + '</td></tr>');
+                    $('#sincContador').text('Erro');
+                }
+            },
+            error: function () {
+                btn.removeClass('loading').prop('disabled', false);
+                $('#sincTabelaBody').html('<tr><td colspan="6" style="text-align:center;color:#dc2626;padding:24px;">Erro de conexao com o servidor</td></tr>');
+                $('#sincContador').text('Erro');
+            }
+        });
+    }
+
+    /**
+     * Aplica filtros e ordenacao 100% client-side (instantaneo)
+     */
+    function aplicarFiltrosSinc() {
+        const busca = ($('#sincFiltroBusca').val() || '').toLowerCase().trim();
+        const situacao = $('#sincFiltroSituacao').val() || '';
+        const unidade = $('#sincFiltroUnidade').val() || '';
+
+        // 1. Filtrar
+        sincDadosFiltrados = sincDadosCompletos.filter(item => {
+            // Filtro busca (codigo ou nome)
+            if (busca) {
+                const cdPonto = String(item.CD_PONTO_MEDICAO).toLowerCase();
+                const nome = (item.DS_NOME || '').toLowerCase();
+                if (!cdPonto.includes(busca) && !nome.includes(busca)) return false;
+            }
+            // Filtro situacao
+            if (situacao && item.SITUACAO !== situacao) return false;
+            // Filtro unidade
+            if (unidade && item.CD_UNIDADE !== unidade) return false;
+            return true;
+        });
+
+        // 2. Ordenar
+        sincDadosFiltrados.sort((a, b) => {
+            let vA = a[sincOrdenacao];
+            let vB = b[sincOrdenacao];
+
+            // Nulls sempre no topo (nunca teve leitura)
+            if (sincOrdenacao === 'DIAS_SEM_LEITURA' || sincOrdenacao === 'ULTIMA_LEITURA') {
+                if (vA === null && vB === null) return 0;
+                if (vA === null) return sincDirecao === 'DESC' ? -1 : 1;
+                if (vB === null) return sincDirecao === 'DESC' ? 1 : -1;
+            }
+
+            // Comparar
+            if (typeof vA === 'string') vA = (vA || '').toLowerCase();
+            if (typeof vB === 'string') vB = (vB || '').toLowerCase();
+            if (typeof vA === 'number' || !isNaN(Number(vA))) { vA = Number(vA) || 0; vB = Number(vB) || 0; }
+
+            let cmp = 0;
+            if (vA < vB) cmp = -1;
+            else if (vA > vB) cmp = 1;
+            return sincDirecao === 'ASC' ? cmp : -cmp;
+        });
+
+        // 3. Atualizar resumo (sempre do dataset completo, respeitando busca e unidade)
+        atualizarResumoSinc();
+
+        // 4. Renderizar tabela
+        renderizarTabelaSinc();
+    }
+
+    /**
+     * Calcula e atualiza os cards de resumo
+     * Conta sempre do dataset completo (sem filtro de situacao)
+     * para que os cards mostrem a distribuicao real
+     */
+    function atualizarResumoSinc() {
+        const busca = ($('#sincFiltroBusca').val() || '').toLowerCase().trim();
+        const unidade = $('#sincFiltroUnidade').val() || '';
+
+        // Filtrar SEM o filtro de situacao (para os cards mostrarem totais reais)
+        const dadosParaResumo = sincDadosCompletos.filter(item => {
+            if (busca) {
+                const cdPonto = String(item.CD_PONTO_MEDICAO).toLowerCase();
+                const nome = (item.DS_NOME || '').toLowerCase();
+                if (!cdPonto.includes(busca) && !nome.includes(busca)) return false;
+            }
+            if (unidade && item.CD_UNIDADE !== unidade) return false;
+            return true;
+        });
+
+        const resumo = { ultima_semana: 0, ultimo_mes: 0, ultimos_60_dias: 0, mais_de_60_dias: 0, nunca_leitura: 0 };
+        dadosParaResumo.forEach(item => {
+            switch (item.SITUACAO) {
+                case 'Ultima semana': resumo.ultima_semana++; break;
+                case 'Ultimo mes': resumo.ultimo_mes++; break;
+                case 'Ultimos 60 dias': resumo.ultimos_60_dias++; break;
+                case 'Mais de 60 dias': resumo.mais_de_60_dias++; break;
+                case 'Nunca teve leitura': resumo.nunca_leitura++; break;
+            }
+        });
+
+        $('#sincStatSemana').text(resumo.ultima_semana);
+        $('#sincStatMes').text(resumo.ultimo_mes);
+        $('#sincStat60').text(resumo.ultimos_60_dias);
+        $('#sincStatCritico').text(resumo.mais_de_60_dias);
+        $('#sincStatNunca').text(resumo.nunca_leitura);
+    }
+
+    /**
+     * Renderiza a tabela com os dados filtrados/ordenados
+     */
+    function renderizarTabelaSinc() {
+        if (!sincDadosFiltrados || sincDadosFiltrados.length === 0) {
+            $('#sincTabelaBody').html('<tr><td colspan="6" style="text-align:center;color:#64748b;padding:32px;"><ion-icon name="search-outline" style="font-size:24px;display:block;margin-bottom:8px;"></ion-icon>Nenhum ponto encontrado</td></tr>');
+            $('#sincContador').text('0 pontos');
+            return;
+        }
+
+        const mapClasseRow = { 'Ultimo mes': 'sinc-row-atencao', 'Ultimos 60 dias': 'sinc-row-alerta', 'Mais de 60 dias': 'sinc-row-critico', 'Nunca teve leitura': 'sinc-row-critico' };
+        const mapBadge = { 'Ultima semana': 'ok', 'Ultimo mes': 'atencao', 'Ultimos 60 dias': 'alerta', 'Mais de 60 dias': 'critico', 'Nunca teve leitura': 'inativo' };
+
+        let html = '';
+        sincDadosFiltrados.forEach(item => {
+            const dias = item.DIAS_SEM_LEITURA;
+            const sit = item.SITUACAO || 'Nunca teve leitura';
+            const corDias = dias === null ? '#64748b' : dias <= 7 ? '#059669' : dias <= 30 ? '#d97706' : dias <= 60 ? '#ea580c' : '#dc2626';
+            const percBarra = dias !== null ? Math.min((dias / 365) * 100, 100) : 100;
+
+            let ultLeitura = '<span style="color:#94a3b8">-</span>';
+            if (item.ULTIMA_LEITURA) {
+                const dt = new Date(item.ULTIMA_LEITURA);
+                ultLeitura = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            }
+            let dtAtiv = item.DT_ATIVACAO ? new Date(item.DT_ATIVACAO).toLocaleDateString('pt-BR') : '';
+
+            html += `<tr class="${mapClasseRow[sit] || ''}">
+                <td><span style="font-weight:600;">${item.CD_PONTO_MEDICAO}</span></td>
+                <td><div class="ponto-info"><span class="ponto-nome">${item.DS_NOME || '-'}</span>${dtAtiv ? '<span class="ponto-tipo">Ativado em ' + dtAtiv + '</span>' : ''}</div></td>
+                <td><span style="font-size:12px;color:#475569;">${item.DS_UNIDADE || '-'}</span></td>
+                <td><span style="font-size:12px;">${ultLeitura}</span></td>
+                <td><div class="sinc-dias-bar"><span class="sinc-dias-valor" style="color:${corDias}">${dias !== null ? dias : '&#8734;'}</span><div class="sinc-dias-track"><div class="sinc-dias-fill" style="width:${percBarra}%;background:${corDias};"></div></div></div></td>
+                <td><span class="sinc-badge ${mapBadge[sit] || ''}">${sit}</span></td>
+            </tr>`;
+        });
+
+        $('#sincTabelaBody').html(html);
+        $('#sincContador').text(sincDadosFiltrados.length + ' ponto' + (sincDadosFiltrados.length !== 1 ? 's' : ''));
+    }
+
+    /**
+     * Filtrar clicando nos cards (toggle)
+     */
+    function filtrarSincPorSituacao(situacao, el) {
+        const selectVal = $('#sincFiltroSituacao').val();
+        if (selectVal === situacao) {
+            // Desativar
+            $('.sinc-stat-card').removeClass('ativo');
+            $('#sincFiltroSituacao').val('').trigger('change');
+        } else {
+            // Ativar
+            $('.sinc-stat-card').removeClass('ativo');
+            $(el).addClass('ativo');
+            $('#sincFiltroSituacao').val(situacao).trigger('change');
+        }
+        // O onchange do select2 ja chama aplicarFiltrosSinc()
+        // mas como usamos trigger('change'), garantir chamada
+        aplicarFiltrosSinc();
+    }
+
+    /**
+     * Ordenar (client-side instantaneo)
+     */
+    function ordenarSinc(coluna) {
+        sincDirecao = (sincOrdenacao === coluna) ? (sincDirecao === 'DESC' ? 'ASC' : 'DESC') : 'DESC';
+        sincOrdenacao = coluna;
+
+        // Visual
+        $('.sinc-tabela th').removeClass('sorted');
+        $(`.sinc-tabela th[data-col="${coluna}"]`).addClass('sorted')
+            .find('.sort-icon').html(sincDirecao === 'ASC' ? '&#9650;' : '&#9660;');
+
+        aplicarFiltrosSinc();
+    }
+
+    /**
+     * Limpar filtros
+     */
+    function limparFiltrosSinc() {
+        sincOrdenacao = 'DIAS_SEM_LEITURA';
+        sincDirecao = 'DESC';
+        $('#sincFiltroBusca').val('');
+        $('#sincFiltroSituacao').val('').trigger('change');
+        $('#sincFiltroUnidade').val('').trigger('change');
+        $('.sinc-stat-card').removeClass('ativo');
+        $('.sinc-tabela th').removeClass('sorted');
+        $('.sinc-tabela th[data-col="DIAS_SEM_LEITURA"]').addClass('sorted').find('.sort-icon').html('&#9660;');
+        aplicarFiltrosSinc();
+    }
+
+    // ============================================
+    // INIT: Adicionar dentro do $(document).ready existente,
+    // logo apos carregarDados():
+    //
+    //     carregarSincServidor();
+    // ============================================
+    $(document).ready(function () {
+        carregarSincServidor();
+    });
 </script>
 
+<!-- ===========================================================
+         SECAO: Sincronizacao com Historiador CCO
+         =========================================================== -->
+
+<div class="page-container">
+    <!-- Header -->
+    <div class="page-header" style="margin-top: 24px; margin-bottom: 24px;">
+        <div class="page-header-content">
+            <div class="page-header-info">
+                <div class="page-header-icon">
+                    <ion-icon name="sync-outline"></ion-icon>
+                </div>
+                <div>
+                    <h1>Sincronizacao com Historiador</h1>
+                    <p class="page-header-subtitle">Ultima sincronizacao dos pontos integrados ao CCO</p>
+                </div>
+            </div>
+            <button type="button" class="btn-refresh-sinc" id="btnRefreshSinc" onclick="carregarSincServidor()"
+                title="Recarregar dados do servidor">
+                <ion-icon name="refresh-outline"></ion-icon>
+                Atualizar
+            </button>
+        </div>
+    </div>
+
+    <!-- Cards resumo -->
+    <div class="sinc-stats-grid">
+        <div class="sinc-stat-card ok" onclick="filtrarSincPorSituacao('Ultima semana', this)">
+            <div class="sinc-stat-card-header">
+                <div class="sinc-stat-card-icon"><ion-icon name="checkmark-circle-outline"></ion-icon></div>
+            </div>
+            <div class="sinc-stat-card-value" id="sincStatSemana">-</div>
+            <div class="sinc-stat-card-label">Ultima semana</div>
+        </div>
+        <div class="sinc-stat-card atencao" onclick="filtrarSincPorSituacao('Ultimo mes', this)">
+            <div class="sinc-stat-card-header">
+                <div class="sinc-stat-card-icon"><ion-icon name="time-outline"></ion-icon></div>
+            </div>
+            <div class="sinc-stat-card-value" id="sincStatMes">-</div>
+            <div class="sinc-stat-card-label">Ultimo mes</div>
+        </div>
+        <div class="sinc-stat-card alerta" onclick="filtrarSincPorSituacao('Ultimos 60 dias', this)">
+            <div class="sinc-stat-card-header">
+                <div class="sinc-stat-card-icon"><ion-icon name="warning-outline"></ion-icon></div>
+            </div>
+            <div class="sinc-stat-card-value" id="sincStat60">-</div>
+            <div class="sinc-stat-card-label">Ultimos 60 dias</div>
+        </div>
+        <div class="sinc-stat-card critico" onclick="filtrarSincPorSituacao('Mais de 60 dias', this)">
+            <div class="sinc-stat-card-header">
+                <div class="sinc-stat-card-icon"><ion-icon name="alert-circle-outline"></ion-icon></div>
+            </div>
+            <div class="sinc-stat-card-value" id="sincStatCritico">-</div>
+            <div class="sinc-stat-card-label">Mais de 60 dias</div>
+        </div>
+        <div class="sinc-stat-card inativo" onclick="filtrarSincPorSituacao('Nunca teve leitura', this)">
+            <div class="sinc-stat-card-header">
+                <div class="sinc-stat-card-icon"><ion-icon name="close-circle-outline"></ion-icon></div>
+            </div>
+            <div class="sinc-stat-card-value" id="sincStatNunca">-</div>
+            <div class="sinc-stat-card-label">Sem leitura</div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filters-card" style="margin-bottom: 24px;">
+        <div class="filters-header">
+            <div class="filters-title">
+                <ion-icon name="filter-outline"></ion-icon>
+                Filtros
+            </div>
+            <button type="button" class="btn-clear-filters" onclick="limparFiltrosSinc()">
+                <ion-icon name="refresh-outline"></ion-icon>
+                Limpar Filtros
+            </button>
+        </div>
+        <div class="filters-grid" style="grid-template-columns: 2fr 1fr 1fr auto;">
+            <div class="form-group">
+                <label class="form-label">
+                    <ion-icon name="search-outline"></ion-icon> Buscar
+                </label>
+                <input type="text" id="sincFiltroBusca" class="form-control" placeholder="Codigo ou nome do ponto..."
+                    oninput="aplicarFiltrosSinc()">
+            </div>
+            <div class="form-group">
+                <label class="form-label">
+                    <ion-icon name="pulse-outline"></ion-icon> Situacao
+                </label>
+                <select id="sincFiltroSituacao" class="form-control select2-default" onchange="aplicarFiltrosSinc()">
+                    <option value="">Todas</option>
+                    <option value="Ultima semana">Ultima semana</option>
+                    <option value="Ultimo mes">Ultimo mes</option>
+                    <option value="Ultimos 60 dias">Ultimos 60 dias</option>
+                    <option value="Mais de 60 dias">Mais de 60 dias</option>
+                    <option value="Nunca teve leitura">Sem leitura</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">
+                    <ion-icon name="business-outline"></ion-icon> Unidade
+                </label>
+                <select id="sincFiltroUnidade" class="form-control select2-default" onchange="aplicarFiltrosSinc()">
+                    <option value="">Todas as Unidades</option>
+                    <?php foreach ($unidades as $u): ?>
+                    <option value="<?= $u['CD_UNIDADE'] ?>">
+                        <?= htmlspecialchars($u['DS_NOME']) ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">&nbsp;</label>
+                <button type="button" class="btn-filtrar" onclick="aplicarFiltrosSinc()">
+                    <ion-icon name="search-outline"></ion-icon>
+                    Filtrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="content-card">
+        <div class="content-card-header">
+            <div class="content-card-title">
+                <ion-icon name="list-outline"></ion-icon>
+                Pontos Integrados ao Historiador
+            </div>
+            <span class="badge" id="sincContador"
+                style="background:#eff6ff;color:#3b82f6;padding:4px 12px;border-radius:8px;font-size:12px;">
+                Carregando...
+            </span>
+        </div>
+        <div class="content-card-body">
+            <div class="sinc-tabela-scroll">
+                <table class="sinc-tabela">
+                    <thead>
+                        <tr>
+                            <th onclick="ordenarSinc('CD_PONTO_MEDICAO')" data-col="CD_PONTO_MEDICAO">
+                                Ponto <span class="sort-icon">&#9650;&#9660;</span>
+                            </th>
+                            <th onclick="ordenarSinc('DS_NOME')" data-col="DS_NOME">
+                                Nome <span class="sort-icon">&#9650;&#9660;</span>
+                            </th>
+                            <th onclick="ordenarSinc('DS_UNIDADE')" data-col="DS_UNIDADE">
+                                Unidade <span class="sort-icon">&#9650;&#9660;</span>
+                            </th>
+                            <th onclick="ordenarSinc('ULTIMA_LEITURA')" data-col="ULTIMA_LEITURA">
+                                Ultima Leitura <span class="sort-icon">&#9650;&#9660;</span>
+                            </th>
+                            <th onclick="ordenarSinc('DIAS_SEM_LEITURA')" data-col="DIAS_SEM_LEITURA" class="sorted">
+                                Dias s/ Leitura <span class="sort-icon">&#9660;</span>
+                            </th>
+                            <th>Situacao</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sincTabelaBody">
+                        <tr>
+                            <td colspan="6">
+                                <div class="loading-container">
+                                    <ion-icon name="sync-outline"></ion-icon>
+                                    <span>Carregando...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 <?php include_once 'includes/footer.inc.php'; ?>

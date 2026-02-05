@@ -169,6 +169,17 @@ EXEC [simp].[dbo].SP_INTEGRACAO_CCO
     @dias_retroativos = 7;
 SELECT @msg_erro AS Erro;
 
+-- Busca até agora (quase tempo real), últimos dados novos
+DECLARE @msg_erro VARCHAR(4000);
+DECLARE @agora DATETIME = GETDATE();
+EXEC [simp].[dbo].SP_INTEGRACAO_CCO 
+    @id_tipo_leitura = 8,
+    @ds_matricula = '999999',
+    @sp_msg_erro = @msg_erro OUTPUT,
+    @now = @agora,
+    @dias_retroativos = 1;
+SELECT @msg_erro AS Erro;
+
 -- -- Resumo dos defaults:
 
 -- -- @now → dia anterior às 23:59:59
