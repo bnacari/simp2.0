@@ -1851,15 +1851,44 @@ if ($isEdicao) {
      * Área Efetiva (Sef) - Equivale a GetDataBySef(DN) no legado
      * Valores em m². Se não encontrar, calcula: Sef = π × (DN/2000)²
      */
-    function obterAreaEfetivaLocal(dn) {
+   function obterAreaEfetivaLocal(dn) {
+        // TABELA 2 – CORREÇÃO DA ÁREA PELA PROJEÇÃO DA HASTE DO PITOT
+        // Coluna: ÁREA CORRIGIDA (m²)
         var tabelaSef = {
-            50: 0.001963, 75: 0.004418, 100: 0.007854, 150: 0.017671,
-            200: 0.031416, 250: 0.049087, 300: 0.070686, 350: 0.096211,
-            400: 0.125664, 450: 0.159043, 500: 0.196350, 600: 0.282743,
-            700: 0.384845, 800: 0.502655, 900: 0.636173, 1000: 0.785398,
-            1100: 0.950332, 1200: 1.130973
+            75:   0.004418,
+            100:  0.007527,
+            125:  0.012506,
+            150:  0.017188,
+            200:  0.030673,
+            250:  0.048105,
+            275:  0.058786,
+            300:  0.069467,
+            350:  0.094749,
+            375:  0.108897,
+            400:  0.123961,
+            450:  0.157103,
+            500:  0.194175,
+            550:  0.235200,
+            600:  0.280088,
+            650:  0.328973,
+            700:  0.381722,
+            750:  0.438424,
+            800:  0.499051,
+            900:  0.632090,
+            1000: 0.780843,
+            1050: 0.861125,
+            1100: 0.945337,
+            1200: 1.125461,
+            1250: 1.221438,
+            1500: 1.760212,
+            1750: 2.397151,
+            1800: 2.536370,
+            2000: 3.132271
         };
+        
         if (tabelaSef[dn] !== undefined) return tabelaSef[dn];
+        
+        // Fallback: valor nominal (teórico) - apenas se DN não estiver na tabela
         return PI * Math.pow(dn / 2000, 2);
     }
 

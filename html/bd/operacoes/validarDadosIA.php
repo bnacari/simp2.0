@@ -26,14 +26,14 @@ try {
     // Receber dados
     $rawInput = file_get_contents('php://input');
     $input = json_decode($rawInput, true);
-    
+
     if (json_last_error() !== JSON_ERROR_NONE) {
         throw new Exception('Erro ao decodificar JSON: ' . json_last_error_msg());
     }
-    
-    $cdPonto = isset($input['cdPonto']) ? (int)$input['cdPonto'] : 0;
+
+    $cdPonto = isset($input['cdPonto']) ? (int) $input['cdPonto'] : 0;
     $data = isset($input['data']) ? $input['data'] : '';
-    $tipoMedidor = isset($input['tipoMedidor']) ? (int)$input['tipoMedidor'] : 1;
+    $tipoMedidor = isset($input['tipoMedidor']) ? (int) $input['tipoMedidor'] : 1;
     $valores = isset($input['valores']) ? $input['valores'] : [];
     $observacao = isset($input['observacao']) ? trim($input['observacao']) : 'Valor sugerido e aplicado via IA';
 
@@ -68,7 +68,8 @@ try {
         if ($rowPonto) {
             $nomePonto = $rowPonto['DS_NOME'];
         }
-    } catch (Exception $e) {}
+    } catch (Exception $e) {
+    }
 
     // Definir coluna baseado no tipo de medidor
     $colunasPorTipo = [
@@ -91,9 +92,9 @@ try {
         $horasProcessadas = [];
 
         foreach ($valores as $item) {
-            $hora = (int)$item['hora'];
+            $hora = (int) $item['hora'];
             $novoValor = floatval($item['valor']);
-            
+
             // 1. Marcar registros existentes na hora como inativos (ID_SITUACAO = 2)
             $sqlInativar = "UPDATE SIMP.dbo.REGISTRO_VAZAO_PRESSAO 
                             SET ID_SITUACAO = 2,
@@ -103,7 +104,7 @@ try {
                               AND CAST(DT_LEITURA AS DATE) = :data
                               AND DATEPART(HOUR, DT_LEITURA) = :hora
                               AND ID_SITUACAO = 1";
-            
+
             $stmtInativar = $pdoSIMP->prepare($sqlInativar);
             $stmtInativar->execute([
                 ':cdUsuario' => $cdUsuario,
@@ -124,12 +125,12 @@ try {
                            2, 2, 2,
                            :cdUsuarioResp, :cdUsuarioAtu, 
                            GETDATE(), :observacao)";
-            
+
             $stmtInsert = $pdoSIMP->prepare($sqlInsert);
-            
+
             for ($minuto = 0; $minuto < 60; $minuto++) {
                 $dtLeitura = sprintf('%s %02d:%02d:00', $data, $hora, $minuto);
-                
+
                 $stmtInsert->execute([
                     ':cdPonto' => $cdPonto,
                     ':dtLeitura' => $dtLeitura,
@@ -140,7 +141,7 @@ try {
                 ]);
                 $totalInseridos++;
             }
-            
+
             $horasProcessadas[] = [
                 'hora' => $hora,
                 'valor' => $novoValor
@@ -149,23 +150,36 @@ try {
 
         $pdoSIMP->commit();
 
+        // Reprocessar métricas da IA para a data validada (isolado)
+        try {
+            @include_once 'reprocessarMetricas.php';
+            if (function_exists('reprocessarMetricasDiarias')) {
+                reprocessarMetricasDiarias($pdoSIMP, $data);
+            }
+        } catch (Exception $reprocessEx) {
+        }
+
         // Log (isolado)
         try {
             @include_once '../logHelper.php';
             if (function_exists('registrarLog')) {
                 $qtdHoras = count($valores);
-                $horasTexto = implode(', ', array_map(function($v) { 
-                    return str_pad($v['hora'], 2, '0', STR_PAD_LEFT) . ':00 (' . number_format($v['valor'], 2, ',', '.') . ')'; 
+                $horasTexto = implode(', ', array_map(function ($v) {
+                    return str_pad($v['hora'], 2, '0', STR_PAD_LEFT) . ':00 (' . number_format($v['valor'], 2, ',', '.') . ')';
                 }, $valores));
                 $identificador = "$nomePonto - $data";
-                registrarLog('Validação dos Dados', 'VALIDACAO_IA', 
+                registrarLog(
+                    'Validação dos Dados',
+                    'VALIDACAO_IA',
                     "Validou dados via IA ($qtdHoras hora(s)). Valores: $horasTexto. $totalInativados descartados, $totalInseridos inseridos.",
-                    ['cdPonto' => $cdPonto, 'data' => $data, 'valores' => $valores, 'identificador' => $identificador]);
+                    ['cdPonto' => $cdPonto, 'data' => $data, 'valores' => $valores, 'identificador' => $identificador]
+                );
             }
-        } catch (Exception $logEx) {}
+        } catch (Exception $logEx) {
+        }
 
         $qtdHoras = count($valores);
-        $mensagem = $totalInativados > 0 
+        $mensagem = $totalInativados > 0
             ? "Dados validados com sucesso! {$totalInativados} registros substituídos e {$totalInseridos} novos registros criados em {$qtdHoras} hora(s)."
             : "Dados inseridos com sucesso! {$totalInseridos} novos registros criados em {$qtdHoras} hora(s).";
 
@@ -187,10 +201,15 @@ try {
     try {
         @include_once '../logHelper.php';
         if (function_exists('registrarLogErro')) {
-            registrarLogErro('Validação dos Dados', 'VALIDACAO_IA', $e->getMessage(), 
-                ['cdPonto' => $cdPonto ?? null, 'data' => $data ?? null, 'valores' => $valores ?? []]);
+            registrarLogErro(
+                'Validação dos Dados',
+                'VALIDACAO_IA',
+                $e->getMessage(),
+                ['cdPonto' => $cdPonto ?? null, 'data' => $data ?? null, 'valores' => $valores ?? []]
+            );
         }
-    } catch (Exception $logEx) {}
+    } catch (Exception $logEx) {
+    }
 
     echo json_encode([
         'success' => false,

@@ -268,6 +268,28 @@ try {
     // Commit
     $pdoSIMP->commit();
 
+    // Enfileirar reprocessamento de métricas (assíncrono)
+    try {
+        @include_once '../operacoes/reprocessarMetricas.php';
+        if (function_exists('enfileirarReprocessamentoMultiplo')) {
+            $datasAfetadas = [];
+            foreach ($dadosPorPonto as $cdPonto => $regs) {
+                foreach ($regs as $reg) {
+                    if (!empty($reg['data'])) {
+                        $dtReg = converterDataParaISO($reg['data']);
+                        $datasAfetadas[] = $dtReg;
+                    }
+                }
+            }
+            if (!empty($datasAfetadas)) {
+                enfileirarReprocessamentoMultiplo($pdoSIMP, $datasAfetadas, 'IMPORTACAO', $cdUsuario);
+            }
+        }
+    } catch (Exception $e) {
+    }
+
+    // Registrar log de importação (isolado)
+
     // Registrar log de importação (isolado)
     if ($totalRegistros > 0 && function_exists('registrarLogAlteracaoMassa')) {
         try {

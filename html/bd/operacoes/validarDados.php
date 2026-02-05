@@ -22,7 +22,8 @@ $DEBUG = false;
 header('Content-Type: application/json; charset=utf-8');
 
 // Função para log de debug
-function debugLog($message, $data = null) {
+function debugLog($message, $data = null)
+{
     global $DEBUG, $debugInfo;
     if ($DEBUG) {
         $debugInfo[] = [
@@ -54,24 +55,24 @@ try {
     // Receber dados
     $rawInput = file_get_contents('php://input');
     debugLog('Input raw', $rawInput);
-    
+
     $input = json_decode($rawInput, true);
     debugLog('Input parsed', $input);
-    
+
     if (json_last_error() !== JSON_ERROR_NONE) {
         throw new Exception('Erro ao decodificar JSON: ' . json_last_error_msg());
     }
-    
-    $cdPonto = isset($input['cdPonto']) ? (int)$input['cdPonto'] : 0;
+
+    $cdPonto = isset($input['cdPonto']) ? (int) $input['cdPonto'] : 0;
     $data = isset($input['data']) ? $input['data'] : '';
     $horas = isset($input['horas']) ? $input['horas'] : [];
-    $tipoMedidor = isset($input['tipoMedidor']) ? (int)$input['tipoMedidor'] : 1;
+    $tipoMedidor = isset($input['tipoMedidor']) ? (int) $input['tipoMedidor'] : 1;
     $observacao = isset($input['observacao']) ? trim($input['observacao']) : '';
 
     // Campos específicos por tipo
     $novoValor = isset($input['novoValor']) ? floatval($input['novoValor']) : null;
-    $minutosExtravasou = isset($input['minutosExtravasou']) ? (int)$input['minutosExtravasou'] : 0;
-    $motivo = isset($input['motivo']) ? (int)$input['motivo'] : null;
+    $minutosExtravasou = isset($input['minutosExtravasou']) ? (int) $input['minutosExtravasou'] : 0;
+    $motivo = isset($input['motivo']) ? (int) $input['motivo'] : null;
 
     debugLog('Parâmetros extraídos', [
         'cdPonto' => $cdPonto,
@@ -86,7 +87,7 @@ try {
 
     // Compatibilidade: se receber 'hora' único, converter para array
     if (empty($horas) && isset($input['hora'])) {
-        $horas = [(int)$input['hora']];
+        $horas = [(int) $input['hora']];
     }
 
     // Validações comuns
@@ -115,7 +116,8 @@ try {
         if ($rowPonto) {
             $nomePonto = $rowPonto['DS_NOME'];
         }
-    } catch (Exception $e) {}
+    } catch (Exception $e) {
+    }
 
     // Obter usuário logado
     $cdUsuario = $_SESSION['cd_usuario'] ?? null;
@@ -129,7 +131,7 @@ try {
         // Lógica diferente para tipo 6 (Nível Reservatório)
         if ($tipoMedidor == 6) {
             debugLog('Processando tipo 6 (Nível Reservatório)');
-            
+
             // Validações específicas para tipo 6
             if ($minutosExtravasou < 0 || $minutosExtravasou > 60) {
                 throw new Exception('Minutos >= 100 deve ser entre 0 e 60');
@@ -142,9 +144,9 @@ try {
             $totalInseridos = 0;
 
             foreach ($horas as $hora) {
-                $hora = (int)$hora;
+                $hora = (int) $hora;
                 debugLog("Processando hora: {$hora}");
-                
+
                 // 1. Marcar registros existentes na hora como inativos (ID_SITUACAO = 2)
                 $sqlInativar = "UPDATE SIMP.dbo.REGISTRO_VAZAO_PRESSAO 
                                 SET ID_SITUACAO = 2,
@@ -154,7 +156,7 @@ try {
                                   AND CAST(DT_LEITURA AS DATE) = :data
                                   AND DATEPART(HOUR, DT_LEITURA) = :hora
                                   AND ID_SITUACAO = 1";
-                
+
                 debugLog('SQL Inativar', $sqlInativar);
                 debugLog('Params Inativar', [
                     'cdUsuario' => $cdUsuario,
@@ -162,7 +164,7 @@ try {
                     'data' => $data,
                     'hora' => $hora
                 ]);
-                
+
                 $stmtInativar = $pdoSIMP->prepare($sqlInativar);
                 $stmtInativar->execute([
                     ':cdUsuario' => $cdUsuario,
@@ -173,7 +175,7 @@ try {
                 $inativados = $stmtInativar->rowCount();
                 $totalInativados += $inativados;
                 debugLog("Registros inativados na hora {$hora}", $inativados);
-                
+
                 // 2. Gerar array de minutos aleatórios que terão NR_EXTRAVASOU = 1
                 $minutosComExtravasou = [];
                 if ($minutosExtravasou > 0) {
@@ -196,15 +198,15 @@ try {
                                :extravasou, :motivo,
                                :cdUsuarioResp, :cdUsuarioAtu, 
                                GETDATE(), :observacao)";
-                
+
                 debugLog('SQL Insert', $sqlInsert);
-                
+
                 $stmtInsert = $pdoSIMP->prepare($sqlInsert);
-                
+
                 for ($minuto = 0; $minuto < 60; $minuto++) {
                     $dtLeitura = sprintf('%s %02d:%02d:00', $data, $hora, $minuto);
                     $extravasou = in_array($minuto, $minutosComExtravasou) ? 1 : 0;
-                    
+
                     $params = [
                         ':cdPonto' => $cdPonto,
                         ':dtLeitura' => $dtLeitura,
@@ -214,11 +216,11 @@ try {
                         ':cdUsuarioAtu' => $cdUsuario,
                         ':observacao' => $observacao ?: 'Valor inserido/corrigido manualmente via sistema'
                     ];
-                    
+
                     if ($minuto == 0) {
                         debugLog('Params Insert (primeiro registro)', $params);
                     }
-                    
+
                     $stmtInsert->execute($params);
                     $totalInseridos++;
                 }
@@ -228,19 +230,34 @@ try {
             $pdoSIMP->commit();
             debugLog('Transação commitada');
 
+            // Reprocessar métricas da IA para a data validada (isolado)
+            try {
+                @include_once 'reprocessarMetricas.php';
+                if (function_exists('reprocessarMetricasDiarias')) {
+                    reprocessarMetricasDiarias($pdoSIMP, $data);
+                }
+            } catch (Exception $reprocessEx) {
+            }
+
             // Log (isolado)
             try {
                 @include_once '../logHelper.php';
                 if (function_exists('registrarLog')) {
                     $qtdHoras = count($horas);
                     $motivoTexto = $motivo == 1 ? 'Falha' : 'Extravasou';
-                    $horasTexto = implode(', ', array_map(function($h) { return str_pad($h, 2, '0', STR_PAD_LEFT) . ':00'; }, $horas));
+                    $horasTexto = implode(', ', array_map(function ($h) {
+                        return str_pad($h, 2, '0', STR_PAD_LEFT) . ':00';
+                    }, $horas));
                     $identificador = "$nomePonto - $data";
-                    registrarLog('Validação dos Dados', 'VALIDACAO_NIVEL', 
+                    registrarLog(
+                        'Validação dos Dados',
+                        'VALIDACAO_NIVEL',
                         "Validou dados de nível ($qtdHoras hora(s): $horasTexto). Motivo: $motivoTexto. $totalInativados descartados, $totalInseridos inseridos.",
-                        ['cdPonto' => $cdPonto, 'data' => $data, 'horas' => $horas, 'minutosExtravasou' => $minutosExtravasou, 'motivo' => $motivoTexto, 'identificador' => $identificador]);
+                        ['cdPonto' => $cdPonto, 'data' => $data, 'horas' => $horas, 'minutosExtravasou' => $minutosExtravasou, 'motivo' => $motivoTexto, 'identificador' => $identificador]
+                    );
                 }
-            } catch (Exception $logEx) {}
+            } catch (Exception $logEx) {
+            }
 
             $qtdHoras = count($horas);
             $motivoTexto = $motivo == 1 ? 'Falha' : 'Extravasou';
@@ -258,7 +275,7 @@ try {
 
         } else {
             // Lógica padrão para outros tipos de medidor
-            
+
             // Validação específica
             if ($novoValor === null) {
                 throw new Exception('Novo valor é obrigatório');
@@ -277,8 +294,8 @@ try {
             $totalInseridos = 0;
 
             foreach ($horas as $hora) {
-                $hora = (int)$hora;
-                
+                $hora = (int) $hora;
+
                 // 1. Marcar registros existentes na hora como inativos (ID_SITUACAO = 2)
                 $sqlInativar = "UPDATE SIMP.dbo.REGISTRO_VAZAO_PRESSAO 
                                 SET ID_SITUACAO = 2,
@@ -288,7 +305,7 @@ try {
                                   AND CAST(DT_LEITURA AS DATE) = :data
                                   AND DATEPART(HOUR, DT_LEITURA) = :hora
                                   AND ID_SITUACAO = 1";
-                
+
                 $stmtInativar = $pdoSIMP->prepare($sqlInativar);
                 $stmtInativar->execute([
                     ':cdUsuario' => $cdUsuario,
@@ -309,12 +326,12 @@ try {
                                2, 2, 2,
                                :cdUsuarioResp, :cdUsuarioAtu, 
                                GETDATE(), :observacao)";
-                
+
                 $stmtInsert = $pdoSIMP->prepare($sqlInsert);
-                
+
                 for ($minuto = 0; $minuto < 60; $minuto++) {
                     $dtLeitura = sprintf('%s %02d:%02d:00', $data, $hora, $minuto);
-                    
+
                     $stmtInsert->execute([
                         ':cdPonto' => $cdPonto,
                         ':dtLeitura' => $dtLeitura,
@@ -329,21 +346,36 @@ try {
 
             $pdoSIMP->commit();
 
+            // Reprocessar métricas da IA para a data validada (isolado)
+            try {
+                @include_once 'reprocessarMetricas.php';
+                if (function_exists('reprocessarMetricasDiarias')) {
+                    reprocessarMetricasDiarias($pdoSIMP, $data);
+                }
+            } catch (Exception $reprocessEx) {
+            }
+
             // Log (isolado)
             try {
                 @include_once '../logHelper.php';
                 if (function_exists('registrarLog')) {
                     $qtdHoras = count($horas);
-                    $horasTexto = implode(', ', array_map(function($h) { return str_pad($h, 2, '0', STR_PAD_LEFT) . ':00'; }, $horas));
+                    $horasTexto = implode(', ', array_map(function ($h) {
+                        return str_pad($h, 2, '0', STR_PAD_LEFT) . ':00';
+                    }, $horas));
                     $identificador = "$nomePonto - $data";
-                    registrarLog('Validação dos Dados', 'VALIDACAO', 
+                    registrarLog(
+                        'Validação dos Dados',
+                        'VALIDACAO',
                         "Validou dados ($qtdHoras hora(s): $horasTexto). Novo valor: $novoValor. $totalInativados descartados, $totalInseridos inseridos.",
-                        ['cdPonto' => $cdPonto, 'data' => $data, 'horas' => $horas, 'novoValor' => $novoValor, 'coluna' => $coluna, 'identificador' => $identificador]);
+                        ['cdPonto' => $cdPonto, 'data' => $data, 'horas' => $horas, 'novoValor' => $novoValor, 'coluna' => $coluna, 'identificador' => $identificador]
+                    );
                 }
-            } catch (Exception $logEx) {}
+            } catch (Exception $logEx) {
+            }
 
             $qtdHoras = count($horas);
-            $mensagem = $totalInativados > 0 
+            $mensagem = $totalInativados > 0
                 ? "Dados validados com sucesso! {$totalInativados} registros inativados e {$totalInseridos} novos registros criados em {$qtdHoras} hora(s)."
                 : "Dados inseridos com sucesso! {$totalInseridos} novos registros criados em {$qtdHoras} hora(s).";
 
@@ -379,10 +411,15 @@ try {
     try {
         @include_once '../logHelper.php';
         if (function_exists('registrarLogErro')) {
-            registrarLogErro('Validação dos Dados', 'VALIDACAO', $e->getMessage(), 
-                ['cdPonto' => $cdPonto ?? null, 'data' => $data ?? null, 'horas' => $horas ?? []]);
+            registrarLogErro(
+                'Validação dos Dados',
+                'VALIDACAO',
+                $e->getMessage(),
+                ['cdPonto' => $cdPonto ?? null, 'data' => $data ?? null, 'horas' => $horas ?? []]
+            );
         }
-    } catch (Exception $logEx) {}
+    } catch (Exception $logEx) {
+    }
 
     echo json_encode([
         'success' => false,
