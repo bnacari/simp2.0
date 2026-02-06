@@ -869,6 +869,11 @@ $dsObservacao = isset($pm['DS_OBSERVACAO']) ? trim($pm['DS_OBSERVACAO']) : '';
                 </div>
             </div>
             <div class="header-actions">
+                <a href="operacoes.php?ponto=<?= $id ?>&mes=<?= date('n') ?>&ano=<?= date('Y') ?>" class="btn-header"
+                    title="Ver dados de medição deste ponto">
+                    <ion-icon name="stats-chart-outline"></ion-icon>
+                    Operações
+                </a>
                 <a href="pontoMedicao.php" class="btn-header">
                     <ion-icon name="arrow-back-outline"></ion-icon>
                     Voltar

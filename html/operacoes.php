@@ -748,6 +748,14 @@ $letrasTipoMedidor = [
                 abrirValidacaoPorParametros(paramCdPontoValidacao, paramDataValidacao);
             }, 500);
         }
+        // Se apenas o ponto de medição foi passado (navegação do Cadastro/View)
+        else if (paramPonto) {
+            setTimeout(() => {
+                buscarEPreencherPontoAutocomplete(paramPonto, function (pontoInfo) {
+                    buscarDados();
+                });
+            }, 300);
+        }
     });
 
     // ============================================

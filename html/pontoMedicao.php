@@ -58,10 +58,10 @@ $tiposLeitura = [
                 </div>
             </div>
             <?php if ($podeEditar): ?>
-            <a href="pontoMedicaoForm.php" class="btn-novo">
-                <ion-icon name="add-outline"></ion-icon>
-                Novo Ponto
-            </a>
+                <a href="pontoMedicaoForm.php" class="btn-novo">
+                    <ion-icon name="add-outline"></ion-icon>
+                    Novo Ponto
+                </a>
             <?php endif; ?>
         </div>
     </div>
@@ -159,10 +159,8 @@ $tiposLeitura = [
                 </label>
                 <div class="input-search-wrapper">
                     <ion-icon name="search-outline" class="input-search-icon"></ion-icon>
-                    <input type="text" 
-                           id="inputBusca" 
-                           class="form-control input-search" 
-                           placeholder="Buscar por nome, código...">
+                    <input type="text" id="inputBusca" class="form-control input-search"
+                        placeholder="Buscar por nome, código...">
                     <button type="button" class="btn-search-clear" onclick="limparBusca()" style="display: none;">
                         <ion-icon name="close-circle"></ion-icon>
                     </button>
@@ -281,7 +279,7 @@ $tiposLeitura = [
     let autocompletePontoTimeout = null;
     let autocompletePontoIndex = -1;
 
-    $(document).ready(function() {
+    $(document).ready(function () {
         // Inicializa Select2
         $('.select2-unidade').select2({
             width: '100%',
@@ -301,27 +299,27 @@ $tiposLeitura = [
         });
 
         // Eventos
-        $('#selectUnidade').on('change', function() {
+        $('#selectUnidade').on('change', function () {
             const cdUnidade = $(this).val();
             carregarLocalidades(cdUnidade);
             buscarPontosMedicao(1);
         });
 
-        $('#selectLocalidade').on('change', function() {
+        $('#selectLocalidade').on('change', function () {
             buscarPontosMedicao(1);
         });
 
-        $('#selectTipoMedidor, #selectTipoLeitura').on('change', function() {
+        $('#selectTipoMedidor, #selectTipoLeitura').on('change', function () {
             buscarPontosMedicao(1);
         });
 
-        $('input[name="status"]').on('change', function() {
+        $('input[name="status"]').on('change', function () {
             buscarPontosMedicao(1);
         });
 
         // Busca com debounce
         let searchTimeout;
-        $('#inputBusca').on('input', function() {
+        $('#inputBusca').on('input', function () {
             clearTimeout(searchTimeout);
             const valor = $(this).val();
             $('.btn-search-clear').toggle(valor.length > 0);
@@ -329,7 +327,7 @@ $tiposLeitura = [
         });
 
         // Ordenacao
-        $('.data-table th.sortable').on('click', function() {
+        $('.data-table th.sortable').on('click', function () {
             const coluna = $(this).data('column');
             if (colunaOrdenacao === coluna) {
                 direcaoOrdenacao = direcaoOrdenacao === 'ASC' ? 'DESC' : 'ASC';
@@ -337,10 +335,10 @@ $tiposLeitura = [
                 colunaOrdenacao = coluna;
                 direcaoOrdenacao = 'ASC';
             }
-            
+
             $('.data-table th.sortable').removeClass('asc desc');
             $(this).addClass(direcaoOrdenacao.toLowerCase());
-            
+
             buscarPontosMedicao(paginaAtual);
         });
 
@@ -357,13 +355,13 @@ $tiposLeitura = [
         const dropdown = document.getElementById('filtroPontoMedicaoDropdown');
         const btnLimpar = document.getElementById('btnLimparPonto');
 
-        input.addEventListener('focus', function() {
+        input.addEventListener('focus', function () {
             if (!hidden.value) {
                 buscarPontosMedicaoAutocomplete('');
             }
         });
 
-        input.addEventListener('input', function() {
+        input.addEventListener('input', function () {
             const termo = this.value.trim();
             hidden.value = '';
             btnLimpar.style.display = 'none';
@@ -375,7 +373,7 @@ $tiposLeitura = [
             }, 300);
         });
 
-        input.addEventListener('keydown', function(e) {
+        input.addEventListener('keydown', function (e) {
             const items = dropdown.querySelectorAll('.autocomplete-item');
 
             if (e.key === 'ArrowDown') {
@@ -396,13 +394,13 @@ $tiposLeitura = [
             }
         });
 
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             if (!e.target.closest('.autocomplete-container')) {
                 dropdown.classList.remove('active');
             }
         });
 
-        btnLimpar.addEventListener('click', function() {
+        btnLimpar.addEventListener('click', function () {
             input.value = '';
             hidden.value = '';
             btnLimpar.style.display = 'none';
@@ -458,7 +456,7 @@ $tiposLeitura = [
                     dropdown.innerHTML = html;
 
                     dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
-                        item.addEventListener('click', function() {
+                        item.addEventListener('click', function () {
                             selecionarPontoMedicaoAutocomplete(this.dataset.value, this.dataset.label);
                         });
                     });
@@ -482,7 +480,7 @@ $tiposLeitura = [
         hidden.value = value;
         dropdown.classList.remove('active');
         btnLimpar.style.display = 'flex';
-        
+
         buscarPontosMedicao(1);
     }
 
@@ -491,7 +489,7 @@ $tiposLeitura = [
     // ============================================
     function carregarLocalidades(cdUnidade) {
         const $select = $('#selectLocalidade');
-        
+
         if (!cdUnidade) {
             $select.prop('disabled', true);
             $select.empty().append('<option value="">Selecione uma Unidade primeiro</option>');
@@ -501,15 +499,15 @@ $tiposLeitura = [
         $select.prop('disabled', false);
         $select.empty().append('<option value="">Carregando...</option>');
 
-        $.get('bd/pontoMedicao/getLocalidades.php', { cd_unidade: cdUnidade }, function(response) {
+        $.get('bd/pontoMedicao/getLocalidades.php', { cd_unidade: cdUnidade }, function (response) {
             $select.empty().append('<option value="">Todas as Localidades</option>');
-            
+
             if (response.success && response.data.length > 0) {
-                response.data.forEach(function(item) {
+                response.data.forEach(function (item) {
                     $select.append(`<option value="${item.CD_CHAVE}">${item.CD_LOCALIDADE} - ${item.DS_NOME}</option>`);
                 });
             }
-        }, 'json').fail(function() {
+        }, 'json').fail(function () {
             $select.empty().append('<option value="">Erro ao carregar</option>');
             showToast('Erro ao carregar localidades', 'erro');
         });
@@ -528,7 +526,7 @@ $tiposLeitura = [
         const status = $('input[name="status"]:checked').val() || '';
 
         const temFiltro = cdUnidade !== '' || cdLocalidade !== '' || cdPontoMedicao !== '' ||
-                          tipoMedidor !== '' || tipoLeitura !== '' || busca !== '' || status !== '';
+            tipoMedidor !== '' || tipoLeitura !== '' || busca !== '' || status !== '';
 
         if (!temFiltro) {
             dadosTabela = [];
@@ -573,24 +571,24 @@ $tiposLeitura = [
                 direcao_ordenacao: direcaoOrdenacao
             },
             dataType: 'json',
-            success: function(response) {
+            success: function (response) {
                 $('#loadingOverlay').removeClass('active');
-                
+
                 if (response.success) {
                     dadosTabela = response.data;
                     totalRegistros = response.total;
                     totalPaginas = Math.ceil(totalRegistros / registrosPorPagina);
-                    
+
                     renderizarTabela();
                     renderizarPaginacao();
-                    
+
                     $('#resultsCount').text(totalRegistros);
                     $('#paginationContainer').toggle(totalPaginas > 1);
                 } else {
                     showToast(response.message || 'Erro ao buscar dados', 'erro');
                 }
             },
-            error: function() {
+            error: function () {
                 $('#loadingOverlay').removeClass('active');
                 showToast('Erro ao comunicar com o servidor', 'erro');
             }
@@ -619,15 +617,15 @@ $tiposLeitura = [
         }
 
         let html = '';
-        dadosTabela.forEach(function(item) {
+        dadosTabela.forEach(function (item) {
             const isAtivo = item.OP_SITUACAO == 1;
             const statusClass = isAtivo ? 'badge-ativo' : 'badge-inativo';
             const statusText = isAtivo ? 'Ativo' : 'Inativo';
-            
+
             // Classes de cor baseadas no ID do tipo
             const tipoMedidorClass = item.ID_TIPO_MEDIDOR ? `badge-tipo-${item.ID_TIPO_MEDIDOR}` : 'badge-tipo';
             const tipoLeituraClass = item.ID_TIPO_LEITURA ? `badge-leitura-${item.ID_TIPO_LEITURA}` : 'badge-leitura';
-            
+
             html += `
                 <tr>
                     <td class="truncate" title="${item.DS_UNIDADE || ''}">${item.DS_UNIDADE || '-'}</td>
@@ -640,8 +638,11 @@ $tiposLeitura = [
                     <td><span class="badge ${statusClass}">${statusText}</span></td>
                     <td>
                         <div class="table-actions">
-                            <button type="button" class="btn-action" onclick="visualizar(${item.CD_PONTO_MEDICAO})" title="Visualizar">
+                             <button type="button" class="btn-action" onclick="visualizar(${item.CD_PONTO_MEDICAO})" title="Visualizar">
                                 <ion-icon name="eye-outline"></ion-icon>
+                            </button>
+                            <button type="button" class="btn-action" onclick="abrirOperacoes(${item.CD_PONTO_MEDICAO})" title="Operações" style="background: #f0fdf4; color: #16a34a;">
+                                <ion-icon name="stats-chart-outline"></ion-icon>
                             </button>
                             ${podeEditar ? `
                             <button type="button" class="btn-action" onclick="editar(${item.CD_PONTO_MEDICAO})" title="Editar">
@@ -674,20 +675,26 @@ $tiposLeitura = [
         window.location.href = `pontoMedicaoView.php?id=${id}`;
     }
 
+    function abrirOperacoes(id) {
+        const mes = new Date().getMonth() + 1;
+        const ano = new Date().getFullYear();
+        window.location.href = `operacoes.php?ponto=${id}&mes=${mes}&ano=${ano}`;
+    }
+
     function editar(id) {
         window.location.href = `pontoMedicaoForm.php?id=${id}`;
     }
 
     function desativar(id) {
         if (confirm('Tem certeza que deseja desativar este ponto de medição?')) {
-            $.post('bd/pontoMedicao/excluirPontoMedicao.php', { cd_ponto_medicao: id }, function(response) {
+            $.post('bd/pontoMedicao/excluirPontoMedicao.php', { cd_ponto_medicao: id }, function (response) {
                 if (response.success) {
                     showToast(response.message || 'Ponto desativado com sucesso', 'sucesso');
                     buscarPontosMedicao(paginaAtual);
                 } else {
                     showToast(response.message || 'Erro ao desativar', 'erro');
                 }
-            }, 'json').fail(function() {
+            }, 'json').fail(function () {
                 showToast('Erro ao comunicar com o servidor', 'erro');
             });
         }
@@ -695,14 +702,14 @@ $tiposLeitura = [
 
     function ativar(id) {
         if (confirm('Deseja reativar este ponto de medição?')) {
-            $.post('bd/pontoMedicao/ativarPontoMedicao.php', { cd_ponto_medicao: id }, function(response) {
+            $.post('bd/pontoMedicao/ativarPontoMedicao.php', { cd_ponto_medicao: id }, function (response) {
                 if (response.success) {
                     showToast(response.message || 'Ponto ativado com sucesso', 'sucesso');
                     buscarPontosMedicao(paginaAtual);
                 } else {
                     showToast(response.message || 'Erro ao ativar', 'erro');
                 }
-            }, 'json').fail(function() {
+            }, 'json').fail(function () {
                 showToast('Erro ao comunicar com o servidor', 'erro');
             });
         }
@@ -718,7 +725,7 @@ $tiposLeitura = [
         }
 
         let html = '';
-        
+
         html += `<button type="button" class="btn-page ${paginaAtual === 1 ? 'disabled' : ''}" 
                   onclick="irParaPagina(${paginaAtual - 1})" ${paginaAtual === 1 ? 'disabled' : ''}>
                     <ion-icon name="chevron-back-outline"></ion-icon>
@@ -752,7 +759,7 @@ $tiposLeitura = [
                 </button>`;
 
         $('#pagination').html(html);
-        
+
         const inicio_registro = ((paginaAtual - 1) * registrosPorPagina) + 1;
         const fim_registro = Math.min(paginaAtual * registrosPorPagina, totalRegistros);
         $('#pageInfo').text(`Exibindo ${inicio_registro} - ${fim_registro} de ${totalRegistros}`);
@@ -775,7 +782,7 @@ $tiposLeitura = [
         $('#inputBusca').val('');
         $('.btn-search-clear').hide();
         $('input[name="status"][value="1"]').prop('checked', true);
-        
+
         // Limpar autocomplete de ponto
         document.getElementById('filtroPontoMedicaoInput').value = '';
         document.getElementById('filtroPontoMedicao').value = '';
