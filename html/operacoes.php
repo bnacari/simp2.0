@@ -5930,7 +5930,7 @@ $letrasTipoMedidor = [
         if (indicador) {
             indicador.innerHTML = `
                 <ion-icon name="pulse-outline"></ion-icon>
-                <span>Telemetria CCO: <strong>${tagName}</strong> (${totalRegistros} registros hoje)</span>
+                <span>Telemetria CCO: <strong>${tagName}</strong> </span>
             `;
             indicador.style.display = 'flex';
         }

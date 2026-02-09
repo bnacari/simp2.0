@@ -629,20 +629,20 @@ try {
                     <div class="form-group">
                         <label class="form-label">
                             <ion-icon name="finger-print-outline"></ion-icon>
-                            ID Externo <span class="required">*</span>
+                            Identificador <span class="required">*</span>
                         </label>
                         <input type="text" name="idExterno" id="inputTipoId" class="form-control"
                             placeholder="Identificador externo" required>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="display: none;">
                         <label class="form-label">
                             <ion-icon name="swap-horizontal-outline"></ion-icon>
                             Descarte
                         </label>
                         <div class="radio-group-inline">
-                            <input type="radio" name="descarte" id="descarteNao" value="0" checked>
+                            <input type="radio" name="descarte" id="descarteNao" value="0">
                             <label for="descarteNao">Não</label>
-                            <input type="radio" name="descarte" id="descarteSim" value="1">
+                            <input type="radio" name="descarte" id="descarteSim" value="1" checked>
                             <label for="descarteSim">Sim</label>
                         </div>
                     </div>
