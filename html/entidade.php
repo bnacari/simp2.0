@@ -283,7 +283,7 @@ try {
                 <ion-icon name="close-circle"></ion-icon>
             </button>
         </div>
-        <div class="filtro-descarte">
+        <!-- <div class="filtro-descarte">
             <span class="filtro-label">Descarte:</span>
             <div class="radio-group-filtro">
                 <label class="radio-filtro">
@@ -299,7 +299,7 @@ try {
                     <span>Não</span>
                 </label>
             </div>
-        </div>
+        </div> -->
         <div class="filtro-favoritos">
             <span class="filtro-label">Favoritos:</span>
             <div class="radio-group-filtro">
@@ -360,9 +360,6 @@ try {
                         <div class="tipo-info">
                             <h3>
                                 <?= htmlspecialchars($tipo['nome']) ?>
-                                <?php if ($tipo['descarte']): ?>
-                                    <span class="status-badge descarte">Descarte</span>
-                                <?php endif; ?>
                                 <?php if ($isInativo): ?>
                                     <span class="status-badge inativo">Inativo</span>
                                 <?php endif; ?>
