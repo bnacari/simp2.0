@@ -378,7 +378,7 @@ try {
                                     title="Adicionar Unidade Operacional">
                                     <ion-icon name="add-outline"></ion-icon>
                                 </button>
-                                <button class="btn-action"
+                                <button class="btn-action edit"
                                     onclick="abrirModalTipo(<?= $tipo['cd'] ?>, <?= htmlspecialchars(json_encode($tipo['nome']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($tipo['id'] ?? ''), ENT_QUOTES) ?>, <?= $tipo['descarte'] ? '1' : '0' ?>)"
                                     title="Editar">
                                     <ion-icon name="pencil-outline"></ion-icon>
@@ -391,7 +391,7 @@ try {
                                 <?php else: ?>
                                     <button class="btn-action delete" onclick="alterarStatusTipo(<?= $tipo['cd'] ?>, 'desativar')"
                                         title="Desativar">
-                                        <ion-icon name="close-circle-outline"></ion-icon>
+                                        <ion-icon name="trash-outline"></ion-icon>
                                     </button>
                                 <?php endif; ?>
                             </div>
@@ -460,7 +460,7 @@ try {
                                                     title="Vincular Ponto">
                                                     <ion-icon name="add-outline"></ion-icon>
                                                 </button>
-                                                <button class="btn-action"
+                                                <button class="btn-action edit"
                                                     onclick="abrirModalValor(<?= $valor['cd'] ?>, <?= htmlspecialchars(json_encode($valor['nome']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($valor['id'] ?? ''), ENT_QUOTES) ?>, <?= $tipo['cd'] ?>, '<?= $valor['fluxo'] ?? '' ?>')"
                                                     title="Editar">
                                                     <ion-icon name="pencil-outline"></ion-icon>
