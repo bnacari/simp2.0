@@ -1432,7 +1432,7 @@ if (isset($_SESSION['msg'])) {
                     <a href="motorBomba.php" class="sidebar-link <?= $paginaAtual === 'motorBomba' ? 'active' : '' ?>"
                         data-title="Motor-Bomba">
                         <ion-icon name="cog-outline"></ion-icon>
-                        <span class="sidebar-link-text">Motor-Bomba</span>
+                        <span class="sidebar-link-text">Motobomba</span>
                     </a>
                 </li>
                 <li class="sidebar-item">
