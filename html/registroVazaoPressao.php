@@ -1343,10 +1343,10 @@ $descartes = [
                         <div class="aviso-critico">
                             <ion-icon name="alert-outline"></ion-icon>
                             <div>
-                                <p><strong>âš ï¸ Importante:</strong> O resultado dependerá do status de cada registro:</p>
+                                <p><strong>-> Importante:</strong> O resultado dependerá do status de cada registro:</p>
                                 <ul style="margin-top: 8px; margin-left: 20px;">
-                                    <li><strong>Se Ativo (1):</strong> Será marcado como descartado (2) â†’ RECUPERÁVEL</li>
-                                    <li><strong>Se Descartado (2):</strong> Será removido do banco â†’ IRREVERSÍVEL</li>
+                                    <li><strong>Se Ativo (1):</strong> Será marcado como descartado (2) -> RECUPERÁVEL</li>
+                                    <li><strong>Se Descartado (2):</strong> Será removido do banco -> IRREVERSÍVEL</li>
                                 </ul>
                             </div>
                         </div>

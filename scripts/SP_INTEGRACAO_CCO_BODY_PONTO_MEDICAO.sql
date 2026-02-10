@@ -1,5 +1,10 @@
 USE [SIMP]
 GO
+/****** Object:  StoredProcedure [dbo].[SP_INTEGRACAO_CCO_BODY_PONTO_MEDICAO]    Script Date: 09/02/2026 11:01:22 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 
 ALTER PROCEDURE [dbo].[SP_INTEGRACAO_CCO_BODY_PONTO_MEDICAO]
 (
@@ -164,7 +169,7 @@ BEGIN TRY
             ;WITH RegistroVolume AS (
                 SELECT
                     h.datetime,
-                    CAST(h.vvalue AS NUMERIC(25,16)) as vvalue,
+					TRY_CAST(h.vvalue AS NUMERIC(25,16)) as vvalue,
                     ROW_NUMBER() OVER (ORDER BY h.datetime) as RowNum
                 FROM [HISTORIADOR_CCO].[Runtime].[dbo].HISTORY h
                 WHERE h.datetime >= @dtInicial
@@ -172,6 +177,8 @@ BEGIN TRY
                     AND h.TagName = @dsTag
                     AND h.wwCycleCount = @qtCycles
                     AND h.wwRetrievalMode = 'Cyclic'
+					AND h.vvalue IS NOT NULL 
+					AND ISNUMERIC(h.vvalue) = 1
                     AND h.wwVersion = 'Latest'
             )
             INSERT INTO #registro_vazao_pressao (CD_PONTO_MEDICAO, CD_TAG, DS_TAG, DT_LEITURA, vvalue)
@@ -195,14 +202,15 @@ BEGIN TRY
                 @cdTag,
                 @dsTag,
                 h.datetime,
-                CAST(h.vvalue AS NUMERIC(25,16))
-            FROM [HISTORIADOR_CCO].[Runtime].[dbo].HISTORY h
+				TRY_CAST(h.vvalue AS NUMERIC(25,16))		
+				FROM [HISTORIADOR_CCO].[Runtime].[dbo].HISTORY h
             WHERE h.datetime >= @dtInicial
                 AND h.datetime <= @dtFinal
                 AND h.TagName = @dsTag
                 AND h.wwCycleCount = @qtCycles
                 AND h.wwRetrievalMode = 'Cyclic'
                 AND h.wwVersion = 'Latest'
+				AND ISNUMERIC(h.vvalue) = 1
                 AND h.vvalue IS NOT NULL;
         END
 
@@ -339,6 +347,7 @@ BEGIN CATCH
     PRINT 'ERRO: ' + @sp_msg_erro;
     RETURN -1;
 END CATCH
+
 
 
 

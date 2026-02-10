@@ -16,7 +16,7 @@ file_put_contents($debugLog, print_r($debugData, true) . "\n" . str_repeat('-', 
 
 // Capturar erros
 $errors = [];
-set_error_handler(function($errno, $errstr, $errfile, $errline) use (&$errors) {
+set_error_handler(function ($errno, $errstr, $errfile, $errline) use (&$errors) {
     $errors[] = "[$errno] $errstr em $errfile:$errline";
     return true;
 });
@@ -35,9 +35,9 @@ try {
         throw new Exception('Método não permitido');
     }
 
-    $cdPontoMedicao = isset($_POST['cd_ponto_medicao']) && $_POST['cd_ponto_medicao'] !== '' ? (int)$_POST['cd_ponto_medicao'] : null;
-    $idTipoMedidor = isset($_POST['id_tipo_medidor']) && $_POST['id_tipo_medidor'] !== '' ? (int)$_POST['id_tipo_medidor'] : null;
-    $cdChave = isset($_POST['cd_chave']) && $_POST['cd_chave'] !== '' ? (int)$_POST['cd_chave'] : null;
+    $cdPontoMedicao = isset($_POST['cd_ponto_medicao']) && $_POST['cd_ponto_medicao'] !== '' ? (int) $_POST['cd_ponto_medicao'] : null;
+    $idTipoMedidor = isset($_POST['id_tipo_medidor']) && $_POST['id_tipo_medidor'] !== '' ? (int) $_POST['id_tipo_medidor'] : null;
+    $cdChave = isset($_POST['cd_chave']) && $_POST['cd_chave'] !== '' ? (int) $_POST['cd_chave'] : null;
 
     // DEBUG
     file_put_contents($debugLog, "cdPontoMedicao: $cdPontoMedicao, idTipoMedidor: $idTipoMedidor, cdChave: $cdChave\n", FILE_APPEND);
@@ -54,22 +54,26 @@ try {
     if (!defined('CAMPO_VAZIO')) {
         define('CAMPO_VAZIO', '__CAMPO_VAZIO__');
     }
-    
+
     // Função auxiliar para obter valor do POST
     // Retorna CAMPO_VAZIO se enviado vazio, null se não enviado, ou o valor
-    function getPost($key, $default = null) {
+    function getPost($key, $default = null)
+    {
         if (!isset($_POST[$key])) {
             return $default; // Campo não enviado
         }
-        if ($_POST[$key] === '') {
+        $valor = is_string($_POST[$key]) ? trim($_POST[$key]) : $_POST[$key];
+        if ($valor === '') {
             return CAMPO_VAZIO; // Campo enviado vazio
         }
-        return $_POST[$key]; // Campo com valor
+        return $valor; // Campo com valor (já sem espaços)
     }
 
     // Função para formatar data
-    function formatDate($date) {
-        if (empty($date) || $date === CAMPO_VAZIO) return null;
+    function formatDate($date)
+    {
+        if (empty($date) || $date === CAMPO_VAZIO)
+            return null;
         return date('Y-m-d', strtotime($date));
     }
 
@@ -77,7 +81,7 @@ try {
     $tabela = '';
     $campos = [];
     $defaultsNotNull = []; // Defaults para campos NOT NULL (usados apenas no INSERT)
-    
+
     switch ($idTipoMedidor) {
         case 1: // Macromedidor
             $tabela = 'MACROMEDIDOR';
@@ -111,7 +115,7 @@ try {
                 'CD_ESTACAO_PITOMETRICA' => getPost('cd_estacao_pitometrica')
             ];
             break;
-            
+
         case 2: // Estação Pitométrica
             $tabela = 'ESTACAO_PITOMETRICA';
             $defaultsNotNull = ['VL_COTA_GEOGRAFICA' => 0, 'VL_DIAMETRO' => 0, 'TP_PERIODICIDADE_LEVANTAMENTO' => 1];
@@ -126,7 +130,7 @@ try {
                 'VL_DIAMETRO_REDE' => getPost('vl_diametro_rede')
             ];
             break;
-            
+
         case 4: // Medidor Pressão
             $tabela = 'MEDIDOR_PRESSAO';
             $defaultsNotNull = []; // Nenhum campo NOT NULL além de CD_PONTO_MEDICAO
@@ -144,13 +148,13 @@ try {
                 'DS_COORDENADAS' => getPost('ds_coordenadas')
             ];
             break;
-            
+
         case 6: // Nível Reservatório
             $tabela = 'NIVEL_RESERVATORIO';
             $defaultsNotNull = [
-                'CD_TIPO_MEDIDOR' => 1, 
-                'DT_INSTALACAO' => date('Y-m-d'), 
-                'ID_PRODUTO' => 1, 
+                'CD_TIPO_MEDIDOR' => 1,
+                'DT_INSTALACAO' => date('Y-m-d'),
+                'ID_PRODUTO' => 1,
                 'CD_TIPO_RESERVATORIO' => 1
             ];
             $campos = [
@@ -178,7 +182,7 @@ try {
                 'VL_COTA' => getPost('vl_cota')
             ];
             break;
-            
+
         case 8: // Hidrômetro
             $tabela = 'HIDROMETRO';
             $defaultsNotNull = ['ID_TEMPO_OPERACAO' => 1, 'VL_LEITURA_LIMITE' => 0];
@@ -198,7 +202,7 @@ try {
                 'VL_MULTIPLICADOR' => getPost('vl_multiplicador')
             ];
             break;
-            
+
         default:
             throw new Exception('Tipo de medidor não suportado: ' . $idTipoMedidor);
     }
@@ -214,7 +218,7 @@ try {
         // null = campo não enviado (preservar valor existente)
         // CAMPO_VAZIO = campo enviado vazio (limpar no banco, setar NULL - exceto campos NOT NULL)
         // valor = campo com valor (atualizar)
-        
+
         // Campos NOT NULL que não podem ser setados como NULL no UPDATE
         $camposNotNull = [
             'MACROMEDIDOR' => ['CD_TIPO_MEDIDOR', 'VL_DIAMETRO', 'ID_PRODUTO'],
@@ -224,18 +228,19 @@ try {
             'MEDIDOR_PRESSAO' => []
         ];
         $notNullFields = $camposNotNull[$tabela] ?? [];
-        
+
         $setClauses = [];
         $params = [];
-        
+
         foreach ($campos as $campo => $valor) {
-            if ($campo === 'CD_PONTO_MEDICAO') continue; // Nunca atualizar PK
-            
+            if ($campo === 'CD_PONTO_MEDICAO')
+                continue; // Nunca atualizar PK
+
             if ($valor === null) {
                 // Campo não foi enviado - preservar valor existente
                 continue;
             }
-            
+
             if ($valor === CAMPO_VAZIO) {
                 // Campo foi enviado vazio
                 if (in_array($campo, $notNullFields)) {
@@ -250,7 +255,7 @@ try {
                 $params[] = $valor;
             }
         }
-        
+
         if (empty($setClauses)) {
             echo json_encode([
                 'success' => true,
@@ -258,18 +263,18 @@ try {
             ]);
             exit;
         }
-        
+
         $sql = "UPDATE SIMP.dbo.{$tabela} SET " . implode(', ', $setClauses) . " WHERE CD_CHAVE = ?";
         $params[] = $existe['CD_CHAVE'];
-        
+
         // DEBUG
         file_put_contents($debugLog, "SQL UPDATE: $sql\nParams: " . print_r($params, true) . "\n", FILE_APPEND);
-        
+
         $stmt = $pdoSIMP->prepare($sql);
         $stmt->execute($params);
-        
+
         file_put_contents($debugLog, "UPDATE executado! Rows: " . $stmt->rowCount() . "\n", FILE_APPEND);
-        
+
         $msg = 'Dados do medidor atualizados com sucesso!';
     } else {
         // INSERT - Aplicar defaults para campos NOT NULL que não foram preenchidos
@@ -278,30 +283,30 @@ try {
                 $campos[$campo] = $valorDefault;
             }
         }
-        
+
         // Filtra campos NULL e CAMPO_VAZIO
-        $camposFiltrados = array_filter($campos, function($valor) {
+        $camposFiltrados = array_filter($campos, function ($valor) {
             return $valor !== null && $valor !== CAMPO_VAZIO;
         });
-        
+
         $colunas = array_keys($camposFiltrados);
         $placeholders = array_fill(0, count($colunas), '?');
         $params = array_values($camposFiltrados);
-        
+
         $sql = "INSERT INTO SIMP.dbo.{$tabela} (" . implode(', ', $colunas) . ") VALUES (" . implode(', ', $placeholders) . ")";
-        
+
         // DEBUG
         file_put_contents($debugLog, "SQL INSERT: $sql\nParams: " . print_r($params, true) . "\n", FILE_APPEND);
-        
+
         $stmt = $pdoSIMP->prepare($sql);
         $stmt->execute($params);
-        
+
         // Pegar ID inserido
         $stmtId = $pdoSIMP->query("SELECT SCOPE_IDENTITY() AS ID");
         $newId = $stmtId->fetch(PDO::FETCH_ASSOC)['ID'];
-        
+
         file_put_contents($debugLog, "INSERT executado! ID: $newId\n", FILE_APPEND);
-        
+
         $msg = 'Dados do medidor cadastrados com sucesso!';
     }
 
@@ -309,21 +314,21 @@ try {
         'success' => true,
         'message' => $msg
     ];
-    
+
     if (!empty($errors)) {
         $response['warnings'] = $errors;
     }
-    
+
     file_put_contents($debugLog, "SUCESSO!\n" . str_repeat('=', 50) . "\n", FILE_APPEND);
-    
+
     echo json_encode($response);
 
 } catch (PDOException $e) {
     file_put_contents($debugLog, "PDO ERROR: " . $e->getMessage() . "\nCode: " . $e->getCode() . "\n", FILE_APPEND);
-    
+
     // Traduzir erros comuns do SQL Server
     $mensagem = $e->getMessage();
-    
+
     // FK violation
     if (strpos($mensagem, 'FOREIGN KEY constraint') !== false) {
         if (strpos($mensagem, 'TIPO_MEDIDOR') !== false) {
@@ -340,7 +345,7 @@ try {
         $campo = $matches[1] ?? 'desconhecido';
         $mensagem = "Campo obrigatório não preenchido: $campo";
     }
-    
+
     echo json_encode([
         'success' => false,
         'message' => 'Erro ao salvar: ' . $mensagem,
@@ -348,7 +353,7 @@ try {
     ]);
 } catch (Exception $e) {
     file_put_contents($debugLog, "EXCEPTION: " . $e->getMessage() . "\n", FILE_APPEND);
-    
+
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()

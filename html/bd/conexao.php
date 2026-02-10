@@ -29,5 +29,5 @@ if ($ambienteForcado === 'HOMOLOGAÇÃO') {
 }
 
 $utf8 = header('Content-Type: text/html; charset=utf-8');
-$pdoSIMP = new PDO("sqlsrv:server=$serverName;Database=$database", $uid, $pwd);
+$pdoSIMP = new PDO("sqlsrv:server=$serverName;Database=$database;TrustServerCertificate=yes", $uid, $pwd);
 ?>

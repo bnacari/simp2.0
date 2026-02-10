@@ -2,47 +2,81 @@
 /**
  * getDadosHistoriador.php
  * 
- * Busca dados de telemetria do Historiador CCO para um ponto de medição
- * Retorna valores da HORA ANTERIOR e HORA ATUAL com média (AVG) para o gráfico
- * traçar uma linha com 2 pontos. Horas passadas já possuem dados no SIMP via integração CCO.
+ * Busca dados de telemetria do Historiador CCO para um ponto de medição.
+ * Retorna médias da HORA ANTERIOR e HORA ATUAL para o gráfico de validação.
  * 
- * ALTERADO: Antes buscava 1440 registros (dia inteiro), agora busca 120 (2 horas)
- * e calcula a média com AVG. Horas passadas já possuem dados no SIMP via integração CCO.
+ * CORREÇÕES:
+ *   - Query SIMPLES sem wwRetrievalMode/Cyclic (retorna null neste ambiente)
+ *   - Sem JOIN com tabela Tag (desnecessário, só History basta)
+ *   - Query direta com quote() (linked server não funciona com prepared statements)
+ *   - Filtra registros com vValue null (sensor offline)
+ *   - Agrupa por hora e calcula AVG no PHP
+ *   - Compatível com PHP 8.3+
  * 
  * Parâmetros:
  *   cdPonto - Código do ponto de medição
- *   data    - Data no formato YYYY-MM-DD
+ *   data    - Data no formato YYYY-MM-DD (default: hoje)
  * 
  * @author SIMP - Sistema Integrado de Macromedição e Pitometria
  */
 
+// Output buffering para capturar saídas indesejadas
+ob_start();
+
 header('Content-Type: application/json; charset=utf-8');
 
-// Iniciar sessão se não estiver iniciada
+// PHP 8.3: capturar erros fatais
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        if (ob_get_level() > 0) { ob_end_clean(); }
+        if (!headers_sent()) { header('Content-Type: application/json; charset=utf-8'); }
+        echo json_encode([
+            'success' => false,
+            'erro' => 'Erro fatal no servidor: ' . $error['message']
+        ]);
+    }
+});
+
+set_error_handler(function(int $errno, string $errstr, string $errfile, int $errline): bool {
+    return true;
+});
+
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Incluir conexão com banco SIMP
 require_once __DIR__ . '/../conexao.php';
 
+// conexao.php sobrescreve Content-Type
+if (!headers_sent()) {
+    header('Content-Type: application/json; charset=utf-8');
+}
+
 try {
-    // Validar parâmetros
-    $cdPonto = isset($_GET['cdPonto']) ? (int)$_GET['cdPonto'] : 0;
-    $data = isset($_GET['data']) ? trim($_GET['data']) : '';
+    if (!isset($pdoSIMP) || !($pdoSIMP instanceof PDO)) {
+        throw new Exception('Conexão com banco de dados não estabelecida');
+    }
+
+    // Validar parâmetros (data default = hoje)
+    $cdPonto = (int)($_GET['cdPonto'] ?? 0);
+    $data = trim((string)($_GET['data'] ?? date('Y-m-d')));
     
     if ($cdPonto <= 0) {
         throw new Exception('Código do ponto de medição inválido');
     }
     
-    if (empty($data) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $data)) {
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $data)) {
         throw new Exception('Data inválida');
     }
     
     // Verificar se é o dia atual
     $dataAtual = date('Y-m-d');
     if ($data !== $dataAtual) {
-        // Não é o dia atual, retornar vazio (não buscar historiador)
+        if (ob_get_level() > 0) { ob_end_clean(); }
         echo json_encode([
             'success' => true,
             'is_dia_atual' => false,
@@ -52,15 +86,12 @@ try {
         exit;
     }
     
-    // Buscar a TAG do ponto de medição no SIMP
+    // ========================================
+    // BUSCAR TAG DO PONTO (consulta local — prepared statement OK)
+    // ========================================
     $sqlTag = "SELECT 
-                    CD_PONTO_MEDICAO,
-                    DS_NOME,
-                    ID_TIPO_MEDIDOR,
-                    DS_TAG_VAZAO,
-                    DS_TAG_PRESSAO,
-                    DS_TAG_VOLUME,
-                    DS_TAG_RESERVATORIO
+                    CD_PONTO_MEDICAO, DS_NOME, ID_TIPO_MEDIDOR,
+                    DS_TAG_VAZAO, DS_TAG_PRESSAO, DS_TAG_VOLUME, DS_TAG_RESERVATORIO
                FROM SIMP.dbo.PONTO_MEDICAO 
                WHERE CD_PONTO_MEDICAO = :cdPonto";
     
@@ -68,41 +99,33 @@ try {
     $stmtTag->execute([':cdPonto' => $cdPonto]);
     $pontoMedicao = $stmtTag->fetch(PDO::FETCH_ASSOC);
     
-    if (!$pontoMedicao) {
+    if (!is_array($pontoMedicao)) {
         throw new Exception('Ponto de medição não encontrado');
     }
     
-    // Determinar qual TAG usar baseado no tipo de medidor
+    // Determinar TAG pelo tipo de medidor
     $tagName = null;
     $tipoTag = null;
+    $tipoMedidor = (int)($pontoMedicao['ID_TIPO_MEDIDOR'] ?? 0);
     
-    $tipoMedidor = (int)$pontoMedicao['ID_TIPO_MEDIDOR'];
-    
-    // Tipos: 1=Macromedidor, 2=Estação Pitométrica, 3=Ponto Pressão, 4=Hidrometro, 5=Volume, 6=Nível Reservatório
     if ($tipoMedidor === 6 && !empty($pontoMedicao['DS_TAG_RESERVATORIO'])) {
-        $tagName = $pontoMedicao['DS_TAG_RESERVATORIO'];
-        $tipoTag = 'reservatorio';
+        $tagName = $pontoMedicao['DS_TAG_RESERVATORIO']; $tipoTag = 'reservatorio';
     } elseif ($tipoMedidor === 3 && !empty($pontoMedicao['DS_TAG_PRESSAO'])) {
-        $tagName = $pontoMedicao['DS_TAG_PRESSAO'];
-        $tipoTag = 'pressao';
+        $tagName = $pontoMedicao['DS_TAG_PRESSAO']; $tipoTag = 'pressao';
     } elseif ($tipoMedidor === 5 && !empty($pontoMedicao['DS_TAG_VOLUME'])) {
-        $tagName = $pontoMedicao['DS_TAG_VOLUME'];
-        $tipoTag = 'volume';
+        $tagName = $pontoMedicao['DS_TAG_VOLUME']; $tipoTag = 'volume';
     } elseif (!empty($pontoMedicao['DS_TAG_VAZAO'])) {
-        $tagName = $pontoMedicao['DS_TAG_VAZAO'];
-        $tipoTag = 'vazao';
+        $tagName = $pontoMedicao['DS_TAG_VAZAO']; $tipoTag = 'vazao';
     } elseif (!empty($pontoMedicao['DS_TAG_RESERVATORIO'])) {
-        $tagName = $pontoMedicao['DS_TAG_RESERVATORIO'];
-        $tipoTag = 'reservatorio';
+        $tagName = $pontoMedicao['DS_TAG_RESERVATORIO']; $tipoTag = 'reservatorio';
     } elseif (!empty($pontoMedicao['DS_TAG_PRESSAO'])) {
-        $tagName = $pontoMedicao['DS_TAG_PRESSAO'];
-        $tipoTag = 'pressao';
+        $tagName = $pontoMedicao['DS_TAG_PRESSAO']; $tipoTag = 'pressao';
     } elseif (!empty($pontoMedicao['DS_TAG_VOLUME'])) {
-        $tagName = $pontoMedicao['DS_TAG_VOLUME'];
-        $tipoTag = 'volume';
+        $tagName = $pontoMedicao['DS_TAG_VOLUME']; $tipoTag = 'volume';
     }
     
     if (empty($tagName)) {
+        if (ob_get_level() > 0) { ob_end_clean(); }
         echo json_encode([
             'success' => true,
             'is_dia_atual' => true,
@@ -115,43 +138,43 @@ try {
     
     // ========================================
     // BUSCAR HORA ANTERIOR + HORA ATUAL DO HISTORIADOR
-    // Traz 2 horas para que o gráfico desenhe um traço (2 pontos)
-    // wwCycleCount = 120 → 1 registro por minuto em 2 horas
+    // 
+    // Query SIMPLES sem wwRetrievalMode/Cyclic — o modo Cyclic retorna
+    // vValue=null neste ambiente do Historian. Query direta na tabela
+    // History com filtro de data/hora funciona corretamente.
+    //
+    // Usa quote() para SQL direto (linked server não funciona com
+    // prepared statements, confirmado no debug).
     // ========================================
     $horaAtual = (int)date('H');
-    $horaAnterior = max(0, $horaAtual - 1); // Não pode ser negativo
+    $horaAnterior = max(0, $horaAtual - 1);
     $dataInicio = sprintf('%s %02d:00:00', $data, $horaAnterior);
     $dataFim = sprintf('%s %02d:59:59', $data, $horaAtual);
     
-    // Calcular wwCycleCount: 120 minutos (2 horas) ou 60 se hora atual for 0
-    $cycleCount = ($horaAtual === 0) ? 60 : 120;
+    // Escapar com quote()
+    $tagNameEsc = $pdoSIMP->quote($tagName);
+    $dataInicioEsc = $pdoSIMP->quote($dataInicio);
+    $dataFimEsc = $pdoSIMP->quote($dataFim);
     
+    // Query simples — sem Cyclic, sem JOIN com Tag
     $sqlHistoriador = "
         SELECT 
-            TagName = History.TagName,
-            Description,
-            DateTime = CONVERT(nvarchar, DATEADD(mi, 0, DateTime), 21), 
+            DateTime = CONVERT(nvarchar, DateTime, 21),
             vValue
-        FROM [HISTORIADOR_CCO].Runtime.dbo.Tag, [HISTORIADOR_CCO].Runtime.dbo.History
-        WHERE 
-            History.TagName IN (:tagName)
-            AND Tag.TagName = History.TagName
-            AND wwRetrievalMode = 'Cyclic'
-            AND wwCycleCount = $cycleCount
-            AND wwVersion = 'Latest'
-            AND DateTime >= :dataInicio 
-            AND DateTime <= :dataFim
+        FROM [HISTORIADOR_CCO].Runtime.dbo.History
+        WHERE TagName = {$tagNameEsc}
+          AND DateTime >= {$dataInicioEsc}
+          AND DateTime <= {$dataFimEsc}
         ORDER BY DateTime
     ";
     
+    // Consulta ao Historiador — isolada
+    $dadosHistoriador = [];
     try {
-        $stmtHist = $pdoSIMP->prepare($sqlHistoriador);
-        $stmtHist->execute([
-            ':tagName' => $tagName,
-            ':dataInicio' => $dataInicio,
-            ':dataFim' => $dataFim
-        ]);
+        $stmtHist = $pdoSIMP->query($sqlHistoriador);
+        $dadosHistoriador = $stmtHist->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
+        if (ob_get_level() > 0) { ob_end_clean(); }
         echo json_encode([
             'success' => true,
             'is_dia_atual' => true,
@@ -163,14 +186,14 @@ try {
         exit;
     }
     
-    $dadosHistoriador = $stmtHist->fetchAll(PDO::FETCH_ASSOC);
-    
     // ========================================
-    // CALCULAR MÉDIA (AVG) POR HORA (anterior + atual)
+    // CALCULAR MÉDIA (AVG) POR HORA NO PHP
+    // Agrupa registros brutos por hora e calcula média, min, max
+    // Filtra registros com vValue null (sensor offline)
     // ========================================
     $porHora = [];
     
-    // Inicializar todas as 24 horas como null (compatibilidade com frontend)
+    // Inicializar 24 horas como null (compatibilidade com frontend)
     for ($h = 0; $h < 24; $h++) {
         $porHora[$h] = [
             'hora' => $h,
@@ -181,23 +204,37 @@ try {
         ];
     }
     
-    // Agrupar registros por hora
+    // Agrupar registros por hora — filtrando nulls
     $valoresPorHora = [];
+    $totalComValor = 0;
+    $totalNull = 0;
+    
     foreach ($dadosHistoriador as $registro) {
-        $hora = (int)substr($registro['DateTime'], 11, 2);
-        $valor = (float)$registro['vValue'];
+        $dateTime = (string)($registro['DateTime'] ?? '');
+        if (strlen($dateTime) < 13) { continue; }
+        $hora = (int)substr($dateTime, 11, 2);
+        
+        // Filtrar vValue null
+        $rawValue = $registro['vValue'] ?? null;
+        if ($rawValue === null) {
+            $totalNull++;
+            continue;
+        }
+        if (!is_numeric($rawValue)) { continue; }
+        
+        $valor = (float)$rawValue;
+        
         if (!isset($valoresPorHora[$hora])) {
             $valoresPorHora[$hora] = [];
         }
         $valoresPorHora[$hora][] = $valor;
+        $totalComValor++;
     }
     
-    // Calcular AVG para cada hora (anterior + atual)
+    // Calcular AVG para cada hora
     foreach ($valoresPorHora as $h => $valores) {
         if (count($valores) > 0) {
             $media = array_sum($valores) / count($valores);
-            
-            // Só incluir se a média não é zero (evitar dados espúrios)
             if ($media != 0) {
                 $porHora[$h] = [
                     'hora' => $h,
@@ -209,6 +246,9 @@ try {
             }
         }
     }
+    
+    // Limpar output buffer
+    if (ob_get_level() > 0) { ob_end_clean(); }
     
     // Retornar dados
     echo json_encode([
@@ -225,15 +265,22 @@ try {
         ],
         'dados' => array_values($porHora),
         'total_registros' => count($dadosHistoriador),
-        'mensagem' => count($dadosHistoriador) > 0 
-            ? 'Dados do Historiador carregados (horas: ' . str_pad($horaAnterior, 2, '0', STR_PAD_LEFT) . '-' . str_pad($horaAtual, 2, '0', STR_PAD_LEFT) . ')' 
-            : 'Sem dados disponíveis no Historiador para as últimas horas'
+        'total_com_valor' => $totalComValor,
+        'total_null' => $totalNull,
+        'horas_com_dados' => array_keys($valoresPorHora),
+        'mensagem' => $totalComValor > 0 
+            ? "Historiador: {$totalComValor} registros (horas " . str_pad((string)$horaAnterior, 2, '0', STR_PAD_LEFT) . '-' . str_pad((string)$horaAtual, 2, '0', STR_PAD_LEFT) . ')'
+            : 'Sem dados válidos no Historiador para as últimas horas (sensor possivelmente offline)'
     ]);
     
-} catch (Exception $e) {
+} catch (\Throwable $e) {
+    if (ob_get_level() > 0) { ob_end_clean(); }
+    if (!headers_sent()) { header('Content-Type: application/json; charset=utf-8'); }
     http_response_code(400);
     echo json_encode([
         'success' => false,
         'erro' => $e->getMessage()
     ]);
 }
+
+restore_error_handler();

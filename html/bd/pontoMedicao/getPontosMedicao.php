@@ -41,6 +41,28 @@ try {
     $porPagina = 20;
     $offset = ($pagina - 1) * $porPagina;
 
+    // ============================================
+    // Ordenação
+    // ============================================
+    $colunaOrdenacao = isset($_GET['coluna_ordenacao']) && $_GET['coluna_ordenacao'] !== '' ? $_GET['coluna_ordenacao'] : 'DS_NOME';
+    $direcaoOrdenacao = isset($_GET['direcao_ordenacao']) && strtoupper($_GET['direcao_ordenacao']) === 'DESC' ? 'DESC' : 'ASC';
+
+    // Colunas permitidas para ordenação (segurança contra SQL injection)
+    $colunasPermitidas = [
+        'CD_CODIGO'            => "L.CD_LOCALIDADE + '-' + RIGHT('000000' + CAST(PM.CD_PONTO_MEDICAO AS VARCHAR), 6)",
+        'DS_LOCALIDADE'        => 'L.DS_NOME',
+        'DS_NOME'              => 'PM.DS_NOME',
+        'ID_TIPO_MEDIDOR'      => 'PM.ID_TIPO_MEDIDOR',
+        'ID_TIPO_LEITURA'      => 'PM.ID_TIPO_LEITURA',
+        'DIAS_SEM_SINCRONIZAR' => 'DIAS_SEM_SINCRONIZAR',
+        'OP_SITUACAO'          => 'PM.DT_DESATIVACAO'
+    ];
+
+    // Monta a cláusula ORDER BY segura
+    $orderByClause = isset($colunasPermitidas[$colunaOrdenacao])
+        ? $colunasPermitidas[$colunaOrdenacao] . ' ' . $direcaoOrdenacao
+        : 'PM.DS_NOME ASC';
+
     // Verifica se pelo menos um filtro foi preenchido
     $temFiltro = ($cdUnidade !== null || $cdLocalidade !== null || $cdPontoMedicao !== null ||
         $tipoMedidor !== null || $tipoLeitura !== null || $status !== '' || $busca !== '');
@@ -206,7 +228,7 @@ try {
                 GROUP BY CD_PONTO_MEDICAO
             ) RVP_SYNC ON PM.CD_PONTO_MEDICAO = RVP_SYNC.CD_PONTO_MEDICAO
             $whereClause
-            ORDER BY PM.DS_NOME
+            ORDER BY $orderByClause
             OFFSET $offset ROWS FETCH NEXT $porPagina ROWS ONLY";
 
     $stmt = $pdoSIMP->prepare($sql);

@@ -38,9 +38,6 @@ verificaLogin();
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
-    <!-- CSS Global -->
-    <!-- <link rel="stylesheet" href="css/global.css"> -->
-    
     <!-- Token CSRF para AJAX -->
     <meta name="csrf-token" content="<?= gerarTokenCSRF() ?>">
 </head>
