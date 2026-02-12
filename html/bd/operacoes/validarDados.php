@@ -245,7 +245,7 @@ try {
                                DT_ULTIMA_ATUALIZACAO, DS_OBSERVACAO)
                               VALUES 
                               (:cdPonto, :dtLeitura, GETDATE(), 100, 1, 
-                               2, 2, 2,
+                               2, 2, 1,
                                :extravasou, :motivo,
                                :cdUsuarioResp, :cdUsuarioAtu, 
                                GETDATE(), :observacao)";
@@ -388,7 +388,7 @@ try {
                                DT_ULTIMA_ATUALIZACAO, DS_OBSERVACAO)
                               VALUES 
                               (:cdPonto, :dtLeitura, GETDATE(), :valor, 1, 
-                               2, 2, 2,
+                               2, 2, 1,
                                :cdUsuarioResp, :cdUsuarioAtu, 
                                GETDATE(), :observacao)";
                 
