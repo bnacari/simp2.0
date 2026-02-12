@@ -98,7 +98,7 @@ volumes:
     driver_opts:
       type: nfs
       o: addr=nfs.cesan.com.br,rw,nfsvers=4
-      device: ":/simp20-php/files/modelos_treinados"
+      device: ":/api-edocs-php/files/modelos_treinados"
 
 # ============================================
 # Networks
