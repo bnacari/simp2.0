@@ -25,7 +25,7 @@ services:
           memory: 4192M
 
   simp20-tensorflow:
-    image: "registry.cesan.com.br/cesan/simp20-tensorflow:0.0.8"
+    image: "registry.cesan.com.br/cesan/simp20-tensorflow:latest"
     environment:
       - DB_HOST=${DB_HOST}
       - DB_NAME=${DB_NAME}
