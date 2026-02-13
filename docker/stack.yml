@@ -21,7 +21,6 @@ services:
       - HTTP_PROXY=http://cntlm:3128/
       - HTTPS_PROXY=http://cntlm:3128/
       - no_proxy=localhost,127.0.0.1,simp20-tensorflow
-      - NO_PROXY=localhost,127.0.0.1,simp20-tensorflow
     networks:
       - frontend
       - cntlm
@@ -29,6 +28,7 @@ services:
       - 9461:80
     volumes:
       - /etc/localtime:/etc/localtime:ro
+      - modelos_treinados:/var/www/html/modelos_treinados
     deploy:
       mode: replicated
       resources:
@@ -56,10 +56,9 @@ services:
       - HTTP_PROXY=http://cntlm:3128/
       - HTTPS_PROXY=http://cntlm:3128/
       - no_proxy=localhost,127.0.0.1
-      - NO_PROXY=localhost,127.0.0.1
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - /nfs/swarm/simp20-php/files/modelos_treinados:/app/models
+      - modelos_treinados:/app/models
     networks:
       - cntlm
     deploy:
@@ -69,32 +68,11 @@ services:
           cpus: '2'
           memory: 4096M
 
-  # cronjob:
-  #   image: registry.cesan.com.br/library/curlimages/curl:8.8.0
-  #   labels:
-  #     - "br.com.cesan.app=${CI_PROJECT_NAME}"
-  #     - "io.portainer.accesscontrol.teams=adm"
-  #   volumes:
-  #     - /etc/localtime:/etc/localtime:ro
-  #   networks:
-  #     - frontend
-  #   command: "python3 treinar_modelos.py --semanas 52"
-  #   deploy:
-  #     mode: replicated
-  #     replicas: 0
-  #     restart_policy:
-  #       condition: none
-  #     labels:
-  #       - "swarm.cronjob.enable=true"
-  #       - "swarm.cronjob.schedule=${CRONJOB_SCHEDULE}"
-  #       - "swarm.cronjob.skip-running=false"
-  #     resources:
-  #       limits:
-  #         cpus: '2'
-  #         memory: 1024M
-
-
-
+# ============================================
+# Volumes
+# ============================================
+volumes:
+  modelos_treinados:
 
 # ============================================
 # Networks
