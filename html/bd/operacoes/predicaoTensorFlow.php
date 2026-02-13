@@ -87,6 +87,8 @@ try {
     // ========================================
     // Roteamento por ação
     // ========================================
+    // DEBUG: bypass VIP - chamar direto no container
+    $tensorflowUrl = 'http://10.0.13.132:5000';  // IP direto do container TF
     switch ($acao) {
         
         // ----------------------------------------
