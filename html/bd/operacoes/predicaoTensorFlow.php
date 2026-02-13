@@ -320,7 +320,8 @@ function chamarTensorFlow(string $url, string $method = 'POST', ?array $data = n
         CURLOPT_CONNECTTIMEOUT => 5,
         CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
         CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => 0
+        CURLOPT_SSL_VERIFYHOST => 0,
+        CURLOPT_PROXY => ''  // Bypass proxy para chamadas internas ao container TensorFlow
     ];
     
     if ($method === 'POST' && $data !== null) {
