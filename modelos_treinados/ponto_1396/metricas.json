@@ -125,7 +125,7 @@
   ],
   "modelo_tipo": "xgboost",
   "target_tipo": "correlacao",
-  "treinado_em": "2026-02-13T08:05:36.148274",
+  "treinado_em": "2026-02-13T10:42:48.846376",
   "banco_treino": "sgbd-dev-simp.sistemas.cesan.com.br\\corporativo\\FINDESLAB",
   "versao_treino": "5.0"
 }

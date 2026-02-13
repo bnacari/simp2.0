@@ -11,6 +11,8 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASS=${DB_PASS}
       - TENSORFLOW_URL=http://simp20-tensorflow:5000
+      - no_proxy=localhost,127.0.0.1,simp20-tensorflow
+      - NO_PROXY=localhost,127.0.0.1,simp20-tensorflow
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ../html:/var/www/html

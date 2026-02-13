@@ -66,10 +66,10 @@ DB_CONFIG = {
     'database': 'FINDESLAB',
     'user': 'simp',
     'password': 'cesan',
-    'driver': '{ODBC Driver 17 for SQL Server}'
+    'driver': '{ODBC Driver 18 for SQL Server}'
 }
 
-OUTPUT_DIR = './modelos_treinados'
+OUTPUT_DIR = os.environ.get('MODELS_DIR', './modelos_treinados')
 
 # Lags das auxiliares: valor atual + 1h atrás + 3h atrás + 6h atrás
 # Isso dá ao modelo contexto de tendência recente sem janela de 168h
