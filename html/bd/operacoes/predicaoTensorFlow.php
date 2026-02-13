@@ -142,7 +142,7 @@ try {
                 'proxy_env' => getenv('http_proxy'),
                 'curl_response_raw' => isset($response) ? substr($response, 0, 200) : 'N/A'
             ];
-            
+
             retornarJSON_TF($resposta);
             break;
         
@@ -343,6 +343,8 @@ function chamarTensorFlow(string $url, string $method = 'POST', ?array $data = n
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curlError = curl_error($ch);
     $curlErrno = curl_errno($ch);
+    $effectiveUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+    $primaryIp = curl_getinfo($ch, CURLINFO_PRIMARY_IP);
     curl_close($ch);
     
     // Erro de conexão (serviço offline)
@@ -366,5 +368,13 @@ function chamarTensorFlow(string $url, string $method = 'POST', ?array $data = n
         ];
     }
     
+    $decoded['_curl_debug'] = [
+        'http_code' => $httpCode,
+        'effective_url' => $effectiveUrl,
+        'primary_ip' => $primaryIp,
+        'response_inicio' => substr($response, 0, 300)
+    ];
+    
     return $decoded;
+
 }
