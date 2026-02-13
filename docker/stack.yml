@@ -22,7 +22,6 @@ services:
       - HTTPS_PROXY=http://cntlm:3128/
       - no_proxy=localhost,127.0.0.1,simp20-tensorflow
       - NO_PROXY=localhost,127.0.0.1,simp20-tensorflow
-      - NO_PROXY=localhost,127.0.0.1,simp20-tensorflow
     ports:
       - 9461:80
     volumes:
