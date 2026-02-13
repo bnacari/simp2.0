@@ -44,6 +44,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código da aplicação
 COPY docker/tensorflow/app/ ./app/
+COPY treinar_modelos.py .
 
 # Diretório para modelos treinados (persistente via volume)
 RUN mkdir -p /app/models
