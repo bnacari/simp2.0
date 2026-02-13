@@ -3396,7 +3396,7 @@ $letrasTipoMedidor = [
                                 hidden: false
                             }] : []),
 
-                            // Dataset: TensorFlow LSTM (vermelho, losango)
+                            // Dataset: TensorFlow xgboost (vermelho, losango)
                             ...(valoresTensorFlow.some(v => v !== null) && graficoControlesEstado.tensorflow !== false ? [{
                                 label: 'TensorFlow',
                                 data: valoresTensorFlow,
@@ -3855,7 +3855,7 @@ $letrasTipoMedidor = [
 
             let valoresSugeridosAtual = []; // Armazena valores sugeridos para aplicar
             let dadosEstimativasRede = null; // Armazena estimativas da rede (interpolação, balanço, proporção)
-            let dadosTensorFlow = null; // Dados da predição TensorFlow (LSTM)
+            let dadosTensorFlow = null; // Dados da predição TensorFlow (xgboost)
 
             /**
              * Carrega dados históricos da IA automaticamente ao abrir modal
@@ -4064,13 +4064,13 @@ $letrasTipoMedidor = [
                     }
                 }
 
-                // 6) TensorFlow (LSTM) - Predição via microserviço
+                // 6) TensorFlow (XGBoost) - Predição via microserviço
                 metodosDisponiveis.push({
                     id: 'tensorflow',
-                    nome: 'TensorFlow (LSTM)',
+                    nome: 'TensorFlow (XGBoost)',
                     icone: 'hardware-chip-outline',
                     cor: '#ef4444',
-                    desc: 'Predição por rede neural LSTM treinada com histórico do ponto (mais preciso)'
+                    desc: 'Predição por rede neural XGBoost treinada com histórico do ponto (mais preciso)'
                 });
 
                 // Se nenhum método tem dados, tentar carregar dados da IA primeiro
@@ -4290,7 +4290,7 @@ $letrasTipoMedidor = [
             }
 
             /**
-             * Busca predição de valores via microserviço TensorFlow (LSTM).
+             * Busca predição de valores via microserviço TensorFlow (xgboost).
              * Chama o endpoint predicaoTensorFlow.php que faz ponte com o container Python.
              * Exibe resultados na mesma tabela de valores sugeridos.
              *
@@ -4305,7 +4305,7 @@ $letrasTipoMedidor = [
                 info.innerHTML = `
                     <span style="display:inline-flex;align-items:center;gap:6px;">
                         <ion-icon name="hardware-chip-outline" style="color:#ef4444;font-size:16px;"></ion-icon>
-                        <strong style="color:#ef4444;">TensorFlow (LSTM)</strong>
+                        <strong style="color:#ef4444;">TensorFlow (XGBoost)</strong>
                     </span>
                     <span style="color:#64748b;font-size:12px;margin-left:8px;">
                         Consultando modelo...
@@ -4404,8 +4404,8 @@ $letrasTipoMedidor = [
                 }
 
                 // Atualizar cabeçalho com info do modelo
-                const modelo = data.modelo === 'xgboost' ? 'XGBoost v5.0'
-                    : data.modelo === 'lstm' ? 'LSTM treinado'
+                const modelo = data.modelo === 'xgboost' ? 'XGBoost v' + (data.metricas && data.metricas.versao_treino ? data.metricas.versao_treino : '5.0')
+                    : data.modelo === 'xgboost' ? 'XGBoost treinado'
                         : 'Estatístico (fallback)'; const metricas = data.metricas || {};
                 const metricaTexto = metricas.mae
                     ? `MAE: ${metricas.mae} | RMSE: ${metricas.rmse}`
@@ -4436,7 +4436,7 @@ $letrasTipoMedidor = [
                     const hora = pred.hora;
                     const valorPredito = parseFloat(pred.valor_predito);
                     const confianca = parseFloat(pred.confianca || 0);
-                    const metodo = pred.metodo || 'lstm';
+                    const metodo = pred.metodo || 'xgboost';
 
                     // Buscar valor atual da hora
                     let valorAtualTexto = '-';
@@ -4445,7 +4445,7 @@ $letrasTipoMedidor = [
                         if (dadoAtual && dadoAtual.media !== null) {
                             valorAtualTexto = parseFloat(dadoAtual.media).toFixed(2);
                         }
-                    } 
+                    }
 
                     // Cor da confiança
                     let corConfianca = '#dc2626'; // baixa
@@ -4453,7 +4453,7 @@ $letrasTipoMedidor = [
                     else if (confianca >= 0.4) corConfianca = '#f59e0b'; // média
 
                     // Ícone do método
-                    const iconeMetodo = (metodo === 'xgboost_correlacao' || metodo === 'lstm') ? 'hardware-chip-outline' : 'analytics-outline';
+                    const iconeMetodo = (metodo === 'xgboost_correlacao' || metodo === 'xgboost') ? 'hardware-chip-outline' : 'analytics-outline';
 
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
@@ -4461,7 +4461,7 @@ $letrasTipoMedidor = [
                         <td>${valorAtualTexto} ${unidade}</td>
                         <td style="color:#ef4444;font-weight:500;">
                             <ion-icon name="${iconeMetodo}" style="font-size:12px;vertical-align:middle;"></ion-icon>
-                            ${metodo === 'xgboost_correlacao' ? 'XGBoost' : metodo === 'lstm' ? 'LSTM' : 'Estatístico'}
+                            ${metodo === 'xgboost_correlacao' ? 'XGBoost' : metodo === 'xgboost' ? 'XGBoost' : 'Estatístico'}
                         </td>
                         <td>
                             <span style="color:${corConfianca};font-weight:600;font-size:12px;">
