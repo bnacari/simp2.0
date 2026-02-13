@@ -328,6 +328,12 @@ function chamarTensorFlow(string $url, string $method = 'POST', ?array $data = n
         throw new Exception('Extensão cURL não está instalada');
     }
     
+    // Forçar bypass de proxy no contexto Apache
+    putenv('http_proxy=');
+    putenv('HTTP_PROXY=');
+    putenv('https_proxy=');
+    putenv('HTTPS_PROXY=');
+    
     $ch = curl_init();
     
     $options = [
