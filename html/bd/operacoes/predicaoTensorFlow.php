@@ -87,8 +87,6 @@ try {
     // ========================================
     // Roteamento por ação
     // ========================================
-    // DEBUG: bypass VIP - chamar direto no container
-    $tensorflowUrl = 'http://10.0.13.132:5000';  // IP direto do container TF
     switch ($acao) {
         
         // ----------------------------------------
@@ -137,13 +135,22 @@ try {
                 $timeoutPadrao
             );
             
-            // DEBUG TEMPORÁRIO - remover depois
-            $resposta['_debug'] = [
-                'url_chamada' => $tensorflowUrl . '/api/predict',
-                'payload' => $payload,
-                'proxy_env' => getenv('http_proxy'),
-                'curl_response_raw' => isset($response) ? substr($response, 0, 200) : 'N/A'
-            ];
+            // DEBUG: se veio fallback, tentar chamar direto pra comparar
+            if (isset($resposta['modelo']) && $resposta['modelo'] === 'statistical_fallback') {
+                $resposta['_debug_fallback'] = [
+                    'resposta_original' => $resposta['metricas'] ?? null,
+                    'dados_utilizados_tf' => $resposta['dados_utilizados'] ?? null
+                ];
+                
+                // Segunda chamada como teste
+                $resposta2 = chamarTensorFlow(
+                    $tensorflowUrl . '/api/predict', 
+                    'POST', 
+                    $payload, 
+                    $timeoutPadrao
+                );
+                $resposta['_debug_segunda_chamada'] = $resposta2['modelo'] ?? 'erro';
+            }
 
             retornarJSON_TF($resposta);
             break;
