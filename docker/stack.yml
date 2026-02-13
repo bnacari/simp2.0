@@ -22,13 +22,13 @@ services:
       - HTTPS_PROXY=http://cntlm:3128/
       - no_proxy=localhost,127.0.0.1,simp20-tensorflow
       - NO_PROXY=localhost,127.0.0.1,simp20-tensorflow
+    networks:
+      - frontend
+      - cntlm
     ports:
       - 9461:80
     volumes:
       - /etc/localtime:/etc/localtime:ro
-    networks:
-      - frontend
-      - cntlm
     deploy:
       mode: replicated
       resources:
