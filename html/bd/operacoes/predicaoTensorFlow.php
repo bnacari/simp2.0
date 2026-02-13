@@ -372,7 +372,8 @@ function chamarTensorFlow(string $url, string $method = 'POST', ?array $data = n
         'http_code' => $httpCode,
         'effective_url' => $effectiveUrl,
         'primary_ip' => $primaryIp,
-        'response_inicio' => substr($response, 0, 300)
+        'response_tamanho' => strlen($response),
+        'response_completa' => $response
     ];
     
     return $decoded;
