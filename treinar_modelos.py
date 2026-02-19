@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-SIMP TensorFlow → XGBoost - Script de Treino Offline (v5.0)
+SIMP - Script de Treino Offline XGBoost (v6.0)
 =============================================================
 Treina modelos XGBoost que aprendem: "dados os valores ATUAIS e RECENTES
 das tags auxiliares + momento do dia/semana, qual deveria ser o valor
 da tag principal?"
 
-Mudança fundamental v5.0:
-  - Substitui LSTM por XGBoost (gradient boosting)
-  - Features TABULARES: cada linha = 1 hora
-  - Sem janela deslizante, sem sequências, sem feedback
-  - Treina em SEGUNDOS (vs minutos do LSTM)
-  - Feature importance mostra quais auxiliares mais importam
+v6.0 - Migração FINDESLAB → SIMP:
+  - Busca relações de AUX_RELACAO_PONTOS_MEDICAO no banco SIMP
+  - Busca pontos de PONTO_MEDICAO no banco SIMP
+  - Busca dados de REGISTRO_VAZAO_PRESSAO no banco SIMP
+  - Elimina dependência do banco FINDESLAB
+  - Mapeia TAG → CD_PONTO_MEDICAO → campo de valor automaticamente
 
 Features por linha:
   [0..N-1]     aux_TAG_*_t0       → valor atual de cada auxiliar
@@ -27,17 +27,17 @@ Target:
   valor_principal (escala real, sem normalização)
 
 Uso:
-  python treinar_modelos.py                                    # Treinar todos
-  python treinar_modelos.py --tag GPRS050_M010_MED             # Treinar só uma tag
-  python treinar_modelos.py --semanas 52                       # 1 ano de histórico
-  python treinar_modelos.py --bloco 1 --total-blocos 7         # Cron diário
-  python treinar_modelos.py --workers 3                        # Paralelo
+  python3 treinar_modelos.py                                    # Treinar todos
+  python3 treinar_modelos.py --tag GPRS050_M010_MED             # Treinar só uma tag
+  python3 treinar_modelos.py --semanas 52                       # 1 ano de histórico
+  python3 treinar_modelos.py --bloco 1 --total-blocos 7         # Cron diário
+  python3 treinar_modelos.py --workers 3                        # Paralelo
 
 Após treino:
   docker cp modelos_treinados/. $(docker ps -q -f name=tensorflow):/app/models/
 
 @author Bruno - CESAN
-@version 5.0
+@version 6.0
 @date 2026-02
 """
 
@@ -61,12 +61,13 @@ import xgboost as xgb
 # Configuração
 # ============================================
 
+# v6.0: Usa banco SIMP diretamente (sem FINDESLAB)
 DB_CONFIG = {
-    'server': 'sgbd-dev-simp.sistemas.cesan.com.br\corporativo',
-    'database': 'FINDESLAB',
-    'user': 'simp',
-    'password': 'cesan',
-    'driver': '{ODBC Driver 18 for SQL Server}'
+    'server': os.environ.get('DB_HOST', r'sgbd-dev-simp.sistemas.cesan.com.br\corporativo'),
+    'database': os.environ.get('DB_NAME', 'simp'),
+    'user': os.environ.get('DB_USER', 'simp'),
+    'password': os.environ.get('DB_PASS', 'cesan'),
+    'driver': '{ODBC Driver 17 for SQL Server}'
 }
 
 OUTPUT_DIR = os.environ.get('MODELS_DIR', './modelos_treinados')
@@ -102,11 +103,14 @@ logger = logging.getLogger('treino')
 
 
 # ============================================
-# Conexão com o banco
+# Conexão com o banco SIMP
 # ============================================
 
 def conectar_banco() -> pyodbc.Connection:
-    """Conecta ao banco FINDESLAB."""
+    """
+    Conecta ao banco SIMP.
+    v6.0: Conexão direta ao SIMP (sem FINDESLAB).
+    """
     conn_str = (
         f"DRIVER={DB_CONFIG['driver']};"
         f"SERVER={DB_CONFIG['server']};"
@@ -120,14 +124,17 @@ def conectar_banco() -> pyodbc.Connection:
 
 
 # ============================================
-# Consultas ao banco
+# Consultas ao banco SIMP
 # ============================================
 
 def buscar_relacoes(conn: pyodbc.Connection, tag_filtro: str = None) -> Dict[str, List[str]]:
-    """Busca relações TAG_PRINCIPAL → [TAG_AUXILIAR, ...]."""
+    """
+    Busca relações TAG_PRINCIPAL → [TAG_AUXILIAR, ...].
+    v6.0: Usa tabela AUX_RELACAO_PONTOS_MEDICAO no banco SIMP.
+    """
     sql = """
         SELECT TAG_PRINCIPAL, TAG_AUXILIAR
-        FROM [FINDESLAB].[dbo].[AUX_RELACAO_PONTOS_MEDICAO]
+        FROM SIMP.dbo.AUX_RELACAO_PONTOS_MEDICAO
         WHERE LTRIM(RTRIM(TAG_PRINCIPAL)) <> LTRIM(RTRIM(TAG_AUXILIAR))
     """
     params = []
@@ -154,15 +161,67 @@ def buscar_relacoes(conn: pyodbc.Connection, tag_filtro: str = None) -> Dict[str
 
 
 def buscar_pontos_medicao(conn: pyodbc.Connection) -> pd.DataFrame:
-    """Busca mapeamento TAG → CD_PONTO_MEDICAO."""
+    """
+    Busca mapeamento TAG → CD_PONTO_MEDICAO.
+    v6.0: Usa tabela PONTO_MEDICAO do SIMP com todas as colunas de TAG.
+    Retorna DataFrame com colunas: CD_PONTO_MEDICAO, TAG, ID_TIPO_MEDIDOR, NM_PONTO_MEDICAO
+    """
     sql = """
-        SELECT CD_PONTO_MEDICAO, TAG, ID_TIPO_MEDIDOR, NM_PONTO_MEDICAO
-        FROM [FINDESLAB].[dbo].[SIMP_PONTOS_MEDICAO]
-        WHERE DT_DESATIVACAO IS NULL
+        SELECT 
+            CD_PONTO_MEDICAO,
+            COALESCE(DS_TAG_VAZAO, DS_TAG_PRESSAO, DS_TAG_RESERVATORIO) AS TAG,
+            ID_TIPO_MEDIDOR,
+            DS_NOME AS NM_PONTO_MEDICAO
+        FROM SIMP.dbo.PONTO_MEDICAO
+        WHERE (DT_DESATIVACAO IS NULL OR DT_DESATIVACAO > GETDATE())
+          AND (
+              DS_TAG_VAZAO IS NOT NULL OR 
+              DS_TAG_PRESSAO IS NOT NULL OR 
+              DS_TAG_RESERVATORIO IS NOT NULL
+          )
     """
     df = pd.read_sql(sql, conn)
     logger.info(f"Pontos de medição carregados: {len(df)}")
     return df
+
+
+def _mapear_tag_para_campo(conn: pyodbc.Connection, tag: str) -> Tuple[Optional[int], str]:
+    """
+    Dado um TagName, retorna (CD_PONTO_MEDICAO, campo_valor).
+    Busca em DS_TAG_VAZAO, DS_TAG_PRESSAO e DS_TAG_RESERVATORIO.
+    
+    Returns:
+        Tupla (cd_ponto, campo_valor) ou (None, '') se não encontrar
+    """
+    sql = """
+        SELECT TOP 1
+            CD_PONTO_MEDICAO,
+            DS_TAG_VAZAO,
+            DS_TAG_PRESSAO,
+            DS_TAG_RESERVATORIO
+        FROM SIMP.dbo.PONTO_MEDICAO
+        WHERE DS_TAG_VAZAO = ? OR DS_TAG_PRESSAO = ? OR DS_TAG_RESERVATORIO = ?
+    """
+    cursor = conn.cursor()
+    cursor.execute(sql, tag, tag, tag)
+    row = cursor.fetchone()
+    
+    if not row:
+        return None, ''
+    
+    cd_ponto = row[0]
+    tag_vazao = (row[1] or '').strip()
+    tag_pressao = (row[2] or '').strip()
+    tag_reservatorio = (row[3] or '').strip()
+    
+    if tag == tag_vazao:
+        return cd_ponto, 'VL_VAZAO'
+    elif tag == tag_pressao:
+        return cd_ponto, 'VL_PRESSAO'
+    elif tag == tag_reservatorio:
+        return cd_ponto, 'VL_RESERVATORIO'
+    
+    return None, ''
 
 
 def buscar_dados_tags(
@@ -170,46 +229,107 @@ def buscar_dados_tags(
     tags: List[str],
     semanas: int = 24
 ) -> pd.DataFrame:
-    """Busca dados históricos horários de múltiplas tags (RawDataIntouch)."""
-    data_inicio = datetime.now() - timedelta(weeks=semanas)
-    tags_sql = ','.join([f"'{t}'" for t in tags])
-    
-    sql = f"""
-        SELECT 
-            CAST(CAST([DateTime] AS DATE) AS DATETIME) 
-                + CAST(DATEPART(HOUR, [DateTime]) AS FLOAT) / 24.0 AS data_hora,
-            [TagName] AS tag,
-            AVG(CAST([Value] AS FLOAT)) AS valor,
-            COUNT(*) AS qtd_registros
-        FROM [FINDESLAB].[cco].[RawDataIntouch]
-        WHERE [TagName] IN ({tags_sql})
-          AND [Value] IS NOT NULL
-          AND [DateTime] >= ?
-        GROUP BY 
-            CAST(CAST([DateTime] AS DATE) AS DATETIME) 
-                + CAST(DATEPART(HOUR, [DateTime]) AS FLOAT) / 24.0,
-            [TagName]
-        ORDER BY data_hora, [TagName]
     """
+    Busca dados históricos horários de múltiplas tags.
+    v6.0: Usa REGISTRO_VAZAO_PRESSAO do SIMP em vez de RawDataIntouch do FINDESLAB.
+    Mapeia cada TAG → CD_PONTO_MEDICAO + campo de valor correto.
+    Tags sem ponto cadastrado no SIMP são ignoradas.
     
-    logger.info(f"Buscando dados de {len(tags)} tags desde {data_inicio.strftime('%Y-%m-%d')}...")
+    Returns:
+        DataFrame com colunas: data_hora, tag, valor, qtd_registros
+    """
+    data_inicio = datetime.now() - timedelta(weeks=semanas)
     
-    cursor = conn.cursor()
-    cursor.execute(sql, data_inicio)
-    rows = cursor.fetchall()
+    # ============================================
+    # 1. Mapear cada tag para CD_PONTO + campo valor
+    # ============================================
+    mapeamento = {}  # tag → (cd_ponto, campo_valor)
+    for tag in tags:
+        cd_ponto, campo_valor = _mapear_tag_para_campo(conn, tag)
+        if cd_ponto is not None:
+            mapeamento[tag] = (cd_ponto, campo_valor)
     
-    if not rows:
-        logger.warning(f"  → Nenhum dado encontrado!")
+    tags_encontradas = set(mapeamento.keys())
+    tags_ignoradas = set(tags) - tags_encontradas
+    
+    if tags_ignoradas:
+        logger.warning(f"  Tags ignoradas (sem ponto no SIMP): {', '.join(sorted(tags_ignoradas))}")
+    
+    if not mapeamento:
+        logger.warning(f"  Nenhuma tag encontrada no SIMP!")
         return pd.DataFrame(columns=['data_hora', 'tag', 'valor', 'qtd_registros'])
     
-    df = pd.DataFrame(
-        [list(row) for row in rows],
-        columns=['data_hora', 'tag', 'valor', 'qtd_registros']
-    )
+    logger.info(f"  Tags mapeadas: {len(mapeamento)} de {len(tags)}")
+    
+    # ============================================
+    # 2. Agrupar por campo de valor para otimizar queries
+    # ============================================
+    # {campo_valor: [(tag, cd_ponto), ...]}
+    grupos = {}
+    for tag, (cd_ponto, campo_valor) in mapeamento.items():
+        if campo_valor not in grupos:
+            grupos[campo_valor] = []
+        grupos[campo_valor].append((tag, cd_ponto))
+    
+    # ============================================
+    # 3. Buscar dados de cada grupo
+    # ============================================
+    todos_dados = []
+    
+    for campo_valor, tags_pontos in grupos.items():
+        cd_pontos = [cp for _, cp in tags_pontos]
+        ponto_para_tag = {cp: tag for tag, cp in tags_pontos}
+        
+        placeholders = ','.join(['?' for _ in cd_pontos])
+        
+        sql = f"""
+            SELECT 
+                CAST(CAST(DT_LEITURA AS DATE) AS DATETIME) 
+                    + CAST(DATEPART(HOUR, DT_LEITURA) AS FLOAT) / 24.0 AS data_hora,
+                CD_PONTO_MEDICAO,
+                AVG(CASE WHEN ID_SITUACAO = 1 THEN {campo_valor} ELSE NULL END) AS valor,
+                COUNT(CASE WHEN ID_SITUACAO = 1 THEN 1 END) AS qtd_registros
+            FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO
+            WHERE CD_PONTO_MEDICAO IN ({placeholders})
+              AND DT_LEITURA >= ?
+              AND ID_SITUACAO = 1
+            GROUP BY 
+                CAST(CAST(DT_LEITURA AS DATE) AS DATETIME) 
+                    + CAST(DATEPART(HOUR, DT_LEITURA) AS FLOAT) / 24.0,
+                CD_PONTO_MEDICAO
+            ORDER BY data_hora, CD_PONTO_MEDICAO
+        """
+        
+        params = cd_pontos + [data_inicio]
+        cursor = conn.cursor()
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        
+        for row in rows:
+            data_hora = row[0]
+            cd_ponto = row[1]
+            valor = row[2]
+            qtd = row[3]
+            tag = ponto_para_tag.get(cd_ponto)
+            if tag and valor is not None:
+                todos_dados.append({
+                    'data_hora': data_hora,
+                    'tag': tag,
+                    'valor': float(valor),
+                    'qtd_registros': int(qtd)
+                })
+    
+    if not todos_dados:
+        logger.warning(f"  Nenhum dado encontrado!")
+        return pd.DataFrame(columns=['data_hora', 'tag', 'valor', 'qtd_registros'])
+    
+    df = pd.DataFrame(todos_dados)
     df['data_hora'] = pd.to_datetime(df['data_hora'])
     df['valor'] = pd.to_numeric(df['valor'], errors='coerce')
     
-    logger.info(f"  → {len(df)} registros horários carregados")
+    tags_com_dados = df['tag'].nunique()
+    logger.info(f"  → {len(df)} registros horários de {tags_com_dados} tags")
+    
     return df
 
 
@@ -430,7 +550,8 @@ def salvar_modelo(
     """
     Salva modelo XGBoost treinado.
     
-    v5.0: Salva modelo nativo XGBoost (model.json) + metadados.
+    v6.0: Referencia banco SIMP nos metadados (sem FINDESLAB).
+    Salva modelo nativo XGBoost (model.json) + metadados.
     Sem scaler (XGBoost trabalha com escala real).
     """
     base_dir = output_dir if output_dir else OUTPUT_DIR
@@ -452,11 +573,11 @@ def salvar_modelo(
         'feature_importance': feature_importance,
         'tipo_medidor': tipo_medidor,
         'lags': LAGS,
-        'modelo_tipo': 'xgboost',           # v5.0
+        'modelo_tipo': 'xgboost',
         'target_tipo': 'correlacao',
         'treinado_em': datetime.now().isoformat(),
         'banco_treino': f"{DB_CONFIG['server']}\\{DB_CONFIG['database']}",
-        'versao_treino': '5.0'
+        'versao_treino': '6.0'
     }
     
     metricas_path = os.path.join(ponto_dir, 'metricas.json')
@@ -538,7 +659,7 @@ def treinar_todos(
     """Fluxo principal de treino."""
     inicio = datetime.now()
     logger.info("=" * 60)
-    logger.info("SIMP - Treino XGBoost v5.0 (Correlação de Rede)")
+    logger.info("SIMP - Treino XGBoost v6.0 (Dados via SIMP)")
     logger.info(f"Banco: {DB_CONFIG['server']}\\{DB_CONFIG['database']}")
     logger.info(f"Histórico: {semanas} semanas")
     logger.info(f"Abordagem: auxiliares(t0,t-1,t-3,t-6) + temporais → principal")
@@ -553,6 +674,7 @@ def treinar_todos(
     conn = conectar_banco()
     logger.info("Conexão estabelecida com sucesso.")
     
+    # v6.0: Busca relações e pontos do banco SIMP
     relacoes = buscar_relacoes(conn, tag_filtro)
     if not relacoes:
         logger.error("Nenhuma relação encontrada!")
@@ -633,7 +755,7 @@ def treinar_todos(
     duracao_total = datetime.now() - inicio
     logger.info("")
     logger.info("=" * 60)
-    logger.info("RESUMO v5.0 (XGBoost - Correlação de Rede)")
+    logger.info("RESUMO v6.0 (XGBoost via SIMP)")
     logger.info(f"  Total: {total_tarefas}" + (f" (de {total_geral})" if bloco else ""))
     logger.info(f"  Sucesso: {sucesso} | Falha: {falha}")
     logger.info(f"  Duração: {duracao_total}")
@@ -650,7 +772,7 @@ def treinar_todos(
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        description='SIMP - Treino XGBoost v5.0 (Correlação de Rede)',
+        description='SIMP - Treino XGBoost v6.0 (Dados via SIMP)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemplos:

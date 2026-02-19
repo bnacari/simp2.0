@@ -2,8 +2,9 @@
 SIMP - Preditor de Séries Temporais
 Prediz valores horários de vazão, pressão e nível para pontos de medição.
 
-v5.0 - XGBoost (Correlação de Rede):
+v6.0 - XGBoost (Correlação de Rede via SIMP):
   Substituição completa do LSTM por XGBoost.
+  Dados das tags auxiliares buscados diretamente do banco SIMP.
   
   Vantagens:
     - Cada predição é INDEPENDENTE (sem feedback, sem drift)
@@ -12,11 +13,12 @@ v5.0 - XGBoost (Correlação de Rede):
     - Treina em segundos, prediz em milissegundos
     - Sem normalização (escala real direta)
     - Feature importance interpretável
+    - Sem dependência de banco externo (FINDESLAB)
   
   Compatível com modelos LSTM legados (v1-v4).
 
 @author Bruno - CESAN
-@version 5.0
+@version 6.0
 @date 2026-02
 """
 
@@ -44,7 +46,7 @@ try:
 except ImportError:
     TF_AVAILABLE = False
 
-# Módulo para buscar dados do FINDESLAB
+# Módulo para buscar dados das tags auxiliares (v6.0: via banco SIMP)
 from app.database_findeslab import buscar_dados_tags_recentes, montar_features_xgboost
 
 logger = logging.getLogger('simp-tensorflow.predictor')
@@ -54,10 +56,11 @@ class TimeSeriesPredictor:
     """
     Preditor de séries temporais.
     
-    v5.0: XGBoost como modelo principal.
+    v6.0: XGBoost como modelo principal.
     - Features tabulares: auxiliares com lags + temporais
     - Cada predição é independente (sem sliding window)
     - Sem normalização (escala real)
+    - Dados auxiliares buscados do banco SIMP
     - Compatível com LSTM legado (v1-v4) se TensorFlow disponível
     """
 
@@ -106,7 +109,7 @@ class TimeSeriesPredictor:
                 return self._predict_statistical(historico, data_alvo, horas)
 
     # ============================================
-    # Predição XGBoost v5.0
+    # Predição XGBoost v5.0+
     # ============================================
 
     def _predict_xgboost(
@@ -121,7 +124,7 @@ class TimeSeriesPredictor:
         Predição XGBoost por correlação de rede.
         
         Para cada hora solicitada:
-          1. Busca dados REAIS recentes das auxiliares no FINDESLAB
+          1. Busca dados REAIS recentes das auxiliares no SIMP
           2. Monta features tabulares (auxiliares com lags + temporais)
           3. Prediz valor do principal
         
@@ -134,34 +137,32 @@ class TimeSeriesPredictor:
         lags = metricas.get('lags', [0, 1, 3, 6])
         max_lag = max(lags) if lags else 6
 
-        # Buscar dados recentes das auxiliares
+        # Buscar dados recentes das auxiliares no SIMP
         try:
-            dados_findeslab = buscar_dados_tags_recentes(tags_auxiliares, max_lag + 12, data_alvo)
+            dados_auxiliares = buscar_dados_tags_recentes(tags_auxiliares, max_lag + 12, data_alvo)
         except Exception as e:
-            logger.error(f"Erro ao conectar FINDESLAB: {e}")
-            dados_findeslab = None
+            logger.error(f"Erro ao buscar dados auxiliares: {e}")
+            dados_auxiliares = None
 
-        if dados_findeslab is None or dados_findeslab.empty:
-            logger.warning(f"Sem dados FINDESLAB para auxiliares, usando fallback")
+        if dados_auxiliares is None or dados_auxiliares.empty:
+            logger.warning(f"Sem dados das auxiliares, usando fallback estatístico")
             return self._predict_statistical(historico, data_alvo, horas)
 
         # Montar features
         features_df = montar_features_xgboost(
-            dados_findeslab, tags_auxiliares, feature_names, lags
+            dados_auxiliares, tags_auxiliares, feature_names, lags
         )
 
         if features_df is None or features_df.empty:
             logger.warning(f"Falha ao montar features XGBoost, usando fallback")
             return self._predict_statistical(historico, data_alvo, horas)
 
-        # Pegar a última linha com dados completos (mais recente)
-        # XGBoost lida com NaN nativamente, mas preferimos dados completos
+        # Predizer cada hora solicitada
         predicoes = []
 
         for hora in sorted(horas):
             try:
                 # Buscar a linha que corresponde à hora solicitada
-                # features_df tem index datetime — procurar a hora certa
                 data_alvo_dt = datetime.strptime(data_alvo, '%Y-%m-%d')
                 dia_semana = data_alvo_dt.weekday()
 
@@ -192,7 +193,7 @@ class TimeSeriesPredictor:
                 # Predizer (numpy array para evitar feature_names mismatch)
                 valor_predito = float(modelo.predict(linha_pred.values)[0])
 
-                # Confiança
+                # Confiança baseada no histórico
                 confianca = self._calcular_confianca_hora(historico, hora, data_alvo)
 
                 predicoes.append({
@@ -223,7 +224,7 @@ class TimeSeriesPredictor:
             f'auxiliares={n_aux}, '
             f'lags={lags}, '
             f'árvores={n_arvores}, '
-            f'v=5.0)'
+            f'v=6.0)'
         )
         if r2 is not None:
             formula += f' [R²={r2:.3f}]'
@@ -375,7 +376,7 @@ class TimeSeriesPredictor:
         }
 
     # ============================================
-    # Treinamento via API (fallback sem FINDESLAB)
+    # Treinamento via API (simplificado, sem auxiliares)
     # ============================================
 
     def train(
@@ -385,8 +386,9 @@ class TimeSeriesPredictor:
         tipo_medidor: int = 1
     ) -> Dict[str, Any]:
         """
-        Treina modelo XGBoost simples via API (sem tags auxiliares do FINDESLAB).
-        Usa features do próprio histórico do SIMP.
+        Treina modelo XGBoost simples via API (sem tags auxiliares).
+        Usa apenas features do próprio histórico do SIMP.
+        Para treino completo com auxiliares, usar treinar_modelos.py.
         """
         logger.info(f"Treino via API para ponto {cd_ponto} com {len(historico)} registros")
 
@@ -396,7 +398,7 @@ class TimeSeriesPredictor:
         if len(df) < 100:
             raise ValueError(f"Dados insuficientes: {len(df)}")
 
-        # Features simples do SIMP
+        # Features simples do histórico
         df['hora_sin'] = np.sin(2 * np.pi * df['hora'] / 24)
         df['hora_cos'] = np.cos(2 * np.pi * df['hora'] / 24)
         df['dia_sem_sin'] = np.sin(2 * np.pi * df['dia_semana'] / 7)
@@ -442,7 +444,7 @@ class TimeSeriesPredictor:
             'lags': [1, 3, 6],
             'treinado_em': datetime.now().isoformat(),
             'tipo_medidor': tipo_medidor,
-            'versao_treino': '5.0_api'
+            'versao_treino': '6.0_api'
         }
 
         with open(os.path.join(ponto_dir, 'metricas.json'), 'w') as f:

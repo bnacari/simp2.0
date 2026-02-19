@@ -1,18 +1,24 @@
 """
-SIMP - Microserviço TensorFlow
+SIMP - Microserviço de Predição e Análise
 API REST para predição de valores e detecção de anomalias
 em dados de macromedição de água.
 
+v2.0 - XGBoost via SIMP:
+  - Predição via XGBoost (correlação de rede com tags auxiliares)
+  - Dados buscados diretamente do banco SIMP
+  - Sem dependência do banco FINDESLAB
+  - Compatível com modelos LSTM legados (v1-v4)
+
 Endpoints:
     GET  /health              - Health check
-    POST /api/predict          - Predição de valores por hora (LSTM)
+    POST /api/predict          - Predição de valores por hora (XGBoost/LSTM/fallback)
     POST /api/anomalies        - Detecção de anomalias (Autoencoder)
     POST /api/correlate        - Correlação entre pontos
     POST /api/train            - Treinar/retreinar modelo para um ponto
     GET  /api/model-status     - Status dos modelos treinados
 
 @author Bruno - CESAN
-@version 1.0
+@version 2.0
 @date 2026-02
 """
 
@@ -70,7 +76,7 @@ def health():
     return jsonify({
         'status': 'ok',
         'service': 'simp-tensorflow',
-        'version': '1.0',
+        'version': '2.0',
         'timestamp': datetime.now().isoformat(),
         'tensorflow': AnomalyDetector is not None,
         'xgboost': True,
@@ -81,27 +87,25 @@ def health():
 @app.route('/api/predict', methods=['POST'])
 def predict():
     """
-    Predição de valores horários usando LSTM.
+    Predição de valores horários usando XGBoost (v5+) ou LSTM legado (v1-v4).
+    Fallback estatístico se não houver modelo treinado.
     
     Recebe:
         cd_ponto (int): Código do ponto de medição
         data (str): Data alvo no formato YYYY-MM-DD
         horas (list[int], opcional): Lista de horas específicas [0-23]
-        semanas_historico (int, opcional): Semanas de histórico para treino (default: 12)
+        semanas_historico (int, opcional): Semanas de histórico (default: 12)
         tipo_medidor (int, opcional): 1=vazão, 2=pressão, 3=nível
     
     Retorna:
         predicoes (list): Lista com hora, valor_predito, confianca, metodo
         formula (str): Descrição da fórmula/modelo utilizado
-        metricas (dict): MAE, RMSE do modelo
+        metricas (dict): Métricas do modelo (MAE, RMSE, R²)
+        modelo (str): Tipo do modelo usado (xgboost, lstm, statistical_fallback)
     """
     try:
         dados = request.get_json()
-        if anomaly_detector is None:
-            return jsonify({
-                'success': False,
-                'error': 'Detector de anomalias indisponível (TensorFlow não instalado)'
-            }), 503
+
         if not dados:
             return jsonify({'success': False, 'error': 'JSON não recebido'}), 400
         
@@ -116,7 +120,7 @@ def predict():
         
         logger.info(f"Predição solicitada: ponto={cd_ponto}, data={data}, horas={horas}")
         
-        # Buscar histórico do ponto no banco
+        # Buscar histórico do ponto no banco SIMP
         historico = db.get_historico_horario(cd_ponto, data, semanas, tipo_medidor)
         
         if historico is None or len(historico) < 168:  # Mínimo 1 semana de dados horários
@@ -126,7 +130,7 @@ def predict():
                 'fallback': 'media_historica'
             }), 200
         
-        # Executar predição
+        # Executar predição (XGBoost, LSTM legado ou fallback estatístico)
         resultado = predictor.predict(
             cd_ponto=cd_ponto,
             historico=historico,
@@ -134,11 +138,7 @@ def predict():
             horas=horas,
             tipo_medidor=tipo_medidor
         )
-        # Debug: adicionar motivo se fallback
-        if resultado.get('modelo') == 'statistical_fallback':
-            resultado['_debug_motivo'] = 'Modelo existe mas caiu no fallback - provável falha FINDESLAB'
-            resultado['_debug_modelo_existe'] = predictor.has_model(cd_ponto)
-            resultado['_debug_metricas_exist'] = bool(predictor._load_metrics(cd_ponto))
+        
         return jsonify({
             'success': True,
             'predicoes': resultado['predicoes'],
@@ -173,6 +173,13 @@ def detect_anomalies():
         
         if not dados:
             return jsonify({'success': False, 'error': 'JSON não recebido'}), 400
+        
+        # Anomaly detector requer TensorFlow
+        if anomaly_detector is None:
+            return jsonify({
+                'success': False,
+                'error': 'Detector de anomalias indisponível (TensorFlow não instalado)'
+            }), 503
         
         cd_ponto = dados.get('cd_ponto')
         data = dados.get('data')
@@ -288,7 +295,9 @@ def correlate_points():
 @app.route('/api/train', methods=['POST'])
 def train_model():
     """
-    Treina ou retreina o modelo LSTM para um ponto específico.
+    Treina ou retreina o modelo XGBoost para um ponto específico.
+    Usa dados do próprio histórico do SIMP (sem tags auxiliares).
+    Para treino completo com auxiliares, usar treinar_modelos.py.
     
     Recebe:
         cd_ponto (int): Código do ponto
@@ -334,7 +343,7 @@ def train_model():
             'success': True,
             'message': f'Modelo treinado com sucesso para ponto {cd_ponto}',
             'metricas': resultado['metricas'],
-            'epocas': resultado['epocas'],
+            'n_arvores': resultado['n_arvores'],
             'dados_treino': resultado['dados_treino']
         })
         
@@ -364,5 +373,5 @@ def model_status():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_ENV', 'production') == 'development'
-    logger.info(f"Iniciando SIMP TensorFlow na porta {port}")
+    logger.info(f"Iniciando SIMP Predição na porta {port}")
     app.run(host='0.0.0.0', port=port, debug=debug)

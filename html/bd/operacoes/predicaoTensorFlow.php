@@ -1,22 +1,22 @@
 <?php
 /**
- * SIMP - Predição via TensorFlow
+ * SIMP - Predição via TensorFlow/XGBoost
  * 
  * Endpoint PHP que faz ponte entre o frontend e o microserviço
- * Python/TensorFlow rodando em container separado.
+ * Python/XGBoost rodando em container separado.
  * 
  * Ações disponíveis:
- *   - predict:    Predição de valores horários (LSTM ou fallback estatístico)
+ *   - predict:    Predição de valores horários (XGBoost ou fallback estatístico)
  *   - anomalies:  Detecção de anomalias (Autoencoder + Z-score + regras)
  *   - correlate:  Correlação entre pontos para fórmulas de substituição
  *   - train:      Treinar modelo para um ponto específico
  *   - status:     Status dos modelos treinados
- *   - health:     Verificar se o serviço TensorFlow está online
+ *   - health:     Verificar se o serviço está online
  * 
  * Localização: html/bd/operacoes/predicaoTensorFlow.php
  * 
  * @author Bruno - CESAN
- * @version 1.0
+ * @version 2.0 - Migração para XGBoost + remoção FINDESLAB
  * @date 2026-02
  */
 
@@ -56,8 +56,6 @@ try {
     // ========================================
     
     // URL do container TensorFlow (mesmo Docker network)
-    // Em produção: nome do serviço no stack.yml
-    // Em dev: localhost:5000
     $tensorflowUrl = getenv('TENSORFLOW_URL') ?: 'http://simp20-tensorflow:5000';
     
     // Timeout para requisições (treino pode demorar mais)
@@ -90,7 +88,7 @@ try {
     switch ($acao) {
         
         // ----------------------------------------
-        // HEALTH CHECK - Verificar se TensorFlow está online
+        // HEALTH CHECK - Verificar se o serviço está online
         // ----------------------------------------
         case 'health':
             $resposta = chamarTensorFlow($tensorflowUrl . '/health', 'GET', null, 5);
@@ -134,23 +132,6 @@ try {
                 $payload, 
                 $timeoutPadrao
             );
-            
-            // DEBUG: se veio fallback, tentar chamar direto pra comparar
-            if (isset($resposta['modelo']) && $resposta['modelo'] === 'statistical_fallback') {
-                $resposta['_debug_fallback'] = [
-                    'resposta_original' => $resposta['metricas'] ?? null,
-                    'dados_utilizados_tf' => $resposta['dados_utilizados'] ?? null
-                ];
-                
-                // Segunda chamada como teste
-                $resposta2 = chamarTensorFlow(
-                    $tensorflowUrl . '/api/predict', 
-                    'POST', 
-                    $payload, 
-                    $timeoutPadrao
-                );
-                $resposta['_debug_segunda_chamada'] = $resposta2['modelo'] ?? 'erro';
-            }
 
             retornarJSON_TF($resposta);
             break;
@@ -290,55 +271,7 @@ try {
             );
             retornarJSON_TF($resposta);
             break;
-        case 'diagnose':
-            $cdPonto = intval($dados['cd_ponto'] ?? 1396);
-            
-            // 1. Status dos modelos
-            $status = chamarTensorFlow($tensorflowUrl . '/api/model-status', 'GET', null, 10);
-            
-            // 2. Health completo
-            $health = chamarTensorFlow($tensorflowUrl . '/health', 'GET', null, 5);
-            
-            // 3. Predict com detalhes
-            $predict = chamarTensorFlow($tensorflowUrl . '/api/predict', 'POST', [
-                'cd_ponto' => $cdPonto,
-                'data' => date('Y-m-d'),
-                'horas' => [8],
-                'tipo_medidor' => 1
-            ], 30);
-            
-            retornarJSON_TF([
-                'success' => true,
-                'health' => $health,
-                'modelos' => $status,
-                'predict_resultado' => $predict['modelo'] ?? 'erro',
-                'predict_completo' => $predict
-            ]);
-            break;
-        case 'test_findeslab':
-            $resposta = chamarTensorFlow(
-                $tensorflowUrl . '/api/predict',
-                'POST',
-                [
-                    'cd_ponto' => 1396,
-                    'data' => date('Y-m-d'),
-                    'horas' => [8],
-                    'tipo_medidor' => 1
-                ],
-                60
-            );
-            
-            // Checar env vars do TF
-            $health = chamarTensorFlow($tensorflowUrl . '/health', 'GET', null, 5);
-            
-            retornarJSON_TF([
-                'success' => true,
-                'predict_modelo' => $resposta['modelo'] ?? 'erro',
-                'predict_dados' => $resposta['dados_utilizados'] ?? 0,
-                'health_db' => $health['database'] ?? false,
-                'nota' => 'Se modelo=statistical_fallback mas modelos existem, FINDESLAB provavelmente inacessível'
-            ]);
-            break;
+        
         // ----------------------------------------
         // Ação desconhecida
         // ----------------------------------------
@@ -358,11 +291,12 @@ try {
 
 
 // ============================================
-// Função auxiliar: Chamada HTTP ao microserviço TensorFlow
+// Função auxiliar: Chamada HTTP ao microserviço
 // ============================================
 
 /**
- * Faz requisição HTTP ao microserviço TensorFlow.
+ * Faz requisição HTTP ao microserviço TensorFlow/XGBoost.
+ * Bypassa proxy corporativo para comunicação interna Docker.
  * 
  * @param string $url      URL completa do endpoint
  * @param string $method   GET ou POST
@@ -375,12 +309,6 @@ function chamarTensorFlow(string $url, string $method = 'POST', ?array $data = n
     if (!function_exists('curl_init')) {
         throw new Exception('Extensão cURL não está instalada');
     }
-    
-    // Forçar bypass de proxy no contexto Apache
-    putenv('http_proxy=');
-    putenv('HTTP_PROXY=');
-    putenv('https_proxy=');
-    putenv('HTTPS_PROXY=');
     
     $ch = curl_init();
     
@@ -396,6 +324,7 @@ function chamarTensorFlow(string $url, string $method = 'POST', ?array $data = n
         ],
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_SSL_VERIFYHOST => 0,
+        // Bypass proxy corporativo para chamadas internas Docker
         CURLOPT_PROXY => '',
         CURLOPT_NOPROXY => '*',
         CURLOPT_FRESH_CONNECT => true,
@@ -413,8 +342,6 @@ function chamarTensorFlow(string $url, string $method = 'POST', ?array $data = n
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curlError = curl_error($ch);
     $curlErrno = curl_errno($ch);
-    $effectiveUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-    $primaryIp = curl_getinfo($ch, CURLINFO_PRIMARY_IP);
     curl_close($ch);
     
     // Erro de conexão (serviço offline)
@@ -438,14 +365,5 @@ function chamarTensorFlow(string $url, string $method = 'POST', ?array $data = n
         ];
     }
     
-    $decoded['_curl_debug'] = [
-        'http_code' => $httpCode,
-        'effective_url' => $effectiveUrl,
-        'primary_ip' => $primaryIp,
-        'response_tamanho' => strlen($response),
-        'response_completa' => $response
-    ];
-    
     return $decoded;
-
 }
