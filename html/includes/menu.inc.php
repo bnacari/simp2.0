@@ -1524,6 +1524,14 @@ if (isset($_SESSION['msg'])) {
                     </a>
                 </li>
                 <li class="sidebar-item">
+                    <a href="entidadeCascata.php"
+                        class="sidebar-link <?= $paginaAtual === 'entidadeCascata' ? 'active' : '' ?>"
+                        data-title="Flowchart">
+                        <ion-icon name="git-network-outline"></ion-icon>
+                        <span class="sidebar-link-text">Flowchart</span>
+                    </a>
+                </li>
+                <li class="sidebar-item">
                     <a href="iaRegras.php" class="sidebar-link <?= $paginaAtual === 'iaRegras' ? 'active' : '' ?>"
                         data-title="Treinamento IA">
                         <ion-icon name="sparkles-outline"></ion-icon>

@@ -436,3 +436,367 @@ INSERT INTO AUX_RELACAO_PONTOS_MEDICAO VALUES('GPRS050_M010_MED','GUA-RAT-014-M-
 
 -- =============================================================================================================================
 -- =============================================================================================================================
+
+-- ============================================
+-- SIMP - Cadastro Genérico em Cascata + Grafo de Fluxo
+-- 
+-- Estrutura:
+--   ENTIDADE_NIVEL  → Define tipos de camada (configurável)
+--   ENTIDADE_NODO   → Nó auto-referenciado (árvore recursiva)
+--   ENTIDADE_NODO_CONEXAO → Fluxo físico entre nós (grafo dirigido)
+--
+-- Permite hierarquia vertical (pai→filho), horizontal (irmãos)
+-- e conexões de fluxo físico entre quaisquer nós da árvore.
+--
+-- @author Bruno - CESAN
+-- @version 2.0
+-- @date 2026-02
+-- ============================================
+
+-- ============================================
+-- 1. ENTIDADE_NIVEL
+--    Define os "tipos" de cada camada da árvore.
+--    O usuário pode criar quantos níveis quiser.
+-- ============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ENTIDADE_NIVEL' AND schema_id = SCHEMA_ID('dbo'))
+BEGIN
+    CREATE TABLE SIMP.dbo.ENTIDADE_NIVEL (
+        CD_CHAVE         INT IDENTITY(1,1) PRIMARY KEY,
+        DS_NOME          VARCHAR(100)  NOT NULL,       -- Ex: "Etapa", "Unidade", "Tag"
+        DS_ICONE         VARCHAR(50)   NULL,            -- Ionicon (ex: "water-outline")
+        DS_COR           VARCHAR(20)   NULL,            -- Hex (ex: "#1565C0")
+        NR_ORDEM         INT           NOT NULL DEFAULT 0,
+        OP_PERMITE_PONTO TINYINT       NOT NULL DEFAULT 0, -- 1=nós deste nível vinculam pontos
+        OP_ATIVO         TINYINT       NOT NULL DEFAULT 1,
+        DT_CADASTRO      DATETIME      DEFAULT GETDATE(),
+        DT_ATUALIZACAO   DATETIME      NULL
+    );
+
+    PRINT 'Tabela ENTIDADE_NIVEL criada com sucesso!';
+
+    -- Níveis padrão para o fluxo da água
+    INSERT INTO SIMP.dbo.ENTIDADE_NIVEL (DS_NOME, DS_ICONE, DS_COR, NR_ORDEM, OP_PERMITE_PONTO)
+    VALUES 
+        ('Manancial/Captação', 'water-outline',           '#0D47A1', 1, 0),
+        ('Unidade Operacional','business-outline',         '#E65100', 2, 0),
+        ('Fluxo',              'swap-horizontal-outline',  '#6A1B9A', 3, 0),
+        ('Reservação',         'cube-outline',             '#00695C', 4, 0),
+        ('Distribuição/Setor', 'git-branch-outline',       '#1B5E20', 5, 0),
+        ('Ponto de Medição',   'speedometer-outline',      '#2E7D32', 6, 1);
+
+    PRINT 'Níveis padrão inseridos.';
+END
+ELSE
+BEGIN
+    PRINT 'Tabela ENTIDADE_NIVEL já existe.';
+END
+GO
+
+-- ============================================
+-- 2. ENTIDADE_NODO
+--    Nó genérico da árvore (auto-referência via CD_PAI).
+--    CD_PAI = NULL → nó raiz
+--    Nós com OP_PERMITE_PONTO=1 podem vincular PONTO_MEDICAO.
+-- ============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ENTIDADE_NODO' AND schema_id = SCHEMA_ID('dbo'))
+BEGIN
+    CREATE TABLE SIMP.dbo.ENTIDADE_NODO (
+        CD_CHAVE          INT IDENTITY(1,1) PRIMARY KEY,
+        CD_PAI            INT           NULL,              -- Auto-referência (NULL=raiz)
+        CD_ENTIDADE_NIVEL INT           NOT NULL,          -- FK → ENTIDADE_NIVEL
+        DS_NOME           VARCHAR(200)  NOT NULL,
+        DS_IDENTIFICADOR  VARCHAR(100)  NULL,              -- Código externo (ex: "ETA-001")
+        NR_ORDEM          INT           NOT NULL DEFAULT 0,-- Ordem entre irmãos
+        -- Campos para vínculo com ponto de medição
+        CD_PONTO_MEDICAO  INT           NULL,              -- FK → PONTO_MEDICAO
+        ID_OPERACAO       TINYINT       NULL,              -- 1=Soma, 2=Subtração
+        ID_FLUXO          TINYINT       NULL,              -- 1=Entrada, 2=Saída, 3=Municipal, 4=N/A
+        DT_INICIO         DATETIME      NULL,              -- Vigência
+        DT_FIM            DATETIME      NULL,
+        -- Metadados
+        DS_OBSERVACAO     VARCHAR(500)  NULL,
+        OP_ATIVO          TINYINT       NOT NULL DEFAULT 1,
+        DT_CADASTRO       DATETIME      DEFAULT GETDATE(),
+        DT_ATUALIZACAO    DATETIME      NULL,
+        -- Constraints
+        CONSTRAINT FK_NODO_PAI   FOREIGN KEY (CD_PAI)            REFERENCES SIMP.dbo.ENTIDADE_NODO(CD_CHAVE),
+        CONSTRAINT FK_NODO_NIVEL FOREIGN KEY (CD_ENTIDADE_NIVEL) REFERENCES SIMP.dbo.ENTIDADE_NIVEL(CD_CHAVE),
+        CONSTRAINT FK_NODO_PONTO FOREIGN KEY (CD_PONTO_MEDICAO)  REFERENCES SIMP.dbo.PONTO_MEDICAO(CD_PONTO_MEDICAO)
+    );
+
+    CREATE INDEX IX_NODO_PAI   ON SIMP.dbo.ENTIDADE_NODO(CD_PAI);
+    CREATE INDEX IX_NODO_NIVEL ON SIMP.dbo.ENTIDADE_NODO(CD_ENTIDADE_NIVEL);
+    CREATE INDEX IX_NODO_PONTO ON SIMP.dbo.ENTIDADE_NODO(CD_PONTO_MEDICAO) WHERE CD_PONTO_MEDICAO IS NOT NULL;
+    CREATE INDEX IX_NODO_ATIVO ON SIMP.dbo.ENTIDADE_NODO(OP_ATIVO);
+
+    PRINT 'Tabela ENTIDADE_NODO criada com sucesso!';
+END
+ELSE
+BEGIN
+    PRINT 'Tabela ENTIDADE_NODO já existe.';
+END
+GO
+
+-- ============================================
+-- 3. ENTIDADE_NODO_CONEXAO
+--    Grafo dirigido: fluxo físico entre nós.
+--    Representa "a água sai do nó A e vai para o nó B".
+--    
+--    Exemplos:
+--      Captação (PCAP01) ──alimenta──► ETA Carapina
+--      ETA Carapina (Saída) ──alimenta──► Reservatório Mestre Álvaro
+--      Reservatório (Saída) ──alimenta──► Rede Serra
+--
+--    Um nó pode ter múltiplas origens e múltiplos destinos
+--    (ex: 2 ETAs alimentam o mesmo reservatório).
+-- ============================================
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'ENTIDADE_NODO_CONEXAO' AND schema_id = SCHEMA_ID('dbo'))
+BEGIN
+    CREATE TABLE SIMP.dbo.ENTIDADE_NODO_CONEXAO (
+        CD_CHAVE      INT IDENTITY(1,1) PRIMARY KEY,
+        CD_NODO_ORIGEM  INT NOT NULL,                    -- FK → ENTIDADE_NODO (de onde sai)
+        CD_NODO_DESTINO INT NOT NULL,                    -- FK → ENTIDADE_NODO (para onde vai)
+        DS_ROTULO       VARCHAR(100)  NULL,              -- Rótulo da conexão (ex: "Adutora DN600")
+        DS_COR          VARCHAR(20)   NULL DEFAULT '#1565C0', -- Cor da linha no diagrama
+        NR_ORDEM        INT           NOT NULL DEFAULT 0,-- Ordem das conexões
+        OP_ATIVO        TINYINT       NOT NULL DEFAULT 1,
+        DT_CADASTRO     DATETIME      DEFAULT GETDATE(),
+        DT_ATUALIZACAO  DATETIME      NULL,
+        -- Constraints
+        CONSTRAINT FK_CONEXAO_ORIGEM  FOREIGN KEY (CD_NODO_ORIGEM)  REFERENCES SIMP.dbo.ENTIDADE_NODO(CD_CHAVE),
+        CONSTRAINT FK_CONEXAO_DESTINO FOREIGN KEY (CD_NODO_DESTINO) REFERENCES SIMP.dbo.ENTIDADE_NODO(CD_CHAVE),
+        CONSTRAINT CK_CONEXAO_DIFF    CHECK (CD_NODO_ORIGEM <> CD_NODO_DESTINO)
+    );
+
+    CREATE INDEX IX_CONEXAO_ORIGEM  ON SIMP.dbo.ENTIDADE_NODO_CONEXAO(CD_NODO_ORIGEM);
+    CREATE INDEX IX_CONEXAO_DESTINO ON SIMP.dbo.ENTIDADE_NODO_CONEXAO(CD_NODO_DESTINO);
+
+    PRINT 'Tabela ENTIDADE_NODO_CONEXAO criada com sucesso!';
+END
+ELSE
+BEGIN
+    PRINT 'Tabela ENTIDADE_NODO_CONEXAO já existe.';
+END
+GO
+
+-- ============================================
+-- CORREÇÃO: Views que falharam por prefixo SIMP.dbo
+-- Executar no banco SIMP (já com USE SIMP)
+-- ============================================
+
+-- 1. View recursiva da árvore
+IF EXISTS (SELECT * FROM sys.views WHERE name = 'VW_ENTIDADE_ARVORE')
+    DROP VIEW dbo.VW_ENTIDADE_ARVORE;
+GO
+
+CREATE VIEW dbo.VW_ENTIDADE_ARVORE AS
+WITH CTE_ARVORE AS (
+    -- Nós raiz
+    SELECT 
+        N.CD_CHAVE, N.CD_PAI, N.CD_ENTIDADE_NIVEL,
+        N.DS_NOME, N.DS_IDENTIFICADOR, N.NR_ORDEM,
+        N.CD_PONTO_MEDICAO, N.ID_OPERACAO, N.ID_FLUXO,
+        N.DT_INICIO, N.DT_FIM, N.OP_ATIVO, N.DS_OBSERVACAO,
+        NV.DS_NOME AS DS_NIVEL, NV.DS_ICONE, NV.DS_COR, NV.OP_PERMITE_PONTO,
+        1 AS NR_PROFUNDIDADE,
+        CAST(N.DS_NOME AS VARCHAR(MAX)) AS DS_CAMINHO,
+        CAST(RIGHT('0000' + CAST(N.NR_ORDEM AS VARCHAR), 4) + '-' + CAST(N.CD_CHAVE AS VARCHAR) AS VARCHAR(MAX)) AS DS_ORDENACAO
+    FROM SIMP.dbo.ENTIDADE_NODO N
+    INNER JOIN SIMP.dbo.ENTIDADE_NIVEL NV ON NV.CD_CHAVE = N.CD_ENTIDADE_NIVEL
+    WHERE N.CD_PAI IS NULL
+
+    UNION ALL
+
+    -- Filhos (recursivo)
+    SELECT 
+        N.CD_CHAVE, N.CD_PAI, N.CD_ENTIDADE_NIVEL,
+        N.DS_NOME, N.DS_IDENTIFICADOR, N.NR_ORDEM,
+        N.CD_PONTO_MEDICAO, N.ID_OPERACAO, N.ID_FLUXO,
+        N.DT_INICIO, N.DT_FIM, N.OP_ATIVO, N.DS_OBSERVACAO,
+        NV.DS_NOME, NV.DS_ICONE, NV.DS_COR, NV.OP_PERMITE_PONTO,
+        A.NR_PROFUNDIDADE + 1,
+        CAST(A.DS_CAMINHO + ' > ' + N.DS_NOME AS VARCHAR(MAX)),
+        CAST(A.DS_ORDENACAO + '/' + RIGHT('0000' + CAST(N.NR_ORDEM AS VARCHAR), 4) + '-' + CAST(N.CD_CHAVE AS VARCHAR) AS VARCHAR(MAX))
+    FROM SIMP.dbo.ENTIDADE_NODO N
+    INNER JOIN CTE_ARVORE A ON A.CD_CHAVE = N.CD_PAI
+    INNER JOIN SIMP.dbo.ENTIDADE_NIVEL NV ON NV.CD_CHAVE = N.CD_ENTIDADE_NIVEL
+)
+SELECT * FROM CTE_ARVORE
+GO
+
+PRINT 'View VW_ENTIDADE_ARVORE criada com sucesso!';
+GO
+
+-- 2. View de conexões
+IF EXISTS (SELECT * FROM sys.views WHERE name = 'VW_ENTIDADE_CONEXOES')
+    DROP VIEW dbo.VW_ENTIDADE_CONEXOES;
+GO
+
+CREATE VIEW dbo.VW_ENTIDADE_CONEXOES AS
+SELECT 
+    C.CD_CHAVE,
+    C.CD_NODO_ORIGEM,
+    C.CD_NODO_DESTINO,
+    C.DS_ROTULO,
+    C.DS_COR,
+    C.NR_ORDEM,
+    C.OP_ATIVO,
+    NO_ORIG.DS_NOME      AS DS_ORIGEM,
+    NO_ORIG.DS_IDENTIFICADOR AS DS_ORIGEM_ID,
+    NV_ORIG.DS_NOME      AS DS_NIVEL_ORIGEM,
+    NV_ORIG.DS_COR       AS DS_COR_ORIGEM,
+    NO_DEST.DS_NOME      AS DS_DESTINO,
+    NO_DEST.DS_IDENTIFICADOR AS DS_DESTINO_ID,
+    NV_DEST.DS_NOME      AS DS_NIVEL_DESTINO,
+    NV_DEST.DS_COR       AS DS_COR_DESTINO
+FROM SIMP.dbo.ENTIDADE_NODO_CONEXAO C
+INNER JOIN SIMP.dbo.ENTIDADE_NODO NO_ORIG ON NO_ORIG.CD_CHAVE = C.CD_NODO_ORIGEM
+INNER JOIN SIMP.dbo.ENTIDADE_NODO NO_DEST ON NO_DEST.CD_CHAVE = C.CD_NODO_DESTINO
+INNER JOIN SIMP.dbo.ENTIDADE_NIVEL NV_ORIG ON NV_ORIG.CD_CHAVE = NO_ORIG.CD_ENTIDADE_NIVEL
+INNER JOIN SIMP.dbo.ENTIDADE_NIVEL NV_DEST ON NV_DEST.CD_CHAVE = NO_DEST.CD_ENTIDADE_NIVEL
+GO
+
+PRINT 'View VW_ENTIDADE_CONEXOES criada com sucesso!';
+GO
+
+-- ============================================
+-- SIMP - Adicionar posição X/Y para canvas flowchart
+-- Executar no banco SIMP
+-- ============================================
+
+IF NOT EXISTS (
+    SELECT * FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'ENTIDADE_NODO' AND COLUMN_NAME = 'NR_POS_X'
+)
+BEGIN
+    ALTER TABLE SIMP.dbo.ENTIDADE_NODO ADD NR_POS_X INT NULL;
+    ALTER TABLE SIMP.dbo.ENTIDADE_NODO ADD NR_POS_Y INT NULL;
+    PRINT 'Colunas NR_POS_X e NR_POS_Y adicionadas com sucesso!';
+END
+ELSE
+BEGIN
+    PRINT 'Colunas já existem.';
+END
+GO
+
+-- ============================================
+-- SIMP - Sistema de Abastecimento (agrupador N:N)
+-- Executar no banco SIMP
+-- ============================================
+
+-- Tabela principal de Sistemas
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'ENTIDADE_SISTEMA')
+BEGIN
+    CREATE TABLE SIMP.dbo.ENTIDADE_SISTEMA (
+        CD_CHAVE         INT IDENTITY(1,1) PRIMARY KEY,
+        DS_NOME          VARCHAR(200) NOT NULL,
+        DS_DESCRICAO     VARCHAR(500) NULL,
+        DS_COR           VARCHAR(20)  NULL DEFAULT '#2563eb',
+        OP_ATIVO         BIT          NOT NULL DEFAULT 1,
+        DT_CADASTRO      DATETIME     NOT NULL DEFAULT GETDATE(),
+        DT_ATUALIZACAO   DATETIME     NULL
+    );
+    PRINT 'Tabela ENTIDADE_SISTEMA criada com sucesso!';
+END
+ELSE
+BEGIN
+    PRINT 'Tabela ENTIDADE_SISTEMA já existe.';
+END
+GO
+
+
+-- ============================================
+-- SIMP - Flag "É Sistema" no nível
+-- Marca qual nível representa Sistema de Água
+-- Executar no banco SIMP
+-- ============================================
+
+IF NOT EXISTS (
+    SELECT * FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'ENTIDADE_NIVEL' AND COLUMN_NAME = 'OP_EH_SISTEMA'
+)
+BEGIN
+    ALTER TABLE SIMP.dbo.ENTIDADE_NIVEL ADD OP_EH_SISTEMA BIT NOT NULL DEFAULT 0;
+    PRINT 'Coluna OP_EH_SISTEMA adicionada com sucesso!';
+END
+ELSE
+BEGIN
+    PRINT 'Coluna OP_EH_SISTEMA já existe.';
+END
+GO
+
+
+-- ============================================
+-- SIMP - Flag "É Sistema" no nível
+-- Marca qual nível representa Sistema de Água
+-- Executar no banco SIMP
+-- ============================================
+
+IF NOT EXISTS (
+    SELECT * FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'ENTIDADE_NIVEL' AND COLUMN_NAME = 'OP_EH_SISTEMA'
+)
+BEGIN
+    ALTER TABLE SIMP.dbo.ENTIDADE_NIVEL ADD OP_EH_SISTEMA BIT NOT NULL DEFAULT 0;
+    PRINT 'Coluna OP_EH_SISTEMA adicionada em ENTIDADE_NIVEL!';
+END
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'ENTIDADE_NODO' AND COLUMN_NAME = 'CD_SISTEMA_AGUA'
+)
+BEGIN
+    ALTER TABLE SIMP.dbo.ENTIDADE_NODO ADD CD_SISTEMA_AGUA INT NULL;
+
+    ALTER TABLE SIMP.dbo.ENTIDADE_NODO 
+    ADD CONSTRAINT FK_NODO_SISTEMA_AGUA 
+    FOREIGN KEY (CD_SISTEMA_AGUA) REFERENCES SIMP.dbo.SISTEMA_AGUA(CD_CHAVE);
+
+    PRINT 'Coluna CD_SISTEMA_AGUA adicionada em ENTIDADE_NODO!';
+END
+GO
+
+
+
+
+-- ============================================
+-- SIMP - Flag "É Sistema" no nível
+-- Marca qual nível representa Sistema de Água
+-- Executar no banco SIMP
+-- ============================================
+
+IF NOT EXISTS (
+    SELECT * FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'ENTIDADE_NIVEL' AND COLUMN_NAME = 'OP_EH_SISTEMA'
+)
+BEGIN
+    ALTER TABLE SIMP.dbo.ENTIDADE_NIVEL ADD OP_EH_SISTEMA BIT NOT NULL DEFAULT 0;
+    PRINT 'Coluna OP_EH_SISTEMA adicionada em ENTIDADE_NIVEL!';
+END
+GO
+
+-- Marcar nível "Sistema de Abastecimento" como sistema (ajuste o nome se necessário)
+UPDATE SIMP.dbo.ENTIDADE_NIVEL 
+SET OP_EH_SISTEMA = 1 
+WHERE DS_NOME LIKE '%Sistema%Abastecimento%' AND OP_EH_SISTEMA = 0;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = 'ENTIDADE_NODO' AND COLUMN_NAME = 'CD_SISTEMA_AGUA'
+)
+BEGIN
+    ALTER TABLE SIMP.dbo.ENTIDADE_NODO ADD CD_SISTEMA_AGUA INT NULL;
+
+    ALTER TABLE SIMP.dbo.ENTIDADE_NODO 
+    ADD CONSTRAINT FK_NODO_SISTEMA_AGUA 
+    FOREIGN KEY (CD_SISTEMA_AGUA) REFERENCES SIMP.dbo.SISTEMA_AGUA(CD_CHAVE);
+
+    PRINT 'Coluna CD_SISTEMA_AGUA adicionada em ENTIDADE_NODO!';
+END
+GO
+-- =============================================================================================================================
+-- =============================================================================================================================
+
+
