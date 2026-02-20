@@ -576,6 +576,303 @@ def _treinar_via_script(tag_principal: str, semanas: int) -> dict:
             'error': str(e)
         }
 
+@app.route('/api/train-all', methods=['POST'])
+def train_all():
+    """
+    Treinar TODOS os pontos com relações no FINDESLAB.
+    Executa: python3 treinar_modelos.py --semanas N --output MODELS_DIR
+    """
+    import subprocess
+
+    try:
+        dados = request.get_json()
+        semanas = dados.get('semanas', 24)
+
+        script_path = os.environ.get('TREINAR_SCRIPT', '/app/treinar_modelos.py')
+
+        if not os.path.exists(script_path):
+            return jsonify({
+                'success': False,
+                'error': f'Script não encontrado: {script_path}'
+            }), 500
+
+        cmd = [
+            'python3', script_path,
+            '--semanas', str(semanas),
+            '--output', MODELS_DIR
+        ]
+
+        logger.info(f"Train-all: {' '.join(cmd)}")
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=1800  # 30 minutos para todos
+        )
+
+        if result.stdout:
+            logger.info(f"STDOUT (últimas 1000 chars):\n{result.stdout[-1000:]}")
+        if result.stderr:
+            logger.error(f"STDERR:\n{result.stderr[-500:]}")
+
+        # Extrair resumo do output
+        resumo = ''
+        for linha in result.stdout.split('\n'):
+            if any(k in linha for k in ['Sucesso:', 'Falha:', 'Total:', 'RESUMO']):
+                resumo += linha.strip() + ' | '
+
+        if result.returncode != 0:
+            return jsonify({
+                'success': False,
+                'error': f'Erro no treino (código {result.returncode})',
+                'resumo': resumo,
+                'detalhes': result.stderr[-300:] if result.stderr else result.stdout[-300:]
+            })
+
+        # Recarregar todos os modelos
+        predictor.models.clear()
+
+        return jsonify({
+            'success': True,
+            'message': f'Treino finalizado. {resumo}' if resumo else 'Treino de todos os pontos finalizado.',
+            'resumo': resumo
+        })
+
+    except subprocess.TimeoutExpired:
+        return jsonify({
+            'success': False,
+            'error': 'Timeout: treino excedeu 30 minutos'
+        })
+    except Exception as e:
+        logger.error(f"Erro train-all: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============================================
+# Endpoints de Associações ([SIMP].[dbo].[AUX_RELACAO_PONTOS_MEDICAO])
+# ============================================
+
+@app.route('/api/relations', methods=['GET'])
+def list_relations():
+    """Lista todas as associações TAG_PRINCIPAL → [TAG_AUXILIAR]."""
+    try:
+        conn = db._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT LTRIM(RTRIM(TAG_PRINCIPAL)) AS TAG_PRINCIPAL,
+                   LTRIM(RTRIM(TAG_AUXILIAR)) AS TAG_AUXILIAR
+            FROM SIMP.dbo.AUX_RELACAO_PONTOS_MEDICAO
+            WHERE LTRIM(RTRIM(TAG_PRINCIPAL)) <> LTRIM(RTRIM(TAG_AUXILIAR))
+            ORDER BY TAG_PRINCIPAL, TAG_AUXILIAR
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+
+        relacoes = {}
+        for row in rows:
+            principal = row[0]
+            auxiliar = row[1]
+            if principal not in relacoes:
+                relacoes[principal] = []
+            relacoes[principal].append(auxiliar)
+
+        return jsonify({
+            'success': True,
+            'relacoes': relacoes,
+            'total_principais': len(relacoes),
+            'total_associacoes': len(rows)
+        })
+    except Exception as e:
+        logger.error(f"Erro list_relations: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/relations/add', methods=['POST'])
+def add_relation():
+    """Adiciona uma associação TAG_PRINCIPAL → TAG_AUXILIAR."""
+    try:
+        dados = request.get_json()
+        tag_principal = (dados.get('tag_principal') or '').strip()
+        tag_auxiliar = (dados.get('tag_auxiliar') or '').strip()
+
+        if not tag_principal or not tag_auxiliar:
+            return jsonify({'success': False, 'error': 'tag_principal e tag_auxiliar obrigatórios'})
+
+        conn = db._get_connection()
+        cursor = conn.cursor()
+
+        # Se o valor recebido for numérico, é CD_PONTO_MEDICAO — resolver para TAG
+        tag_principal = _resolver_tag(cursor, tag_principal)
+        tag_auxiliar = _resolver_tag(cursor, tag_auxiliar)
+
+        if not tag_principal or not tag_auxiliar:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Não foi possível resolver a TAG do ponto informado'})
+
+        if tag_principal == tag_auxiliar:
+            conn.close()
+            return jsonify({'success': False, 'error': 'TAG principal e auxiliar não podem ser iguais'})
+
+        # Verificar duplicata
+        cursor.execute("""
+            SELECT COUNT(*) FROM SIMP.dbo.AUX_RELACAO_PONTOS_MEDICAO
+            WHERE LTRIM(RTRIM(TAG_PRINCIPAL)) = ? AND LTRIM(RTRIM(TAG_AUXILIAR)) = ?
+        """, (tag_principal, tag_auxiliar))
+        if cursor.fetchone()[0] > 0:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Associação já existe'})
+
+        # Inserir
+        cursor.execute("""
+            INSERT INTO SIMP.dbo.AUX_RELACAO_PONTOS_MEDICAO (TAG_PRINCIPAL, TAG_AUXILIAR, DT_CADASTRO)
+            VALUES (?, ?, GETDATE())
+        """, (tag_principal, tag_auxiliar))
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Associação criada: {tag_principal} → {tag_auxiliar}")
+        return jsonify({'success': True, 'message': f'Associação {tag_principal} → {tag_auxiliar} criada'})
+    except Exception as e:
+        logger.error(f"Erro add_relation: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+def _resolver_tag(cursor, valor: str) -> str:
+    """
+    Se o valor for numérico (CD_PONTO_MEDICAO), busca a TAG real.
+    Caso contrário, retorna o próprio valor (já é TAG).
+    """
+    if not valor.isdigit():
+        return valor
+
+    cursor.execute("""
+        SELECT COALESCE(DS_TAG_VAZAO, DS_TAG_PRESSAO, DS_TAG_RESERVATORIO, DS_TAG_VOLUME) AS TAG
+        FROM SIMP.dbo.PONTO_MEDICAO
+        WHERE CD_PONTO_MEDICAO = ?
+    """, (int(valor),))
+    row = cursor.fetchone()
+    if row and row[0]:
+        return row[0].strip()
+
+    return None
+
+
+@app.route('/api/available-tags', methods=['GET'])
+def available_tags():
+    """Lista TAGs disponíveis de pontos de medição ativos."""
+    try:
+        conn = db._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT CD_PONTO_MEDICAO,
+                   DS_NOME AS NM_PONTO_MEDICAO,
+                   ID_TIPO_MEDIDOR,
+                   COALESCE(DS_TAG_VAZAO, DS_TAG_PRESSAO, DS_TAG_RESERVATORIO, DS_TAG_VOLUME) AS TAG
+            FROM SIMP.dbo.PONTO_MEDICAO
+            WHERE DT_DESATIVACAO IS NULL
+              AND COALESCE(DS_TAG_VAZAO, DS_TAG_PRESSAO, DS_TAG_RESERVATORIO, DS_TAG_VOLUME) IS NOT NULL
+            ORDER BY COALESCE(DS_TAG_VAZAO, DS_TAG_PRESSAO, DS_TAG_RESERVATORIO, DS_TAG_VOLUME)
+        """)
+        rows = cursor.fetchall()
+        conn.close()
+
+        tags = []
+        for row in rows:
+            tags.append({
+                'CD_PONTO_MEDICAO': row[0],
+                'NM_PONTO_MEDICAO': row[1],
+                'ID_TIPO_MEDIDOR': row[2],
+                'TAG': row[3]
+            })
+
+        return jsonify({'success': True, 'tags': tags, 'total': len(tags)})
+    except Exception as e:
+        logger.error(f"Erro available_tags: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/relations/delete', methods=['POST'])
+def delete_relation():
+    """Remove uma associação específica."""
+    try:
+        dados = request.get_json()
+        tag_principal = (dados.get('tag_principal') or '').strip()
+        tag_auxiliar = (dados.get('tag_auxiliar') or '').strip()
+
+        if not tag_principal or not tag_auxiliar:
+            return jsonify({'success': False, 'error': 'tag_principal e tag_auxiliar obrigatórios'})
+
+        conn = db._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE FROM SIMP.dbo.AUX_RELACAO_PONTOS_MEDICAO
+            WHERE LTRIM(RTRIM(TAG_PRINCIPAL)) = ? AND LTRIM(RTRIM(TAG_AUXILIAR)) = ?
+        """, (tag_principal, tag_auxiliar))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Associação removida: {tag_principal} → {tag_auxiliar} ({affected} registros)")
+        return jsonify({'success': True, 'message': f'Associação removida', 'registros': affected})
+    except Exception as e:
+        logger.error(f"Erro delete_relation: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/relations/delete-all', methods=['POST'])
+def delete_all_relations():
+    """Remove todas as associações de uma TAG principal."""
+    try:
+        dados = request.get_json()
+        tag_principal = (dados.get('tag_principal') or '').strip()
+
+        if not tag_principal:
+            return jsonify({'success': False, 'error': 'tag_principal obrigatório'})
+
+        conn = db._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE FROM [SIMP].[dbo].[AUX_RELACAO_PONTOS_MEDICAO]
+            WHERE LTRIM(RTRIM(TAG_PRINCIPAL)) = ?
+        """, (tag_principal,))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Todas associações de {tag_principal} removidas ({affected} registros)")
+        return jsonify({'success': True, 'message': f'{affected} associações removidas', 'registros': affected})
+    except Exception as e:
+        logger.error(f"Erro delete_all_relations: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/model/delete', methods=['POST'])
+def delete_model():
+    """Remove a pasta do modelo treinado de um ponto."""
+    import shutil
+    try:
+        dados = request.get_json()
+        cd_ponto = dados.get('cd_ponto')
+
+        if not cd_ponto:
+            return jsonify({'success': False, 'error': 'cd_ponto é obrigatório'})
+
+        ponto_dir = os.path.join(MODELS_DIR, f"ponto_{cd_ponto}")
+
+        if not os.path.exists(ponto_dir):
+            return jsonify({'success': False, 'error': f'Modelo do ponto {cd_ponto} não encontrado'})
+
+        # Remover pasta inteira (model.json, metricas.json, etc.)
+        shutil.rmtree(ponto_dir)
+
+        # Remover do cache do predictor
+        if cd_ponto in predictor.models:
+            del predictor.models[cd_ponto]
+
+        logger.info(f"Modelo removido: ponto_{cd_ponto}")
+        return jsonify({'success': True, 'message': f'Modelo do ponto {cd_ponto} removido com sucesso'})
+    except Exception as e:
+        logger.error(f"Erro delete_model: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/model-status', methods=['GET'])
 def model_status():

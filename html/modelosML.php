@@ -264,14 +264,111 @@ try {
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-bottom: 20px;
-        flex-wrap: wrap;
+        padding: 14px 20px;
+        background: white;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 24px;
     }
 
     .search-input-wrapper {
         position: relative;
         flex: 1;
-        min-width: 250px;
+        min-width: 200px;
+        flex-shrink: 1;
+    }
+    .search-input-wrapper ion-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 18px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 10px 12px 10px 40px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 13px;
+        background: white;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .filter-select {
+        padding: 10px 32px 10px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 13px;
+        background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
+        -webkit-appearance: none;
+        appearance: none;
+        cursor: pointer;
+        min-width: 170px;
+        flex-shrink: 0;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: #3b82f6;
+    }
+
+    .btn-refresh {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 16px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .btn-refresh:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+
+    @media (max-width: 768px) {
+        .filters-bar {
+            flex-wrap: wrap;
+        }
+
+        .search-input-wrapper {
+            width: 100%;
+        }
+
+        .filter-select {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .btn-refresh {
+            width: 100%;
+            justify-content: center;
+            margin-left: 0;
+        }
+    }
+
+    .search-input-wrapper {
+        position: relative;
+        flex: 1;
+        min-width: 200px;
+        max-width: 400px;
     }
 
     .search-input-wrapper ion-icon {
@@ -584,6 +681,16 @@ try {
 
     .btn-model-action.btn-retrain:hover {
         background: #dbeafe;
+    }
+
+    .btn-model-action.btn-delete {
+        background: #fef2f2;
+        color: #dc2626;
+        border-color: #fecaca;
+    }
+
+    .btn-model-action.btn-delete:hover {
+        background: #fee2e2;
     }
 
     .btn-model-action.btn-retrain.loading {
@@ -1083,9 +1190,6 @@ try {
             grid-template-columns: 1fr;
         }
 
-        .filters-bar {
-            flex-direction: column;
-        }
 
         .search-input-wrapper {
             min-width: 100%;
@@ -1121,6 +1225,390 @@ try {
             grid-template-columns: 1fr;
         }
     }
+
+    /* ============================================
+       Modal de Associações
+       ============================================ */
+    .assoc-layout {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 16px;
+        min-height: 420px;
+    }
+
+    .assoc-lista-panel {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .assoc-lista-header {
+        padding: 12px 16px;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #334155;
+    }
+
+    .assoc-lista-header ion-icon {
+        font-size: 16px;
+        color: #3b82f6;
+    }
+
+    .assoc-lista-search {
+        padding: 8px 12px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .assoc-lista-search input {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 12px;
+        outline: none;
+        box-sizing: border-box;
+    }
+
+    .assoc-lista-search input:focus {
+        border-color: #3b82f6;
+    }
+
+    .assoc-lista-body {
+        flex: 1;
+        overflow-y: auto;
+        max-height: 380px;
+    }
+
+    .assoc-lista-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        cursor: pointer;
+        border-bottom: 1px solid #f1f5f9;
+        transition: all 0.15s ease;
+        font-size: 12px;
+        gap: 8px;
+    }
+
+    .assoc-lista-item:hover {
+        background: #f8fafc;
+    }
+
+    .assoc-lista-item.active {
+        background: #eff6ff;
+        border-left: 3px solid #3b82f6;
+    }
+
+    .assoc-lista-item .tag-info {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .assoc-lista-item .tag-name {
+        font-family: 'SF Mono', Monaco, monospace;
+        font-weight: 500;
+        color: #334155;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 11px;
+    }
+
+    .assoc-lista-item .tag-ponto {
+        font-size: 10px;
+        color: #94a3b8;
+        margin-top: 1px;
+    }
+
+    .assoc-lista-item .tag-count {
+        background: #e2e8f0;
+        color: #475569;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 10px;
+        flex-shrink: 0;
+    }
+
+    .assoc-lista-item.active .tag-count {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .assoc-lista-empty {
+        padding: 30px 16px;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 12px;
+    }
+
+    /* Painel de auxiliares */
+    .assoc-detail-panel {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .assoc-detail-header {
+        padding: 10px 16px;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .assoc-detail-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #334155;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .assoc-detail-title .tag-highlight {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        padding: 3px 10px;
+        border-radius: 6px;
+        font-family: 'SF Mono', Monaco, monospace;
+        font-size: 11px;
+    }
+
+    .assoc-add-row {
+        padding: 10px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+    }
+
+    .assoc-add-row .select2-container {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .assoc-add-row .btn-add-aux {
+        flex-shrink: 0;
+        margin-top: 4px;
+    }
+
+    /* Select2 dentro do modal: dropdown como overlay */
+    .modal-overlay .select2-container--open .select2-dropdown {
+        z-index: 10001;
+        position: absolute;
+    }
+
+    .assoc-add-row .select2-container .select2-selection--single {
+        height: 36px;
+        display: flex;
+        align-items: center;
+    }
+
+    .assoc-new-row .select2-container .select2-selection--single {
+        height: 36px;
+        display: flex;
+        align-items: center;
+    }
+
+    .btn-add-aux {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 14px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .btn-add-aux:hover {
+        background: #2563eb;
+    }
+
+    .assoc-detail-body {
+        flex: 1;
+        overflow-y: auto;
+        max-height: 340px;
+    }
+
+    .assoc-aux-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        gap: 8px;
+    }
+
+    .assoc-aux-info {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1;
+    }
+
+    .assoc-aux-info .aux-tag {
+        font-family: 'SF Mono', Monaco, monospace;
+        font-size: 12px;
+        color: #334155;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .assoc-aux-info .aux-ponto {
+        font-size: 10px;
+        color: #94a3b8;
+        margin-top: 1px;
+    }
+
+    .btn-remove-aux {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: #fee2e2;
+        color: #dc2626;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .btn-remove-aux:hover {
+        background: #fecaca;
+    }
+
+    .btn-excluir-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #fee2e2;
+        color: #dc2626;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+    }
+
+    .btn-excluir-tag:hover {
+        background: #fecaca;
+    }
+
+    .assoc-detail-empty {
+        padding: 40px 16px;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 13px;
+    }
+
+    .assoc-detail-empty ion-icon {
+        font-size: 32px;
+        display: block;
+        margin: 0 auto 8px;
+    }
+
+    .assoc-new-section {
+        padding: 14px 16px;
+        background: #fffbeb;
+        border: 1px dashed #f59e0b;
+        border-radius: 10px;
+        margin-bottom: 16px;
+    }
+
+    .assoc-new-section label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #92400e;
+        margin-bottom: 8px;
+    }
+
+    .assoc-new-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .assoc-new-row .select2-container {
+        flex: 1;
+    }
+
+    .btn-new-assoc {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        background: #f59e0b;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+    }
+
+    .btn-new-assoc:hover {
+        background: #d97706;
+    }
+
+    /* Select2 dentro do modal — z-index acima do modal */
+    .modal-overlay .select2-container--open .select2-dropdown {
+        z-index: 10001;
+    }
+
+    @media (max-width: 768px) {
+        .assoc-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .assoc-lista-body,
+        .assoc-detail-body {
+            max-height: 250px;
+        }
+
+        .assoc-add-row {
+            flex-wrap: wrap;
+        }
+
+        .assoc-new-row {
+            flex-wrap: wrap;
+        }
+    }
 </style>
 
 <div class="page-container">
@@ -1149,6 +1637,11 @@ try {
                     <button type="button" class="btn-novo-treino" onclick="abrirModalTreino()">
                         <ion-icon name="add-outline"></ion-icon>
                         Novo Treino
+                    </button>
+                    <button type="button" class="btn-novo-treino" onclick="abrirModalAssociacoes()"
+                        style="background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2);">
+                        <ion-icon name="git-network-outline"></ion-icon>
+                        Associações
                     </button>
                 <?php endif; ?>
             </div>
@@ -1275,8 +1768,23 @@ try {
                 </button>
             </div>
             <div class="modal-body">
-                <!-- Ponto de Medição (Select2 com busca) -->
+                <!-- Modo de treino -->
                 <div class="train-form-group">
+                    <label>
+                        <ion-icon name="options-outline"></ion-icon>
+                        Modo de Treino
+                    </label>
+                    <select id="selectModoTreino" onchange="toggleModoPonto()">
+                        <option value="unico">Ponto específico</option>
+                        <option value="todos">Todos os pontos</option>
+                    </select>
+                    <div class="train-form-hint" id="hintModo">
+                        Treinar modelo para um único ponto de medição
+                    </div>
+                </div>
+
+                <!-- Ponto de Medição (visível só no modo único) -->
+                <div class="train-form-group" id="grupoPonto">
                     <label>
                         <ion-icon name="pin-outline"></ion-icon>
                         Ponto de Medição
@@ -1294,9 +1802,6 @@ try {
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <div class="train-form-hint">
-                        Selecione o ponto para o qual deseja treinar o modelo preditivo
-                    </div>
                 </div>
 
                 <!-- Semanas de histórico -->
@@ -1390,6 +1895,90 @@ try {
 <?php endif; ?>
 
 <!-- ============================================
+     Modal: Associações TAG Principal → Auxiliares
+     ============================================ -->
+<?php if ($podeEditar): ?>
+    <div class="modal-overlay" id="modalAssociacoes" onclick="fecharModalAssociacoes(event)">
+        <div class="modal-container" style="max-width: 920px;" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>
+                    <ion-icon name="git-network-outline"></ion-icon>
+                    Associações de Tags (Principal → Auxiliares)
+                </h2>
+                <button class="btn-close" onclick="fecharModalAssociacoes()">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Nova associação -->
+                <div class="assoc-new-section">
+                    <label>
+                        <ion-icon name="add-circle-outline"></ion-icon>
+                        Adicionar nova TAG principal
+                    </label>
+                    <div class="assoc-new-row">
+                        <select id="selectNovaTagPrincipal" style="width:100%;">
+                            <option value="">Selecione um ponto / TAG...</option>
+                        </select>
+                        <button type="button" class="btn-new-assoc" onclick="criarNovaPrincipal()">
+                            <ion-icon name="add-outline"></ion-icon>
+                            Criar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Layout principal -->
+                <div class="assoc-layout">
+                    <!-- Lista de TAGs principais -->
+                    <div class="assoc-lista-panel">
+                        <div class="assoc-lista-header">
+                            <ion-icon name="pricetag-outline"></ion-icon>
+                            TAGs Principais
+                            <span id="assocTotalPrincipais" style="margin-left:auto; font-size:10px; color:#94a3b8;"></span>
+                        </div>
+                        <div class="assoc-lista-search">
+                            <input type="text" id="assocSearchPrincipal" placeholder="Filtrar TAGs..."
+                                oninput="filtrarPrincipais()">
+                        </div>
+                        <div class="assoc-lista-body" id="assocListaPrincipais">
+                            <div class="assoc-lista-empty">Carregando...</div>
+                        </div>
+                    </div>
+
+                    <!-- Detalhe das auxiliares -->
+                    <div class="assoc-detail-panel">
+                        <div class="assoc-detail-header" id="assocDetailHeader" style="display:none;">
+                            <div class="assoc-detail-title">
+                                Auxiliares de <span class="tag-highlight" id="assocTagSelecionada"></span>
+                            </div>
+                            <button type="button" class="btn-excluir-tag" onclick="excluirPrincipal()">
+                                <ion-icon name="trash-outline"></ion-icon>
+                                Excluir TAG
+                            </button>
+                        </div>
+                        <div class="assoc-add-row" id="assocAddRow" style="display:none;">
+                            <select id="selectNovaAuxiliar" style="width:100%;">
+                                <option value="">Selecione uma TAG auxiliar...</option>
+                            </select>
+                            <button type="button" class="btn-add-aux" onclick="adicionarAuxiliar()">
+                                <ion-icon name="add-outline"></ion-icon>
+                                Adicionar
+                            </button>
+                        </div>
+                        <div class="assoc-detail-body" id="assocDetailBody">
+                            <div class="assoc-detail-empty">
+                                <ion-icon name="arrow-back-outline"></ion-icon>
+                                Selecione uma TAG principal para ver suas auxiliares
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
+<!-- ============================================
      Loading Overlay (para treino)
      ============================================ -->
 <div class="loading-overlay" id="loadingOverlay">
@@ -1448,12 +2037,12 @@ try {
         verificarServico();
         carregarModelos();
 
-        // Fechar modais com ESC
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
                 fecharModalDetalhes();
                 fecharModalTreino();
                 fecharModalRetreino();
+                fecharModalAssociacoes();
             }
         });
     });
@@ -1729,7 +2318,13 @@ try {
                             <ion-icon name="refresh-outline"></ion-icon>
                             Retreinar
                         </button>
+                        <button type="button" class="btn-model-action btn-delete"
+                            onclick="excluirModelo(${cdPonto})" title="Excluir modelo">
+                            <ion-icon name="trash-outline"></ion-icon>
+                            Excluir
+                        </button>
                         ` : ''}
+                        
                     </div>
                 </div>
             `;
@@ -2019,24 +2614,89 @@ try {
     // ============================================
 
     /**
-     * Inicia o treinamento de um novo modelo via modal.
+     * Alterna visibilidade do campo Ponto conforme o modo de treino.
      */
-    function iniciarTreino() {
-        const cdPonto = $('#selectPontoTreino').val();
-        if (!cdPonto) {
-            showToast('Selecione um ponto de medição', 'aviso');
-            return;
+    function toggleModoPonto() {
+        const modo = document.getElementById('selectModoTreino').value;
+        const grupoPonto = document.getElementById('grupoPonto');
+        const hint = document.getElementById('hintModo');
+        const chkForce = document.getElementById('chkForce');
+
+        if (modo === 'todos') {
+            grupoPonto.style.display = 'none';
+            hint.textContent = 'Treinar todos os pontos com relações no FINDESLAB. Pode levar vários minutos.';
+            // Forçar force=true para todos (sobrescrever existentes)
+            chkForce.checked = true;
+            chkForce.parentElement.style.display = 'none';
+        } else {
+            grupoPonto.style.display = '';
+            hint.textContent = 'Treinar modelo para um único ponto de medição';
+            chkForce.parentElement.style.display = '';
         }
-
-        const semanas = parseInt(document.getElementById('selectSemanas').value);
-        const force = document.getElementById('chkForce').checked;
-        const tipoMedidor = parseInt($('#selectPontoTreino option:selected').data('tipo') || 1);
-
-        // Fechar modal e mostrar loading
-        fecharModalTreino();
-        executarTreino(parseInt(cdPonto), tipoMedidor, semanas, force);
     }
 
+    /**
+     * Inicia o treinamento (ponto único ou todos).
+     */
+    function iniciarTreino() {
+        const modo = document.getElementById('selectModoTreino').value;
+        const semanas = parseInt(document.getElementById('selectSemanas').value);
+
+        if (modo === 'todos') {
+            if (!confirm('Isso irá treinar/retreinar TODOS os pontos com relações no FINDESLAB.\n\nO processo pode levar vários minutos. Deseja continuar?')) {
+                return;
+            }
+            fecharModalTreino();
+            executarTreinoTodos(semanas);
+        } else {
+            const cdPonto = $('#selectPontoTreino').val();
+            if (!cdPonto) {
+                showToast('Selecione um ponto de medição', 'aviso');
+                return;
+            }
+            const force = document.getElementById('chkForce').checked;
+            const tipoMedidor = parseInt($('#selectPontoTreino option:selected').data('tipo') || 1);
+
+            fecharModalTreino();
+            executarTreino(parseInt(cdPonto), tipoMedidor, semanas, force);
+        }
+    }
+
+    /**
+     * Executa treino de TODOS os pontos via endpoint.
+     * Chama: python3 treinar_modelos.py --semanas N --output /app/models
+     * @param {number} semanas - Semanas de histórico
+     */
+    function executarTreinoTodos(semanas) {
+        document.getElementById('loadingText').textContent = 'Treinando todos os pontos...';
+        document.getElementById('loadingSub').textContent =
+            `${semanas} semanas de histórico | Isso pode levar vários minutos`;
+        document.getElementById('loadingOverlay').classList.add('active');
+
+        fetch('bd/operacoes/predicaoTensorFlow.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                acao: 'train_all',
+                semanas: semanas
+            })
+        })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('loadingOverlay').classList.remove('active');
+
+                if (data.success) {
+                    showToast(data.message || 'Treino de todos os pontos finalizado', 'sucesso');
+                    carregarModelos();
+                } else {
+                    showToast(data.error || 'Erro ao treinar', 'erro');
+                }
+            })
+            .catch(err => {
+                document.getElementById('loadingOverlay').classList.remove('active');
+                showToast('Erro de conexão: ' + err.message, 'erro');
+            });
+    }
     /**
      * Abre modal de retreino com seleção de período.
      * @param {number} cdPonto - Código do ponto
@@ -2118,6 +2778,435 @@ try {
                 document.getElementById('loadingOverlay').classList.remove('active');
                 showToast('Erro de conexão: ' + err.message, 'erro');
             });
+    }
+
+    // ============================================
+    // Associações TAG Principal → Auxiliares
+    // ============================================
+
+    /** Dados de associações: { TAG: [auxiliares] } */
+    let associacoes = {};
+    /** TAG principal selecionada */
+    let tagPrincipalSelecionada = null;
+    /** Tags disponíveis: [{ TAG, NM_PONTO_MEDICAO, CD_PONTO_MEDICAO, ID_TIPO_MEDIDOR }] */
+    let tagsDisponiveis = [];
+    /** Mapa rápido TAG → info do ponto */
+    let tagInfoMap = {};
+    /** Select2 já inicializados */
+    let select2Assoc = false;
+
+    /**
+     * Abre modal e carrega dados.
+     */
+    function abrirModalAssociacoes() {
+        document.getElementById('modalAssociacoes').classList.add('active');
+        carregarAssociacoes();
+        carregarTagsDisponiveis();
+    }
+
+    /**
+     * Fecha modal e destrói Select2 (evitar conflitos de z-index).
+     */
+    function fecharModalAssociacoes(event) {
+        if (event && event.target !== event.currentTarget) return;
+        document.getElementById('modalAssociacoes').classList.remove('active');
+        // Destruir Select2 ao fechar para evitar overlays órfãos
+        if (select2Assoc) {
+            try {
+                $('#selectNovaTagPrincipal').select2('destroy');
+                $('#selectNovaAuxiliar').select2('destroy');
+            } catch (e) { }
+            select2Assoc = false;
+        }
+    }
+
+    /**
+     * Inicializa Select2 com matcher que busca por TAG, CD_PONTO e nome.
+     */
+    function initSelect2Assoc() {
+        if (select2Assoc) return;
+
+        const parentModal = $('#modalAssociacoes .modal-container');
+
+        // Matcher customizado: pesquisa em TAG, CD_PONTO e nome do ponto
+        function matcherAssoc(params, data) {
+            // Se não há termo de busca, retorna tudo
+            if (!params.term || params.term.trim() === '') return data;
+            if (!data.element) return null;
+
+            const termo = params.term.toLowerCase();
+            const tag = (data.element.dataset.tag || '').toLowerCase();
+            const cd = (data.element.dataset.cd || '').toLowerCase();
+            const nome = (data.element.dataset.nome || '').toLowerCase();
+            const texto = (data.text || '').toLowerCase();
+
+            // Pesquisa em qualquer campo
+            if (tag.includes(termo) || cd.includes(termo) || nome.includes(termo) || texto.includes(termo)) {
+                return data;
+            }
+
+            return null;
+        }
+
+        $('#selectNovaTagPrincipal').select2({
+            placeholder: 'Buscar por código, TAG ou nome...',
+            allowClear: true,
+            width: '100%',
+            dropdownParent: parentModal,
+            matcher: matcherAssoc,
+            language: { noResults: () => 'Nenhuma TAG encontrada' }
+        });
+
+        $('#selectNovaAuxiliar').select2({
+            placeholder: 'Buscar por código, TAG ou nome...',
+            allowClear: true,
+            width: '100%',
+            dropdownParent: parentModal,
+            matcher: matcherAssoc,
+            language: { noResults: () => 'Nenhuma TAG encontrada' }
+        });
+
+        // Autofocus ao abrir os dropdowns
+        $('#selectNovaTagPrincipal').on('select2:open', function () {
+            setTimeout(() => document.querySelector('.select2-container--open .select2-search__field')?.focus(), 0);
+        });
+
+        $('#selectNovaAuxiliar').on('select2:open', function () {
+            setTimeout(() => document.querySelector('.select2-container--open .select2-search__field')?.focus(), 0);
+        });
+
+        select2Assoc = true;
+    }
+
+    /**
+     * Carrega associações existentes.
+     */
+    function carregarAssociacoes() {
+        document.getElementById('assocListaPrincipais').innerHTML =
+            '<div class="assoc-lista-empty"><ion-icon name="sync-outline" style="animation:spin 1s linear infinite;font-size:18px;"></ion-icon><br>Carregando...</div>';
+
+        fetch('bd/operacoes/predicaoTensorFlow.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ acao: 'list_relations' })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.relacoes) {
+                    associacoes = data.relacoes;
+                    renderizarListaPrincipais();
+                } else {
+                    document.getElementById('assocListaPrincipais').innerHTML =
+                        `<div class="assoc-lista-empty">${data.error || 'Erro ao carregar'}</div>`;
+                }
+            })
+            .catch(err => {
+                document.getElementById('assocListaPrincipais').innerHTML =
+                    `<div class="assoc-lista-empty">Erro: ${err.message}</div>`;
+            });
+    }
+
+    /**
+     * Carrega TAGs disponíveis e popula os Select2.
+     */
+    function carregarTagsDisponiveis() {
+        fetch('bd/operacoes/predicaoTensorFlow.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ acao: 'list_tags' })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.tags) {
+                    tagsDisponiveis = data.tags;
+
+                    // Montar mapa TAG → info
+                    tagInfoMap = {};
+                    tagsDisponiveis.forEach(t => {
+                        tagInfoMap[t.TAG] = t;
+                    });
+
+                    preencherSelectTags('selectNovaTagPrincipal', tagsDisponiveis);
+                    preencherSelectTags('selectNovaAuxiliar', tagsDisponiveis);
+
+                    // Inicializar Select2 após popular
+                    initSelect2Assoc();
+                }
+            })
+            .catch(() => { });
+    }
+
+    /**
+     * Preenche um <select> com TAGs.
+     * O value é sempre a TAG (string), o texto mostra código + TAG + nome.
+     */
+    function preencherSelectTags(selectId, tags) {
+        const select = document.getElementById(selectId);
+        select.innerHTML = '<option value="">Selecione...</option>';
+        tags.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.TAG;                          // Valor salvo = TAG
+            opt.dataset.cd = t.CD_PONTO_MEDICAO;
+            opt.dataset.tag = t.TAG;
+            opt.dataset.nome = t.NM_PONTO_MEDICAO || '';
+            opt.textContent = `#${t.CD_PONTO_MEDICAO} - ${t.TAG} (${t.NM_PONTO_MEDICAO || 'Sem nome'})`;
+            select.appendChild(opt);
+        });
+    }
+
+    /**
+     * Retorna info complementar da TAG (CD_PONTO e nome).
+     */
+    function getTagInfo(tag) {
+        const info = tagInfoMap[tag];
+        if (info) return `#${info.CD_PONTO_MEDICAO} - ${info.NM_PONTO_MEDICAO || ''}`;
+        return '';
+    }
+
+    /**
+     * Renderiza lista lateral de TAGs principais.
+     */
+    function renderizarListaPrincipais() {
+        const container = document.getElementById('assocListaPrincipais');
+        const busca = (document.getElementById('assocSearchPrincipal').value || '').toLowerCase();
+
+        const tags = Object.keys(associacoes).sort();
+        const filtradas = busca
+            ? tags.filter(t => {
+                const info = getTagInfo(t).toLowerCase();
+                return t.toLowerCase().includes(busca) || info.includes(busca);
+            })
+            : tags;
+
+        document.getElementById('assocTotalPrincipais').textContent = `(${tags.length})`;
+
+        if (filtradas.length === 0) {
+            container.innerHTML = '<div class="assoc-lista-empty">Nenhuma associação encontrada</div>';
+            return;
+        }
+
+        container.innerHTML = filtradas.map(tag => {
+            const count = associacoes[tag] ? associacoes[tag].length : 0;
+            const isActive = tag === tagPrincipalSelecionada;
+            const info = getTagInfo(tag);
+            return `
+                <div class="assoc-lista-item ${isActive ? 'active' : ''}" onclick="selecionarPrincipal('${escapeHtml(tag)}')">
+                    <div class="tag-info">
+                        <span class="tag-name" title="${escapeHtml(tag)}">${escapeHtml(tag)}</span>
+                        ${info ? `<span class="tag-ponto">${escapeHtml(info)}</span>` : ''}
+                    </div>
+                    <span class="tag-count">${count}</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Filtra lista de principais.
+     */
+    function filtrarPrincipais() {
+        renderizarListaPrincipais();
+    }
+
+    /**
+     * Seleciona principal e mostra auxiliares.
+     */
+    function selecionarPrincipal(tag) {
+        tagPrincipalSelecionada = tag;
+        renderizarListaPrincipais();
+
+        document.getElementById('assocDetailHeader').style.display = '';
+        document.getElementById('assocAddRow').style.display = '';
+        document.getElementById('assocTagSelecionada').textContent = tag;
+
+        renderizarAuxiliares();
+    }
+
+    /**
+     * Renderiza lista de auxiliares.
+     */
+    function renderizarAuxiliares() {
+        const container = document.getElementById('assocDetailBody');
+        const auxs = associacoes[tagPrincipalSelecionada] || [];
+
+        if (auxs.length === 0) {
+            container.innerHTML = `
+                <div class="assoc-detail-empty">
+                    <ion-icon name="link-outline"></ion-icon>
+                    Nenhuma TAG auxiliar associada
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = auxs.sort().map(aux => {
+            const info = getTagInfo(aux);
+            return `
+                <div class="assoc-aux-item">
+                    <div class="assoc-aux-info">
+                        <span class="aux-tag">${escapeHtml(aux)}</span>
+                        ${info ? `<span class="aux-ponto">${escapeHtml(info)}</span>` : ''}
+                    </div>
+                    <button type="button" class="btn-remove-aux" onclick="removerAuxiliar('${escapeHtml(aux)}')" title="Remover">
+                        <ion-icon name="close-outline"></ion-icon>
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    /**
+     * Cria nova TAG principal.
+     */
+    function criarNovaPrincipal() {
+        const tag = $('#selectNovaTagPrincipal').val();
+        if (!tag) {
+            showToast('Selecione uma TAG', 'aviso');
+            return;
+        }
+        if (associacoes[tag]) {
+            showToast('Esta TAG já existe como principal', 'aviso');
+            selecionarPrincipal(tag);
+            return;
+        }
+        associacoes[tag] = [];
+        renderizarListaPrincipais();
+        selecionarPrincipal(tag);
+        $('#selectNovaTagPrincipal').val('').trigger('change');
+        showToast(`TAG ${tag} adicionada. Agora adicione as auxiliares.`, 'sucesso');
+    }
+
+    /**
+     * Adiciona auxiliar à principal selecionada.
+     */
+    function adicionarAuxiliar() {
+        const tagAux = $('#selectNovaAuxiliar').val();
+
+        if (!tagAux) {
+            showToast('Selecione uma TAG auxiliar', 'aviso');
+            return;
+        }
+        if (tagAux === tagPrincipalSelecionada) {
+            showToast('A TAG auxiliar não pode ser igual à principal', 'aviso');
+            return;
+        }
+        if ((associacoes[tagPrincipalSelecionada] || []).includes(tagAux)) {
+            showToast('Esta TAG auxiliar já está associada', 'aviso');
+            return;
+        }
+
+        fetch('bd/operacoes/predicaoTensorFlow.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                acao: 'add_relation',
+                tag_principal: tagPrincipalSelecionada,
+                tag_auxiliar: tagAux
+            })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    if (!associacoes[tagPrincipalSelecionada]) associacoes[tagPrincipalSelecionada] = [];
+                    associacoes[tagPrincipalSelecionada].push(tagAux);
+                    renderizarAuxiliares();
+                    renderizarListaPrincipais();
+                    $('#selectNovaAuxiliar').val('').trigger('change');
+                    showToast(`TAG ${tagAux} associada com sucesso`, 'sucesso');
+                } else {
+                    showToast(data.error || 'Erro ao adicionar', 'erro');
+                }
+            })
+            .catch(err => showToast('Erro: ' + err.message, 'erro'));
+    }
+
+    /**
+     * Remove uma auxiliar.
+     */
+    function removerAuxiliar(tagAux) {
+        if (!confirm(`Remover a associação "${tagAux}" de "${tagPrincipalSelecionada}"?`)) return;
+
+        fetch('bd/operacoes/predicaoTensorFlow.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                acao: 'delete_relation',
+                tag_principal: tagPrincipalSelecionada,
+                tag_auxiliar: tagAux
+            })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    associacoes[tagPrincipalSelecionada] = (associacoes[tagPrincipalSelecionada] || [])
+                        .filter(t => t !== tagAux);
+                    renderizarAuxiliares();
+                    renderizarListaPrincipais();
+                    showToast('Associação removida', 'sucesso');
+                } else {
+                    showToast(data.error || 'Erro ao remover', 'erro');
+                }
+            })
+            .catch(err => showToast('Erro: ' + err.message, 'erro'));
+    }
+
+    /**
+     * Exclui todas as associações de uma principal.
+     */
+    function excluirPrincipal() {
+        const tag = tagPrincipalSelecionada;
+        if (!confirm(`Excluir TODAS as associações de "${tag}"?\n\nIsso removerá a TAG principal e todas suas auxiliares.`)) return;
+
+        fetch('bd/operacoes/predicaoTensorFlow.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                acao: 'delete_all_relations',
+                tag_principal: tag
+            })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    delete associacoes[tag];
+                    tagPrincipalSelecionada = null;
+                    renderizarListaPrincipais();
+                    document.getElementById('assocDetailHeader').style.display = 'none';
+                    document.getElementById('assocAddRow').style.display = 'none';
+                    document.getElementById('assocDetailBody').innerHTML = `
+                    <div class="assoc-detail-empty">
+                        <ion-icon name="arrow-back-outline"></ion-icon>
+                        Selecione uma TAG principal
+                    </div>`;
+                    showToast(`Associações de ${tag} excluídas`, 'sucesso');
+                } else {
+                    showToast(data.error || 'Erro ao excluir', 'erro');
+                }
+            })
+            .catch(err => showToast('Erro: ' + err.message, 'erro'));
+    }
+
+    /**
+     * Exclui o modelo treinado de um ponto (remove pasta inteira).
+     * @param {number} cdPonto - Código do ponto
+     */
+    function excluirModelo(cdPonto) {
+        if (!confirm(`Excluir o modelo treinado do ponto #${cdPonto}?\n\nIsso removerá todos os arquivos do modelo (model.json, metricas.json).\nO ponto precisará ser retreinado.`)) return;
+
+        fetch('bd/operacoes/predicaoTensorFlow.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ acao: 'delete_model', cd_ponto: cdPonto })
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(`Modelo do ponto #${cdPonto} excluído`, 'sucesso');
+                    carregarModelos();
+                } else {
+                    showToast(data.error || 'Erro ao excluir', 'erro');
+                }
+            })
+            .catch(err => showToast('Erro: ' + err.message, 'erro'));
     }
 </script>
 

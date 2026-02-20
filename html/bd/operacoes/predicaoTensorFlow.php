@@ -30,7 +30,8 @@ ob_start();
 /**
  * Retorna JSON limpo e encerra execução
  */
-function retornarJSON_TF($data) {
+function retornarJSON_TF($data)
+{
     ob_end_clean();
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
@@ -38,7 +39,7 @@ function retornarJSON_TF($data) {
 }
 
 // Capturar erros fatais
-register_shutdown_function(function() {
+register_shutdown_function(function () {
     $error = error_get_last();
     if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
         ob_end_clean();
@@ -54,10 +55,10 @@ try {
     // ========================================
     // Configuração do microserviço TensorFlow
     // ========================================
-    
+
     // URL do container TensorFlow (mesmo Docker network)
     $tensorflowUrl = getenv('TENSORFLOW_URL') ?: 'http://simp20-tensorflow:5000';
-    
+
     // Timeout para requisições (treino pode demorar mais)
     $timeoutPadrao = 30;
     $timeoutTreino = 300; // 5 minutos para treino
@@ -67,14 +68,14 @@ try {
     // ========================================
     $rawInput = file_get_contents('php://input');
     $dados = json_decode($rawInput, true);
-    
+
     if (json_last_error() !== JSON_ERROR_NONE) {
         // Tentar GET params
         $dados = $_GET;
     }
-    
+
     $acao = $dados['acao'] ?? $_GET['acao'] ?? '';
-    
+
     if (empty($acao)) {
         retornarJSON_TF([
             'success' => false,
@@ -86,7 +87,7 @@ try {
     // Roteamento por ação
     // ========================================
     switch ($acao) {
-        
+
         // ----------------------------------------
         // HEALTH CHECK - Verificar se o serviço está online
         // ----------------------------------------
@@ -97,7 +98,7 @@ try {
                 'tensorflow' => $resposta
             ]);
             break;
-        
+
         // ----------------------------------------
         // PREDICT - Predição de valores horários
         // ----------------------------------------
@@ -107,35 +108,35 @@ try {
             $horas = $dados['horas'] ?? null;
             $tipoMedidor = intval($dados['tipo_medidor'] ?? 1);
             $semanasHistorico = intval($dados['semanas_historico'] ?? 12);
-            
+
             if (!$cdPonto || !$data) {
                 retornarJSON_TF([
                     'success' => false,
                     'error' => 'cd_ponto e data são obrigatórios'
                 ]);
             }
-            
+
             $payload = [
                 'cd_ponto' => $cdPonto,
                 'data' => $data,
                 'tipo_medidor' => $tipoMedidor,
                 'semanas_historico' => $semanasHistorico
             ];
-            
+
             if ($horas !== null) {
                 $payload['horas'] = $horas;
             }
-            
+
             $resposta = chamarTensorFlow(
-                $tensorflowUrl . '/api/predict', 
-                'POST', 
-                $payload, 
+                $tensorflowUrl . '/api/predict',
+                'POST',
+                $payload,
                 $timeoutPadrao
             );
 
             retornarJSON_TF($resposta);
             break;
-        
+
         // ----------------------------------------
         // ANOMALIES - Detecção de anomalias
         // ----------------------------------------
@@ -144,14 +145,14 @@ try {
             $data = $dados['data'] ?? '';
             $tipoMedidor = intval($dados['tipo_medidor'] ?? 1);
             $sensibilidade = floatval($dados['sensibilidade'] ?? 0.8);
-            
+
             if (!$cdPonto || !$data) {
                 retornarJSON_TF([
                     'success' => false,
                     'error' => 'cd_ponto e data são obrigatórios'
                 ]);
             }
-            
+
             $resposta = chamarTensorFlow(
                 $tensorflowUrl . '/api/anomalies',
                 'POST',
@@ -163,10 +164,10 @@ try {
                 ],
                 $timeoutPadrao
             );
-            
+
             retornarJSON_TF($resposta);
             break;
-        
+
         // ----------------------------------------
         // CORRELATE - Correlação entre pontos
         // ----------------------------------------
@@ -176,14 +177,14 @@ try {
             $dataInicio = $dados['data_inicio'] ?? '';
             $dataFim = $dados['data_fim'] ?? '';
             $tipoMedidor = intval($dados['tipo_medidor'] ?? 1);
-            
+
             if (!$cdPontoOrigem || !$dataInicio || !$dataFim) {
                 retornarJSON_TF([
                     'success' => false,
                     'error' => 'cd_ponto_origem, data_inicio e data_fim são obrigatórios'
                 ]);
             }
-            
+
             $resposta = chamarTensorFlow(
                 $tensorflowUrl . '/api/correlate',
                 'POST',
@@ -196,10 +197,10 @@ try {
                 ],
                 60 // Correlação pode demorar um pouco mais
             );
-            
+
             retornarJSON_TF($resposta);
             break;
-        
+
         // ----------------------------------------
         // TRAIN - Treinar modelo para um ponto
         // ----------------------------------------
@@ -213,19 +214,19 @@ try {
                     'error' => 'Permissão negada. Você não tem acesso de escrita em Treinamento IA.'
                 ]);
             }
-            
+
             $cdPonto = intval($dados['cd_ponto'] ?? 0);
             $semanas = intval($dados['semanas'] ?? 24);
             $tipoMedidor = intval($dados['tipo_medidor'] ?? 1);
             $force = boolval($dados['force'] ?? false);
-            
+
             if (!$cdPonto) {
                 retornarJSON_TF([
                     'success' => false,
                     'error' => 'cd_ponto é obrigatório'
                 ]);
             }
-            
+
             $resposta = chamarTensorFlow(
                 $tensorflowUrl . '/api/train',
                 'POST',
@@ -237,7 +238,7 @@ try {
                 ],
                 $timeoutTreino
             );
-            
+
             // Registrar log do treino
             try {
                 include_once __DIR__ . '/../conexao.php';
@@ -255,10 +256,10 @@ try {
             } catch (Exception $logEx) {
                 // Log silencioso
             }
-            
+
             retornarJSON_TF($resposta);
             break;
-        
+
         // ----------------------------------------
         // STATUS - Status dos modelos treinados
         // ----------------------------------------
@@ -271,7 +272,149 @@ try {
             );
             retornarJSON_TF($resposta);
             break;
-        
+
+        // ----------------------------------------
+        // TRAIN_ALL - Treinar todos os pontos
+        // ----------------------------------------
+        case 'train_all':
+            session_start();
+            require_once __DIR__ . '/../verificarAuth.php';
+            if (!podeEditarTela('Treinamento IA')) {
+                retornarJSON_TF([
+                    'success' => false,
+                    'error' => 'Permissão negada.'
+                ]);
+            }
+
+            $semanas = intval($dados['semanas'] ?? 24);
+
+            // Chamar via TensorFlow que executa treinar_modelos.py sem --tag
+            $resposta = chamarTensorFlow(
+                $tensorflowUrl . '/api/train-all',
+                'POST',
+                ['semanas' => $semanas],
+                600 // 10 minutos de timeout
+            );
+
+            retornarJSON_TF($resposta);
+            break;
+
+        // ----------------------------------------
+        // LIST_RELATIONS - Listar associações TAG→Auxiliares
+        // ----------------------------------------
+        case 'list_relations':
+            $resposta = chamarTensorFlow($tensorflowUrl . '/api/relations', 'GET', null, 15);
+            retornarJSON_TF($resposta);
+            break;
+
+        // ----------------------------------------
+        // LIST_TAGS - Listar TAGs disponíveis
+        // ----------------------------------------
+        case 'list_tags':
+            $resposta = chamarTensorFlow($tensorflowUrl . '/api/available-tags', 'GET', null, 10);
+            retornarJSON_TF($resposta);
+            break;
+
+        // ----------------------------------------
+        // ADD_RELATION - Adicionar associação
+        // ----------------------------------------
+        case 'add_relation':
+            session_start();
+            require_once __DIR__ . '/../verificarAuth.php';
+            if (!podeEditarTela('Treinamento IA')) {
+                retornarJSON_TF(['success' => false, 'error' => 'Permissão negada.']);
+            }
+
+            $tagPrincipal = trim($dados['tag_principal'] ?? '');
+            $tagAuxiliar = trim($dados['tag_auxiliar'] ?? '');
+
+            if (!$tagPrincipal || !$tagAuxiliar) {
+                retornarJSON_TF(['success' => false, 'error' => 'tag_principal e tag_auxiliar são obrigatórios']);
+            }
+
+            $resposta = chamarTensorFlow(
+                $tensorflowUrl . '/api/relations/add',
+                'POST',
+                ['tag_principal' => $tagPrincipal, 'tag_auxiliar' => $tagAuxiliar],
+                10
+            );
+            retornarJSON_TF($resposta);
+            break;
+
+        // ----------------------------------------
+        // DELETE_RELATION - Remover uma associação
+        // ----------------------------------------
+        case 'delete_relation':
+            session_start();
+            require_once __DIR__ . '/../verificarAuth.php';
+            if (!podeEditarTela('Treinamento IA')) {
+                retornarJSON_TF(['success' => false, 'error' => 'Permissão negada.']);
+            }
+
+            $tagPrincipal = trim($dados['tag_principal'] ?? '');
+            $tagAuxiliar = trim($dados['tag_auxiliar'] ?? '');
+
+            if (!$tagPrincipal || !$tagAuxiliar) {
+                retornarJSON_TF(['success' => false, 'error' => 'tag_principal e tag_auxiliar são obrigatórios']);
+            }
+
+            $resposta = chamarTensorFlow(
+                $tensorflowUrl . '/api/relations/delete',
+                'POST',
+                ['tag_principal' => $tagPrincipal, 'tag_auxiliar' => $tagAuxiliar],
+                10
+            );
+            retornarJSON_TF($resposta);
+            break;
+
+        // ----------------------------------------
+        // DELETE_ALL_RELATIONS - Remover todas de uma principal
+        // ----------------------------------------
+        case 'delete_all_relations':
+            session_start();
+            require_once __DIR__ . '/../verificarAuth.php';
+            if (!podeEditarTela('Treinamento IA')) {
+                retornarJSON_TF(['success' => false, 'error' => 'Permissão negada.']);
+            }
+
+            $tagPrincipal = trim($dados['tag_principal'] ?? '');
+            if (!$tagPrincipal) {
+                retornarJSON_TF(['success' => false, 'error' => 'tag_principal é obrigatório']);
+            }
+
+            $resposta = chamarTensorFlow(
+                $tensorflowUrl . '/api/relations/delete-all',
+                'POST',
+                ['tag_principal' => $tagPrincipal],
+                10
+            );
+            retornarJSON_TF($resposta);
+            break;
+
+        // ----------------------------------------
+        // DELETE_MODEL - Excluir modelo treinado
+        // ----------------------------------------
+        case 'delete_model':
+            session_start();
+            require_once __DIR__ . '/../verificarAuth.php';
+            if (!podeEditarTela('Treinamento IA')) {
+                retornarJSON_TF(['success' => false, 'error' => 'Permissão negada.']);
+            }
+
+            $cdPonto = intval($dados['cd_ponto'] ?? 0);
+            if ($cdPonto <= 0) {
+                retornarJSON_TF(['success' => false, 'error' => 'cd_ponto inválido']);
+            }
+
+            $resposta = chamarTensorFlow(
+                $tensorflowUrl . '/api/model/delete',
+                'POST',
+                ['cd_ponto' => $cdPonto],
+                10
+            );
+            retornarJSON_TF($resposta);
+            break;
+            
         // ----------------------------------------
         // Ação desconhecida
         // ----------------------------------------
@@ -305,13 +448,14 @@ try {
  * @return array           Resposta decodificada do JSON
  * @throws Exception       Se o serviço não responder
  */
-function chamarTensorFlow(string $url, string $method = 'POST', ?array $data = null, int $timeout = 30): array {
+function chamarTensorFlow(string $url, string $method = 'POST', ?array $data = null, int $timeout = 30): array
+{
     if (!function_exists('curl_init')) {
         throw new Exception('Extensão cURL não está instalada');
     }
-    
+
     $ch = curl_init();
-    
+
     $options = [
         CURLOPT_URL => $url,
         CURLOPT_RETURNTRANSFER => true,
@@ -330,20 +474,20 @@ function chamarTensorFlow(string $url, string $method = 'POST', ?array $data = n
         CURLOPT_FRESH_CONNECT => true,
         CURLOPT_FORBID_REUSE => true
     ];
-    
+
     if ($method === 'POST' && $data !== null) {
         $options[CURLOPT_POST] = true;
         $options[CURLOPT_POSTFIELDS] = json_encode($data, JSON_UNESCAPED_UNICODE);
     }
-    
+
     curl_setopt_array($ch, $options);
-    
+
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curlError = curl_error($ch);
     $curlErrno = curl_errno($ch);
     curl_close($ch);
-    
+
     // Erro de conexão (serviço offline)
     if ($curlErrno !== 0) {
         return [
@@ -353,10 +497,10 @@ function chamarTensorFlow(string $url, string $method = 'POST', ?array $data = n
             'fallback' => 'Usando método estatístico padrão do SIMP'
         ];
     }
-    
+
     // Decodificar resposta
     $decoded = json_decode($response, true);
-    
+
     if (json_last_error() !== JSON_ERROR_NONE) {
         return [
             'success' => false,
@@ -364,6 +508,6 @@ function chamarTensorFlow(string $url, string $method = 'POST', ?array $data = n
             'raw' => substr($response, 0, 500)
         ];
     }
-    
+
     return $decoded;
-} 
+}
