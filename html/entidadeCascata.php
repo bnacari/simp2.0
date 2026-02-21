@@ -554,21 +554,13 @@ function inicializarDrawflow() {
         var no = flat.find(function(n){ return n.CD_CHAVE == cd; });
         if (!no) { _originalRemoveNode(idStr); return; }
 
-        /* Contar descendentes (filhos, netos, etc.) */
-        var descIds = [];
-        function buscarDesc(paiCd) {
-            flat.forEach(function(n) {
-                if (n.CD_PAI == paiCd && n.CD_CHAVE != paiCd) {
-                    descIds.push(n.CD_CHAVE);
-                    buscarDesc(n.CD_CHAVE);
-                }
-            });
-        }
-        buscarDesc(cd);
+        /* Contar descendentes via conexões do grafo */
+        var descIds = obterDescendentes(cd);
+        descIds.splice(descIds.indexOf(parseInt(cd)), 1); /* remover o próprio nó */
 
         var msg = 'Desativar "' + no.DS_NOME + '"?';
         if (descIds.length > 0) {
-            msg += '\n\n⚠ ' + descIds.length + ' nó(s) descendente(s) também serão desativados.';
+            msg += '\n\n⚠ Este nó possui ' + descIds.length + ' nó(s) conectado(s).';
         }
 
         if (!confirm(msg)) return; /* Cancelou: não remove nada */
@@ -736,7 +728,7 @@ function contarDescendentes(cdRaiz) {
     return obterDescendentes(cdRaiz).length - 1; // -1 pq inclui ele mesmo
 }
 
-/** Obter IDs de todos os nós alcançáveis a partir de um nó (via conexões + CD_PAI) */
+/** Obter IDs de todos os nós alcançáveis a partir de um nó (via conexões) */
 function obterDescendentes(cdRaiz) {
     var ids = [parseInt(cdRaiz)];
     var fila = [parseInt(cdRaiz)];
@@ -744,21 +736,12 @@ function obterDescendentes(cdRaiz) {
     while (fila.length > 0) {
         var atual = fila.shift();
 
-        /* 1. Filhos por conexão (setas no canvas) */
+        /* Percorrer conexões (setas no canvas) */
         conexoes.forEach(function(cx) {
             var destino = parseInt(cx.CD_NODO_DESTINO);
             if (parseInt(cx.CD_NODO_ORIGEM) === atual && ids.indexOf(destino) === -1) {
                 ids.push(destino);
                 fila.push(destino);
-            }
-        });
-
-        /* 2. Filhos por CD_PAI (hierarquia da árvore) */
-        flat.forEach(function(n) {
-            var cd = parseInt(n.CD_CHAVE);
-            if (parseInt(n.CD_PAI) === atual && ids.indexOf(cd) === -1) {
-                ids.push(cd);
-                fila.push(cd);
             }
         });
     }
@@ -1086,10 +1069,8 @@ function salvarNoEditor() {
     if (!nv) { toast('Selecione o nível', 'err'); return; }
     if (!nm) { toast('Informe o nome', 'err'); return; }
 
-    var no = flat.find(function(n){return n.CD_CHAVE == cd});
     var fd = new FormData();
     fd.append('cd', cd);
-    if (no && no.CD_PAI) fd.append('cdPai', no.CD_PAI);
     fd.append('cdNivel', nv);
     fd.append('nome', nm);
     fd.append('identificador', no ? (no.DS_IDENTIFICADOR || '') : '');
@@ -1517,7 +1498,6 @@ function criarNoWiz(tpl, idx, cds) {
     var posY = baseY + Math.floor(idx / 3) * 160;
 
     var fd = new FormData();
-    if (item.pai !== undefined && cds[item.pai]) fd.append('cdPai', cds[item.pai]);
     fd.append('cdNivel', nivelEnc.CD_CHAVE);
     fd.append('nome', item.nome);
     fd.append('identificador', '');

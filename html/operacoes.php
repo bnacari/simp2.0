@@ -335,7 +335,13 @@ $letrasTipoMedidor = [
                 <div class="grafico-popup-titulo" id="graficoPopupTitulo">-</div>
                 <div class="grafico-popup-codigo" id="graficoPopupCodigo">-</div>
             </div>
-            <button type="button" class="grafico-popup-fechar" onclick="fecharGraficoPopup()">X</button>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <button type="button" class="grafico-popup-fechar" onclick="resetZoomPopup()" title="Resetar zoom"
+                    style="font-size:14px;">
+                    <ion-icon name="scan-outline"></ion-icon>
+                </button>
+                <button type="button" class="grafico-popup-fechar" onclick="fecharGraficoPopup()">X</button>
+            </div>
         </div>
         <div class="grafico-popup-container">
             <canvas id="graficoPopupCanvas"></canvas>
@@ -912,6 +918,12 @@ $letrasTipoMedidor = [
 
         <!-- Chart.js -->
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+        <!-- SCROLL ZOOM DO MOUSE -->
+        <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+        <!-- fim SCROLL ZOOM DO MOUSE -->
+
         <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
         <!-- Choices.js -->
         <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
@@ -2580,6 +2592,29 @@ $letrasTipoMedidor = [
                                         return 'Média: ' + formatarNumero(context.raw) + ' ' + unidade;
                                     }
                                 }
+                            },
+                            zoom: {
+                                pan: {
+                                    enabled: true,
+                                    mode: 'x',
+                                    modifierKey: null
+                                },
+                                zoom: {
+                                    wheel: {
+                                        enabled: true,
+                                        speed: 0.05
+                                    },
+                                    pinch: {
+                                        enabled: true
+                                    },
+                                    mode: 'x',
+                                    onZoomComplete: function ({ chart }) {
+                                        chart.update('none');
+                                    }
+                                },
+                                limits: {
+                                    x: { minRange: 24 } // Mínimo 1 dia visível
+                                }
                             }
                         },
                         scales: {
@@ -2661,7 +2696,11 @@ $letrasTipoMedidor = [
                     fecharGraficoPopup();
                 }
             }
-
+            function resetZoomPopup() {
+                if (graficoPopupInstance) {
+                    graficoPopupInstance.resetZoom();
+                }
+            }
             // Fechar popup ao pressionar ESC
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') {

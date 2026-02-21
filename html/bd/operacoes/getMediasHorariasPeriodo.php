@@ -52,7 +52,7 @@ try {
         1 => 'VL_VAZAO_EFETIVA',
         2 => 'VL_VAZAO_EFETIVA',
         4 => 'VL_PRESSAO',
-        6 => 'VL_NIVEL_RESERVATORIO',
+        6 => 'VL_RESERVATORIO',
         8 => 'VL_VAZAO_EFETIVA'
     ];
     $unidadesPorTipo = [
