@@ -1,0 +1,59 @@
+{
+  "mae": 24.409,
+  "rmse": 28.759,
+  "r2": -0.0939,
+  "correlacao": 0.3832,
+  "mape_pct": 136.25,
+  "n_arvores": 18,
+  "max_depth": 6,
+  "learning_rate": 0.05,
+  "amostras_treino": 1467,
+  "amostras_validacao": 259,
+  "n_features": 12,
+  "cd_ponto_medicao": 2249,
+  "tag_principal": "GPRS046_M029_CALC",
+  "tags_auxiliares": [
+    "CP014_TM8_26_MED",
+    "CP014_TM8_28_MED"
+  ],
+  "feature_names": [
+    "aux_CP014_TM8_26_MED_t0",
+    "aux_CP014_TM8_26_MED_t1",
+    "aux_CP014_TM8_26_MED_t3",
+    "aux_CP014_TM8_26_MED_t6",
+    "aux_CP014_TM8_28_MED_t0",
+    "aux_CP014_TM8_28_MED_t1",
+    "aux_CP014_TM8_28_MED_t3",
+    "aux_CP014_TM8_28_MED_t6",
+    "hora_sin",
+    "hora_cos",
+    "dia_sem_sin",
+    "dia_sem_cos"
+  ],
+  "feature_importance": {
+    "hora_sin": 0.2184,
+    "aux_CP014_TM8_26_MED_t0": 0.0851,
+    "aux_CP014_TM8_26_MED_t6": 0.0781,
+    "dia_sem_cos": 0.0763,
+    "aux_CP014_TM8_28_MED_t6": 0.0732,
+    "aux_CP014_TM8_28_MED_t3": 0.0731,
+    "aux_CP014_TM8_26_MED_t3": 0.0728,
+    "aux_CP014_TM8_28_MED_t0": 0.0726,
+    "aux_CP014_TM8_26_MED_t1": 0.0706,
+    "aux_CP014_TM8_28_MED_t1": 0.07,
+    "dia_sem_sin": 0.0561,
+    "hora_cos": 0.0538
+  },
+  "tipo_medidor": 6,
+  "lags": [
+    0,
+    1,
+    3,
+    6
+  ],
+  "modelo_tipo": "xgboost",
+  "target_tipo": "correlacao",
+  "treinado_em": "2026-02-22T08:35:09.772601",
+  "banco_treino": "sgbd-hom-simp.sistemas.cesan.com.br\\corporativo\\simp",
+  "versao_treino": "6.0"
+}

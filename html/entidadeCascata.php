@@ -8,8 +8,8 @@
 include_once 'includes/header.inc.php';
 include_once 'bd/conexao.php';
 recarregarPermissoesUsuario();
-exigePermissaoTela('Cadastro de Entidade', ACESSO_LEITURA);
-$podeEditar = podeEditarTela('Cadastro de Entidade');
+exigePermissaoTela('flowchart', ACESSO_LEITURA);
+$podeEditar = podeEditarTela('flowchart');
 include_once 'includes/menu.inc.php';
 
 /* Pontos de medição para select */
@@ -1069,6 +1069,7 @@ function salvarNoEditor() {
     if (!nv) { toast('Selecione o nível', 'err'); return; }
     if (!nm) { toast('Informe o nome', 'err'); return; }
 
+    var no = flat.find(function(n){return n.CD_CHAVE == cd});
     var fd = new FormData();
     fd.append('cd', cd);
     fd.append('cdNivel', nv);

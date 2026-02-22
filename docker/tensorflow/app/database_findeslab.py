@@ -100,16 +100,25 @@ def _mapear_tags_para_pontos(
     placeholders = ','.join(['?' for _ in tags])
 
     sql = f"""
-        SELECT 
-            CD_PONTO_MEDICAO,
-            DS_TAG_VAZAO,
-            DS_TAG_PRESSAO,
-            DS_TAG_RESERVATORIO
-        FROM SIMP.dbo.PONTO_MEDICAO
-        WHERE DS_TAG_VAZAO IN ({placeholders})
-           OR DS_TAG_PRESSAO IN ({placeholders})
-           OR DS_TAG_RESERVATORIO IN ({placeholders})
-    """
+            SELECT 
+                PM.CD_PONTO_MEDICAO,
+                PM.DS_TAG_VAZAO,
+                PM.DS_TAG_PRESSAO,
+                PM.DS_TAG_RESERVATORIO,
+                CASE WHEN PM.DT_DESATIVACAO IS NULL THEN 0 ELSE 1 END AS DESATIVADO,
+                ISNULL(RVP.ULT_LEITURA, '1900-01-01') AS ULT_LEITURA
+            FROM SIMP.dbo.PONTO_MEDICAO PM
+            LEFT JOIN (
+                SELECT CD_PONTO_MEDICAO, MAX(DT_LEITURA) AS ULT_LEITURA
+                FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO
+                WHERE ID_SITUACAO = 1
+                GROUP BY CD_PONTO_MEDICAO
+            ) RVP ON RVP.CD_PONTO_MEDICAO = PM.CD_PONTO_MEDICAO
+            WHERE PM.DS_TAG_VAZAO IN ({placeholders})
+            OR PM.DS_TAG_PRESSAO IN ({placeholders})
+            OR PM.DS_TAG_RESERVATORIO IN ({placeholders})
+            ORDER BY DESATIVADO ASC, ULT_LEITURA DESC
+        """
 
     # Triplicar parâmetros (uma vez para cada IN clause)
     params = list(tags) * 3
@@ -118,15 +127,16 @@ def _mapear_tags_para_pontos(
     cursor.execute(sql, params)
     rows = cursor.fetchall()
 
-    mapeamento = {}
+    mapeamento = {} 
     for row in rows:
         cd_ponto = row[0]
         tag_vazao = (row[1] or '').strip()
         tag_pressao = (row[2] or '').strip()
         tag_reservatorio = (row[3] or '').strip()
 
-        # Verificar em qual campo a tag está e definir o campo de valor correspondente
         for tag in tags:
+            if tag in mapeamento:
+                continue  # Já mapeada pelo ponto com melhor ranking
             if tag == tag_vazao:
                 mapeamento[tag] = (cd_ponto, 'VL_VAZAO')
             elif tag == tag_pressao:

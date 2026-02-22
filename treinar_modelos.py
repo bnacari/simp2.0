@@ -199,14 +199,24 @@ def _mapear_tag_para_campo(conn: pyodbc.Connection, tag: str) -> Tuple[Optional[
     Returns:
         Tupla (cd_ponto, campo_valor) ou (None, '') se não encontrar
     """
+    # PARA (corrigido — priorizar ponto ativo e com dados):
     sql = """
         SELECT TOP 1
-            CD_PONTO_MEDICAO,
-            DS_TAG_VAZAO,
-            DS_TAG_PRESSAO,
-            DS_TAG_RESERVATORIO
-        FROM SIMP.dbo.PONTO_MEDICAO
-        WHERE DS_TAG_VAZAO = ? OR DS_TAG_PRESSAO = ? OR DS_TAG_RESERVATORIO = ?
+            PM.CD_PONTO_MEDICAO,
+            PM.DS_TAG_VAZAO,
+            PM.DS_TAG_PRESSAO,
+            PM.DS_TAG_RESERVATORIO
+        FROM SIMP.dbo.PONTO_MEDICAO PM
+        LEFT JOIN (
+            SELECT CD_PONTO_MEDICAO, MAX(DT_LEITURA) AS ULT_LEITURA
+            FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO
+            WHERE ID_SITUACAO = 1
+            GROUP BY CD_PONTO_MEDICAO
+        ) RVP ON RVP.CD_PONTO_MEDICAO = PM.CD_PONTO_MEDICAO
+        WHERE (PM.DS_TAG_VAZAO = ? OR PM.DS_TAG_PRESSAO = ? OR PM.DS_TAG_RESERVATORIO = ?)
+        ORDER BY 
+            CASE WHEN PM.DT_DESATIVACAO IS NULL THEN 0 ELSE 1 END,
+            RVP.ULT_LEITURA DESC
     """
     cursor = conn.cursor()
     cursor.execute(sql, tag, tag, tag)

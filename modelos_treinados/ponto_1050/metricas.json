@@ -1,0 +1,50 @@
+{
+  "mae": 2.8771,
+  "rmse": 3.5497,
+  "r2": 0.8875,
+  "correlacao": 0.973,
+  "mape_pct": 9.89,
+  "n_arvores": 32,
+  "max_depth": 6,
+  "learning_rate": 0.05,
+  "amostras_treino": 1469,
+  "amostras_validacao": 260,
+  "n_features": 8,
+  "cd_ponto_medicao": 1050,
+  "tag_principal": "CP137_TM26_8_MED",
+  "tags_auxiliares": [
+    "GPRS050_M010_MED"
+  ],
+  "feature_names": [
+    "aux_GPRS050_M010_MED_t0",
+    "aux_GPRS050_M010_MED_t1",
+    "aux_GPRS050_M010_MED_t3",
+    "aux_GPRS050_M010_MED_t6",
+    "hora_sin",
+    "hora_cos",
+    "dia_sem_sin",
+    "dia_sem_cos"
+  ],
+  "feature_importance": {
+    "hora_cos": 0.7095,
+    "hora_sin": 0.1542,
+    "dia_sem_sin": 0.0336,
+    "aux_GPRS050_M010_MED_t6": 0.0269,
+    "aux_GPRS050_M010_MED_t1": 0.0246,
+    "aux_GPRS050_M010_MED_t0": 0.0221,
+    "dia_sem_cos": 0.0149,
+    "aux_GPRS050_M010_MED_t3": 0.0143
+  },
+  "tipo_medidor": 1,
+  "lags": [
+    0,
+    1,
+    3,
+    6
+  ],
+  "modelo_tipo": "xgboost",
+  "target_tipo": "correlacao",
+  "treinado_em": "2026-02-22T08:35:09.009694",
+  "banco_treino": "sgbd-hom-simp.sistemas.cesan.com.br\\corporativo\\simp",
+  "versao_treino": "6.0"
+}
