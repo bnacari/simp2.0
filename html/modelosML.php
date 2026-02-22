@@ -662,11 +662,34 @@ try {
 
     /* Footer do card - ações */
     .model-card-footer {
-        padding: 12px 20px;
+        padding: 10px 16px;
         background: #fafbfc;
         border-top: 1px solid #e2e8f0;
         display: flex;
-        gap: 8px;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .btn-model-action {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 7px 8px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+        white-space: nowrap;
+    }
+
+    .btn-model-action ion-icon {
+        font-size: 14px;
+        flex-shrink: 0;
     }
 
     .btn-model-action {
@@ -2376,6 +2399,467 @@ try {
             max-width: 120px;
         }
     }
+
+    /* ============================================
+       Modal de Diagnóstico ML
+       ============================================ */
+    .diag-modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 10000;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 40px 20px;
+        overflow-y: auto;
+    }
+
+    .diag-modal-overlay.active {
+        display: flex;
+    }
+
+    .diag-modal {
+        background: #fff;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 640px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+        animation: diagSlideIn 0.25s ease-out;
+    }
+
+    @keyframes diagSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .diag-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 24px;
+        background: linear-gradient(135deg, #1e3a5f, #2563eb);
+        color: #fff;
+    }
+
+    .diag-modal-header h3 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .diag-modal-header h3 ion-icon {
+        font-size: 20px;
+    }
+
+    .diag-modal-header .diag-close {
+        background: rgba(255, 255, 255, 0.15);
+        border: none;
+        color: #fff;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+    }
+
+    .diag-modal-header .diag-close:hover {
+        background: rgba(255, 255, 255, 0.25);
+    }
+
+    .diag-modal-header .diag-close ion-icon {
+        font-size: 18px;
+    }
+
+    /* Subheader com info do ponto */
+    .diag-ponto-info {
+        padding: 14px 24px;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .diag-ponto-info .codigo {
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        font-weight: 700;
+        color: #1e3a5f;
+        background: #e0eaff;
+        padding: 4px 10px;
+        border-radius: 6px;
+    }
+
+    .diag-ponto-info .nome {
+        font-size: 12px;
+        color: #64748b;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Corpo com as etapas */
+    .diag-modal-body {
+        padding: 20px 24px;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+
+    /* Loading */
+    .diag-loading {
+        text-align: center;
+        padding: 40px 0;
+        color: #64748b;
+    }
+
+    .diag-loading ion-icon {
+        font-size: 32px;
+        color: #3b82f6;
+        animation: diagSpin 1s linear infinite;
+    }
+
+    @keyframes diagSpin {
+        from {
+            transform: rotate(0deg);
+        }
+
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .diag-loading p {
+        margin-top: 12px;
+        font-size: 13px;
+    }
+
+    /* Timeline das etapas */
+    .diag-timeline {
+        position: relative;
+        padding-left: 32px;
+    }
+
+    .diag-timeline::before {
+        content: '';
+        position: absolute;
+        left: 11px;
+        top: 8px;
+        bottom: 8px;
+        width: 2px;
+        background: #e2e8f0;
+        border-radius: 1px;
+    }
+
+    .diag-etapa {
+        position: relative;
+        margin-bottom: 4px;
+    }
+
+    .diag-etapa:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Ícone do status na timeline */
+    .diag-etapa-icon {
+        position: absolute;
+        left: -32px;
+        top: 12px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+    }
+
+    .diag-etapa-icon ion-icon {
+        font-size: 14px;
+        color: #fff;
+    }
+
+    .diag-etapa-icon.ok {
+        background: #22c55e;
+    }
+
+    .diag-etapa-icon.alerta {
+        background: #f59e0b;
+    }
+
+    .diag-etapa-icon.erro {
+        background: #ef4444;
+    }
+
+    /* Cabeçalho clicável da etapa */
+    .diag-etapa-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background 0.15s;
+        border: 1px solid transparent;
+    }
+
+    .diag-etapa-header:hover {
+        background: #f8fafc;
+    }
+
+    .diag-etapa.expanded .diag-etapa-header {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    .diag-etapa-header .etapa-numero {
+        font-size: 11px;
+        font-weight: 600;
+        color: #94a3b8;
+        min-width: 16px;
+    }
+
+    .diag-etapa-header .etapa-titulo {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .diag-etapa-header .etapa-msg {
+        font-size: 12px;
+        color: #64748b;
+        margin-left: auto;
+        text-align: right;
+        max-width: 50%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .diag-etapa-header .etapa-msg.ok {
+        color: #16a34a;
+    }
+
+    .diag-etapa-header .etapa-msg.alerta {
+        color: #d97706;
+    }
+
+    .diag-etapa-header .etapa-msg.erro {
+        color: #dc2626;
+    }
+
+    /* Seta de expansão */
+    .diag-etapa-header .etapa-toggle {
+        font-size: 14px;
+        color: #94a3b8;
+        transition: transform 0.2s;
+        flex-shrink: 0;
+    }
+
+    .diag-etapa.expanded .diag-etapa-header .etapa-toggle {
+        transform: rotate(180deg);
+    }
+
+    /* Corpo expandido da etapa */
+    .diag-etapa-body {
+        display: none;
+        padding: 12px 14px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-top: none;
+        border-bottom-left-radius: 10px;
+        border-bottom-right-radius: 10px;
+        margin-bottom: 4px;
+    }
+
+    .diag-etapa.expanded .diag-etapa-body {
+        display: block;
+    }
+
+    .diag-detalhe-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 5px 0;
+        font-size: 12px;
+        border-bottom: 1px solid #eef2f7;
+        gap: 12px;
+    }
+
+    .diag-detalhe-row:last-child {
+        border-bottom: none;
+    }
+
+    .diag-detalhe-row .dl-label {
+        color: #64748b;
+        flex-shrink: 0;
+        min-width: 120px;
+    }
+
+    .diag-detalhe-row .dl-valor {
+        color: #1e293b;
+        font-weight: 500;
+        text-align: right;
+        word-break: break-all;
+    }
+
+    /* Resumo / veredicto */
+    .diag-resumo {
+        margin-top: 16px;
+        padding: 14px 18px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .diag-resumo ion-icon {
+        font-size: 24px;
+        flex-shrink: 0;
+    }
+
+    .diag-resumo .resumo-texto {
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .diag-resumo .resumo-detalhe {
+        font-size: 11px;
+        font-weight: 400;
+        color: inherit;
+        opacity: 0.8;
+        margin-top: 2px;
+    }
+
+    .diag-resumo.viavel {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #166534;
+    }
+
+    .diag-resumo.viavel-alerta {
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        color: #92400e;
+    }
+
+    .diag-resumo.bloqueado {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+    }
+
+    /* Footer do modal */
+    .diag-modal-footer {
+        padding: 14px 24px;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        background: #fafbfc;
+    }
+
+    .diag-modal-footer button {
+        padding: 8px 18px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: all 0.2s;
+    }
+
+    .diag-btn-fechar {
+        background: #f1f5f9;
+        color: #475569;
+        border-color: #e2e8f0;
+    }
+
+    .diag-btn-fechar:hover {
+        background: #e2e8f0;
+    }
+
+    .diag-btn-treinar {
+        background: #2563eb;
+        color: #fff;
+    }
+
+    .diag-btn-treinar:hover {
+        background: #1d4ed8;
+    }
+
+    .diag-btn-treinar:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+    }
+
+    /* Botão de diagnóstico no card */
+    .btn-model-action.btn-diag {
+        background: #faf5ff;
+        color: #7c3aed;
+        border-color: #ddd6fe;
+    }
+
+    .btn-model-action.btn-diag:hover {
+        background: #ede9fe;
+    }
+
+    /* Responsivo */
+    @media (max-width: 768px) {
+        .diag-modal {
+            max-width: 100%;
+            margin: 10px;
+        }
+
+        .diag-modal-body {
+            max-height: 55vh;
+        }
+
+        .diag-etapa-header .etapa-msg {
+            max-width: 40%;
+            font-size: 11px;
+        }
+
+        .diag-ponto-info {
+            flex-wrap: wrap;
+        }
+
+        .diag-detalhe-row {
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .diag-detalhe-row .dl-valor {
+            text-align: left;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .diag-modal-body {
+            padding: 14px 16px;
+        }
+
+        .diag-etapa-header .etapa-msg {
+            display: none;
+        }
+    }
 </style>
 
 <div class="page-container">
@@ -2649,6 +3133,45 @@ try {
             <div class="sync-modal-footer" style="justify-content:flex-end;">
                 <button type="button" class="btn-sync secondary" onclick="fecharModalRegras()">
                     Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         Modal de Diagnóstico ML
+         ============================================ -->
+    <div class="diag-modal-overlay" id="modalDiagnostico">
+        <div class="diag-modal">
+            <div class="diag-modal-header">
+                <h3>
+                    <ion-icon name="medkit-outline"></ion-icon>
+                    Diagnóstico de Treino ML
+                </h3>
+                <button class="diag-close" onclick="fecharModalDiag()">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            <!-- Info do ponto (preenchido via JS) -->
+            <div class="diag-ponto-info" id="diagPontoInfo">
+                <span class="codigo" id="diagPontoCodigo">—</span>
+                <span class="nome" id="diagPontoNome">—</span>
+            </div>
+            <!-- Corpo: timeline de etapas -->
+            <div class="diag-modal-body" id="diagModalBody">
+                <div class="diag-loading" id="diagLoading">
+                    <ion-icon name="sync-outline"></ion-icon>
+                    <p>Executando diagnóstico...</p>
+                </div>
+                <div id="diagConteudo" style="display:none;"></div>
+            </div>
+            <!-- Footer -->
+            <div class="diag-modal-footer">
+                <button class="diag-btn-fechar" onclick="fecharModalDiag()">Fechar</button>
+                <button class="diag-btn-treinar" id="diagBtnTreinar" disabled onclick="treinarAposDiag()"
+                    style="display:none;">
+                    <ion-icon name="rocket-outline" style="vertical-align:middle;margin-right:4px;"></ion-icon>
+                    Treinar
                 </button>
             </div>
         </div>
@@ -3246,7 +3769,13 @@ try {
                             </div>
                             <span class="quality-label ${qualidade.classe}">${qualidade.texto}</span>
                         </div>
-
+                        <div class="model-info-row">
+                            <span class="info-label">
+                                <ion-icon name="calendar-outline"></ion-icon>
+                                Histórico
+                            </span>
+                            <span class="info-value">${metricas.semanas_historico ? metricas.semanas_historico + ' semanas' : '—'}</span>
+                        </div>
                         <!-- Informações extras -->
                         <div class="model-info-row">
                             <span class="info-label">
@@ -3277,6 +3806,11 @@ try {
                             <ion-icon name="eye-outline"></ion-icon>
                             Detalhes
                         </button>
+                        <button type="button" class="btn-model-action btn-diag"
+                            onclick="abrirDiagnostico(${cdPonto})" title="Diagnosticar pré-requisitos">
+                            <ion-icon name="medkit-outline"></ion-icon>
+                            Diagnóstico
+                        </button>
                         ${podeEditar ? `
                         <button type="button" class="btn-model-action btn-retrain"
                             onclick="retreinar(${cdPonto}, ${metricas.tipo_medidor || 1})" title="Retreinar modelo">
@@ -3289,7 +3823,6 @@ try {
                             Excluir
                         </button>
                         ` : ''}
-                        
                     </div>
                 </div>
             `;
@@ -4233,7 +4766,7 @@ try {
             msg.textContent = `${data.resumo.total_inalteradas} relação(ões) ativas — tudo alinhado.`;
             btnRevisar.style.display = 'none';
         }
-    } 
+    }
 
     /**
      * Abre o modal de sincronização e executa o check.
@@ -4548,7 +5081,7 @@ try {
     // --- Verificar sincronização ao carregar a página ---
     // Adicionar esta chamada dentro do DOMContentLoaded ou no final do script:
     verificarSyncFlowchart();
-
+    fecharModalDiag();
     // ============================================
     // Dropdown customizado de Sistemas (sem Select2)
     // ============================================
@@ -4629,6 +5162,202 @@ try {
             fecharSyncDropdown();
         }
     });
+
+    // ============================================
+    // Diagnóstico ML
+    // ============================================
+
+    /** Dados do último diagnóstico executado */
+    var ultimoDiagnostico = null;
+
+    /**
+     * Abre o modal de diagnóstico e executa verificação para um ponto.
+     * Pode ser chamado a partir do card do modelo ou do modal de novo treino.
+     * @param {number} cdPonto - Código do ponto de medição
+     */
+    function abrirDiagnostico(cdPonto) {
+        ultimoDiagnostico = null;
+
+        // Abrir modal
+        document.getElementById('modalDiagnostico').classList.add('active');
+        document.getElementById('diagLoading').style.display = 'block';
+        document.getElementById('diagConteudo').style.display = 'none';
+        document.getElementById('diagBtnTreinar').style.display = 'none';
+        document.getElementById('diagBtnTreinar').disabled = true;
+        document.getElementById('diagPontoCodigo').textContent = '#' + cdPonto;
+        document.getElementById('diagPontoNome').textContent = 'Carregando...';
+
+        // Executar diagnóstico
+        fetch('bd/operacoes/diagnosticoML.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ acao: 'diagnostico', cd_ponto: cdPonto })
+        })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('diagLoading').style.display = 'none';
+                document.getElementById('diagConteudo').style.display = 'block';
+
+                if (!data.success) {
+                    document.getElementById('diagConteudo').innerHTML = `
+                    <div style="text-align:center;padding:30px;color:#ef4444;">
+                        <ion-icon name="alert-circle-outline" style="font-size:32px;"></ion-icon>
+                        <p style="margin-top:10px;">${escapeHtml(data.error || 'Erro desconhecido')}</p>
+                    </div>`;
+                    return;
+                }
+
+                ultimoDiagnostico = data;
+
+                // Atualizar info do ponto
+                document.getElementById('diagPontoCodigo').textContent = data.codigo_formatado || ('#' + cdPonto);
+                document.getElementById('diagPontoNome').textContent = data.ds_nome || '';
+
+                // Renderizar etapas
+                renderizarDiagnostico(data);
+            })
+            .catch(err => {
+                document.getElementById('diagLoading').style.display = 'none';
+                document.getElementById('diagConteudo').style.display = 'block';
+                document.getElementById('diagConteudo').innerHTML = `
+                <div style="text-align:center;padding:30px;color:#ef4444;">
+                    <ion-icon name="wifi-outline" style="font-size:32px;"></ion-icon>
+                    <p style="margin-top:10px;">Erro de conexão: ${escapeHtml(err.message)}</p>
+                </div>`;
+            });
+    }
+
+    /**
+     * Renderiza o resultado do diagnóstico como timeline.
+     * @param {Object} data - Resposta do endpoint diagnosticoML.php
+     */
+    function renderizarDiagnostico(data) {
+        const etapas = data.etapas || [];
+        const resumo = data.resumo || {};
+
+        let html = '<div class="diag-timeline">';
+
+        etapas.forEach(etapa => {
+            // Ícone por status
+            const icones = {
+                ok: 'checkmark-outline',
+                alerta: 'alert-outline',
+                erro: 'close-outline'
+            };
+            const icone = icones[etapa.status] || 'help-outline';
+
+            // Detalhes (colapsável)
+            const temDetalhes = etapa.detalhes && etapa.detalhes.length > 0;
+            const expandidoInicial = etapa.status !== 'ok'; // Expandir alertas/erros
+
+            html += `
+                <div class="diag-etapa ${expandidoInicial ? 'expanded' : ''}"
+                     id="diagEtapa_${etapa.numero}">
+                    <!-- Ícone na timeline -->
+                    <div class="diag-etapa-icon ${etapa.status}">
+                        <ion-icon name="${icone}"></ion-icon>
+                    </div>
+                    <!-- Header clicável -->
+                    <div class="diag-etapa-header"
+                         onclick="${temDetalhes ? `toggleDiagEtapa(${etapa.numero})` : ''}">
+                        <span class="etapa-numero">${etapa.numero}.</span>
+                        <span class="etapa-titulo">${escapeHtml(etapa.titulo)}</span>
+                        <span class="etapa-msg ${etapa.status}">${escapeHtml(etapa.mensagem)}</span>
+                        ${temDetalhes ? '<ion-icon name="chevron-down-outline" class="etapa-toggle"></ion-icon>' : ''}
+                    </div>`;
+
+            // Corpo com detalhes
+            if (temDetalhes) {
+                html += '<div class="diag-etapa-body">';
+                etapa.detalhes.forEach(d => {
+                    html += `
+                        <div class="diag-detalhe-row">
+                            <span class="dl-label">${escapeHtml(d.label)}</span>
+                            <span class="dl-valor">${escapeHtml(d.valor)}</span>
+                        </div>`;
+                });
+                html += '</div>';
+            }
+
+            html += '</div>';
+        });
+
+        html += '</div>';
+
+        // Resumo / veredicto
+        if (resumo.bloqueios > 0) {
+            html += `
+                <div class="diag-resumo bloqueado">
+                    <ion-icon name="close-circle-outline"></ion-icon>
+                    <div>
+                        <div class="resumo-texto">${escapeHtml(resumo.veredicto)}</div>
+                        <div class="resumo-detalhe">${resumo.ok} ok · ${resumo.alertas} alerta(s) · ${resumo.bloqueios} bloqueio(s)</div>
+                    </div>
+                </div>`;
+        } else if (resumo.alertas > 0) {
+            html += `
+                <div class="diag-resumo viavel-alerta">
+                    <ion-icon name="alert-circle-outline"></ion-icon>
+                    <div>
+                        <div class="resumo-texto">${escapeHtml(resumo.veredicto)}</div>
+                        <div class="resumo-detalhe">${resumo.ok} ok · ${resumo.alertas} alerta(s) — modelo pode treinar mas com qualidade reduzida</div>
+                    </div>
+                </div>`;
+        } else {
+            html += `
+                <div class="diag-resumo viavel">
+                    <ion-icon name="checkmark-circle-outline"></ion-icon>
+                    <div>
+                        <div class="resumo-texto">${escapeHtml(resumo.veredicto)}</div>
+                        <div class="resumo-detalhe">Todos os pré-requisitos atendidos</div>
+                    </div>
+                </div>`;
+        }
+
+        document.getElementById('diagConteudo').innerHTML = html;
+
+        // Mostrar botão "Treinar" se viável e o usuário tiver permissão
+        const btnTreinar = document.getElementById('diagBtnTreinar');
+        if (resumo.viavel && typeof podeEditar !== 'undefined' && podeEditar) {
+            btnTreinar.style.display = 'inline-flex';
+            btnTreinar.disabled = false;
+        }
+    }
+
+    /**
+     * Expande/colapsa uma etapa do diagnóstico.
+     * @param {number} numero - Número da etapa
+     */
+    function toggleDiagEtapa(numero) {
+        const etapa = document.getElementById('diagEtapa_' + numero);
+        if (etapa) etapa.classList.toggle('expanded');
+    }
+
+    /**
+     * Fecha o modal de diagnóstico.
+     */
+    function fecharModalDiag() {
+        document.getElementById('modalDiagnostico').classList.remove('active');
+        ultimoDiagnostico = null;
+    }
+
+    /**
+     * Treina o ponto direto do modal de diagnóstico.
+     * Reutiliza a função retreinar() já existente.
+     */
+    function treinarAposDiag() {
+        if (!ultimoDiagnostico) return;
+        const cdPonto = ultimoDiagnostico.cd_ponto;
+        // Buscar tipo do medidor a partir do diagnóstico (etapa 2)
+        const etapaTipo = (ultimoDiagnostico.etapas || []).find(e => e.numero === 2);
+        let tipoMedidor = 1;
+        if (etapaTipo && etapaTipo.mensagem) {
+            const match = etapaTipo.mensagem.match(/Tipo (\d+)/);
+            if (match) tipoMedidor = parseInt(match[1]);
+        }
+        fecharModalDiag();
+        retreinar(cdPonto, tipoMedidor);
+    }
 </script>
 
 <?php include_once 'includes/footer.inc.php'; ?>

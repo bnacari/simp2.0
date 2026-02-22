@@ -76,6 +76,7 @@ OUTPUT_DIR = os.environ.get('MODELS_DIR', './modelos_treinados')
 # Lags das auxiliares: valor atual + 1h atrás + 3h atrás + 6h atrás
 # Isso dá ao modelo contexto de tendência recente sem janela de 168h
 LAGS = [0, 1, 3, 6]
+SEMANAS_HISTORICO = 24
 
 # Parâmetros XGBoost
 XGB_PARAMS = {
@@ -561,6 +562,7 @@ def salvar_modelo(
     metricas: dict,
     feature_importance: dict,
     tipo_medidor: int,
+    semanas: int = 24,
     output_dir: str = None
 ):
     """
@@ -589,6 +591,7 @@ def salvar_modelo(
         'feature_importance': feature_importance,
         'tipo_medidor': tipo_medidor,
         'lags': LAGS,
+        'semanas_historico': semanas,
         'modelo_tipo': 'xgboost',
         'target_tipo': 'correlacao',
         'treinado_em': datetime.now().isoformat(),
@@ -648,6 +651,7 @@ def treinar_ponto(args_tupla: tuple) -> Tuple[str, bool, str, float]:
             metricas=metricas,
             feature_importance=feature_importance,
             tipo_medidor=tipo_medidor,
+            semanas=semanas,
             output_dir=output_dir
         )
         
@@ -667,7 +671,7 @@ def treinar_ponto(args_tupla: tuple) -> Tuple[str, bool, str, float]:
 
 def treinar_todos(
     tag_filtro: str = None,
-    semanas: int = 24,
+    semanas: int = SEMANAS_HISTORICO,
     bloco: int = None,
     total_blocos: int = 7,
     workers: int = 1

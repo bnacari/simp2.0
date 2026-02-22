@@ -1,10 +1,10 @@
 {
-  "mae": 2.8771,
-  "rmse": 3.5497,
-  "r2": 0.8875,
-  "correlacao": 0.973,
-  "mape_pct": 9.89,
-  "n_arvores": 32,
+  "mae": 2.9062,
+  "rmse": 3.7109,
+  "r2": 0.8774,
+  "correlacao": 0.9718,
+  "mape_pct": 10.53,
+  "n_arvores": 27,
   "max_depth": 6,
   "learning_rate": 0.05,
   "amostras_treino": 1469,
@@ -26,14 +26,14 @@
     "dia_sem_cos"
   ],
   "feature_importance": {
-    "hora_cos": 0.7095,
-    "hora_sin": 0.1542,
-    "dia_sem_sin": 0.0336,
-    "aux_GPRS050_M010_MED_t6": 0.0269,
-    "aux_GPRS050_M010_MED_t1": 0.0246,
-    "aux_GPRS050_M010_MED_t0": 0.0221,
-    "dia_sem_cos": 0.0149,
-    "aux_GPRS050_M010_MED_t3": 0.0143
+    "hora_cos": 0.6962,
+    "hora_sin": 0.1638,
+    "dia_sem_sin": 0.0352,
+    "aux_GPRS050_M010_MED_t1": 0.0272,
+    "aux_GPRS050_M010_MED_t6": 0.0242,
+    "aux_GPRS050_M010_MED_t0": 0.0232,
+    "aux_GPRS050_M010_MED_t3": 0.0168,
+    "dia_sem_cos": 0.0134
   },
   "tipo_medidor": 1,
   "lags": [
@@ -42,9 +42,10 @@
     3,
     6
   ],
+  "semanas_historico": 12,
   "modelo_tipo": "xgboost",
   "target_tipo": "correlacao",
-  "treinado_em": "2026-02-22T08:35:09.009694",
+  "treinado_em": "2026-02-22T11:31:51.006092",
   "banco_treino": "sgbd-hom-simp.sistemas.cesan.com.br\\corporativo\\simp",
   "versao_treino": "6.0"
 }

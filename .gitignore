@@ -1,0 +1,47 @@
+# =============================================================
+# .gitignore - Projeto SIMP 2.0
+# CESAN - Sistema Integrado de Macromedição e Pitometria
+# =============================================================
+
+# ----- Modelos de ML treinados -----
+modelos_treinados/
+
+# ----- Dependências -----
+node_modules/
+vendor/
+
+# ----- Ambiente -----
+.env
+.env.local
+.env.*.local
+
+# ----- Logs -----
+*.log
+logs/
+
+# ----- Cache e temporários -----
+*.tmp
+*.swp
+*.swo
+*~
+.cache/
+
+# ----- IDEs e editores -----
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ----- Sistema operacional -----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ----- Docker (volumes locais) -----
+docker-compose.override.yml
+
+# ----- Python / ML -----
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
