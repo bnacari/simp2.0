@@ -288,14 +288,27 @@ try {
 
             $semanas = intval($dados['semanas'] ?? 24);
 
-            // Chamar via TensorFlow que executa treinar_modelos.py sem --tag
+            // Dispara treino em background — retorna imediatamente com job_id
             $resposta = chamarTensorFlow(
                 $tensorflowUrl . '/api/train-all',
                 'POST',
                 ['semanas' => $semanas],
-                600 // 10 minutos de timeout
+                15 // Timeout curto: só precisa disparar, não esperar
             );
 
+            retornarJSON_TF($resposta);
+            break;
+
+        // ----------------------------------------
+        // TRAIN_ALL_STATUS - Progresso do treino em background
+        // ----------------------------------------
+        case 'train_all_status':
+            $resposta = chamarTensorFlow(
+                $tensorflowUrl . '/api/train-all/status',
+                'GET',
+                null,
+                5
+            );
             retornarJSON_TF($resposta);
             break;
 
@@ -414,7 +427,7 @@ try {
             );
             retornarJSON_TF($resposta);
             break;
-            
+
         // ----------------------------------------
         // Ação desconhecida
         // ----------------------------------------

@@ -1359,7 +1359,7 @@ try {
         <div class="page-header-content">
             <div class="page-header-icon"><ion-icon name="git-network-outline"></ion-icon></div>
             <div>
-                <h1>Cadastro em Cascata</h1>
+                <h1>Flowchart</h1>
                 <p class="page-header-subtitle">Fluxo físico da água — arraste para posicionar, conecte para definir o
                     caminho</p>
             </div>

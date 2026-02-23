@@ -2866,6 +2866,144 @@ try {
             display: none;
         }
     }
+
+    /* ============================================
+       Painel de progresso treino background
+       ============================================ */
+    .train-progress-panel {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        transition: all 0.3s ease;
+    }
+
+    .train-progress-panel.running {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .train-progress-panel.completed {
+        border-color: #10b981;
+        background: #f0fdf4;
+    }
+
+    .train-progress-panel.error {
+        border-color: #ef4444;
+        background: #fef2f2;
+    }
+
+    .train-progress-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+
+    .train-progress-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: #1e293b;
+    }
+
+    .train-progress-title ion-icon {
+        font-size: 18px;
+    }
+
+    .train-progress-close {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #94a3b8;
+        font-size: 18px;
+        padding: 4px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+    }
+
+    .train-progress-close:hover {
+        background: #f1f5f9;
+        color: #64748b;
+    }
+
+    .train-progress-bar-wrapper {
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 10px;
+    }
+
+    .train-progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6, #2563eb);
+        border-radius: 4px;
+        transition: width 0.5s ease;
+    }
+
+    .completed .train-progress-bar {
+        background: linear-gradient(90deg, #10b981, #059669);
+    }
+
+    .error .train-progress-bar {
+        background: linear-gradient(90deg, #ef4444, #dc2626);
+    }
+
+    .train-progress-stats {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+    }
+
+    .tps-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .tps-item.sucesso {
+        color: #059669;
+    }
+
+    .tps-item.falha {
+        color: #dc2626;
+    }
+
+    .tps-item.tempo {
+        color: #64748b;
+        margin-left: auto;
+    }
+
+    .tps-item ion-icon {
+        font-size: 14px;
+    }
+
+    .train-progress-msg {
+        font-size: 11px;
+        color: #64748b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .spin-icon {
+        animation: spin 1s linear infinite;
+    }
 </style>
 
 <div class="page-container">
@@ -2944,6 +3082,35 @@ try {
                 <h3 id="statBad">-</h3>
                 <p>R² &lt; 0.70</p>
             </div>
+        </div>
+    </div>
+
+    <!-- Painel de progresso do treino em background -->
+    <div class="train-progress-panel" id="trainProgressPanel" style="display:none;">
+        <div class="train-progress-header">
+            <div class="train-progress-title">
+                <ion-icon name="sync-outline" class="spin-icon" id="trainProgressIcon"></ion-icon>
+                <strong id="trainProgressTitulo">Treino em andamento...</strong>
+            </div>
+            <button class="train-progress-close" id="btnFecharProgresso" onclick="fecharPainelProgresso()"
+                title="Fechar" style="display:none;">
+                <ion-icon name="close-outline"></ion-icon>
+            </button>
+        </div>
+        <div class="train-progress-body">
+            <div class="train-progress-bar-wrapper">
+                <div class="train-progress-bar" id="trainProgressBar" style="width:0%"></div>
+            </div>
+            <div class="train-progress-stats">
+                <span class="tps-item sucesso"><ion-icon name="checkmark-circle-outline"></ion-icon> <span
+                        id="trainSucesso">0</span> sucesso</span>
+                <span class="tps-item falha"><ion-icon name="close-circle-outline"></ion-icon> <span
+                        id="trainFalha">0</span> falha</span>
+                <span class="tps-item total"><ion-icon name="layers-outline"></ion-icon> <span id="trainTotal">0</span>
+                    total</span>
+                <span class="tps-item tempo" id="trainTempo"></span>
+            </div>
+            <div class="train-progress-msg" id="trainProgressMsg">Aguardando...</div>
         </div>
     </div>
 
@@ -4195,16 +4362,23 @@ try {
     }
 
     /**
-     * Executa treino de TODOS os pontos via endpoint.
-     * Chama: python3 treinar_modelos.py --semanas N --output /app/models
+     * Timer do polling de progresso do treino em background.
+     */
+    let _trainAllPolling = null;
+    /** Timestamp de início para calcular tempo decorrido */
+    let _trainAllInicio = null;
+
+    /**
+     * Dispara treino de todos os pontos em background.
+     * O backend executa assincronamente — frontend faz polling do progresso.
      * @param {number} semanas - Semanas de histórico
      */
     function executarTreinoTodos(semanas) {
-        document.getElementById('loadingText').textContent = 'Treinando todos os pontos...';
-        document.getElementById('loadingSub').textContent =
-            `${semanas} semanas de histórico | Isso pode levar vários minutos`;
-        document.getElementById('loadingOverlay').classList.add('active');
+        // Mostrar painel de progresso (não bloqueante)
+        mostrarPainelProgresso('running', 'Iniciando treino de todos os pontos...', 0, 0, 0);
+        _trainAllInicio = Date.now();
 
+        // Disparar treino (retorna imediato com job_id)
         fetch('bd/operacoes/predicaoTensorFlow.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -4215,20 +4389,177 @@ try {
         })
             .then(r => r.json())
             .then(data => {
-                document.getElementById('loadingOverlay').classList.remove('active');
-
                 if (data.success) {
-                    showToast(data.message || 'Treino de todos os pontos finalizado', 'sucesso');
-                    carregarModelos();
+                    // Iniciar polling de progresso a cada 5 segundos
+                    iniciarPollingTreino();
                 } else {
-                    showToast(data.error || 'Erro ao treinar', 'erro');
+                    mostrarPainelProgresso('error', data.error || 'Erro ao iniciar treino', 0, 0, 0);
                 }
             })
             .catch(err => {
-                document.getElementById('loadingOverlay').classList.remove('active');
-                showToast('Erro de conexão: ' + err.message, 'erro');
+                mostrarPainelProgresso('error', 'Erro de conexão: ' + err.message, 0, 0, 0);
             });
     }
+
+    /**
+     * Mostra/atualiza o painel de progresso não-bloqueante.
+     * @param {string} status  - 'running', 'completed', 'error'
+     * @param {string} msg     - Mensagem de detalhe
+     * @param {number} sucesso - Qtd de pontos treinados com sucesso
+     * @param {number} falha   - Qtd de pontos com falha
+     * @param {number} total   - Total esperado de pontos
+     */
+    function mostrarPainelProgresso(status, msg, sucesso, falha, total) {
+        const painel = document.getElementById('trainProgressPanel');
+        const icon = document.getElementById('trainProgressIcon');
+        const titulo = document.getElementById('trainProgressTitulo');
+        const bar = document.getElementById('trainProgressBar');
+        const btnFechar = document.getElementById('btnFecharProgresso');
+        const msgEl = document.getElementById('trainProgressMsg');
+        const tempoEl = document.getElementById('trainTempo');
+
+        // Exibir painel
+        painel.style.display = '';
+
+        // Classes de estado
+        painel.className = 'train-progress-panel ' + status;
+
+        // Ícone e título
+        if (status === 'running') {
+            icon.setAttribute('name', 'sync-outline');
+            icon.classList.add('spin-icon');
+            titulo.textContent = 'Treino em andamento...';
+            btnFechar.style.display = 'none';
+        } else if (status === 'completed') {
+            icon.setAttribute('name', 'checkmark-circle-outline');
+            icon.classList.remove('spin-icon');
+            titulo.textContent = 'Treino finalizado!';
+            btnFechar.style.display = 'flex';
+        } else {
+            icon.setAttribute('name', 'alert-circle-outline');
+            icon.classList.remove('spin-icon');
+            titulo.textContent = 'Treino encerrado com erros';
+            btnFechar.style.display = 'flex';
+        }
+
+        // Contadores
+        document.getElementById('trainSucesso').textContent = sucesso;
+        document.getElementById('trainFalha').textContent = falha;
+        document.getElementById('trainTotal').textContent = total || (sucesso + falha);
+
+        // Barra de progresso
+        const processados = sucesso + falha;
+        const pct = total > 0 ? Math.min(100, Math.round((processados / total) * 100)) : 0;
+        bar.style.width = (status === 'completed' ? 100 : pct) + '%';
+
+        // Mensagem de detalhe
+        if (msgEl) msgEl.textContent = msg || '';
+
+        // Tempo decorrido
+        if (_trainAllInicio && tempoEl) {
+            const seg = Math.round((Date.now() - _trainAllInicio) / 1000);
+            const min = Math.floor(seg / 60);
+            const s = seg % 60;
+            tempoEl.innerHTML = '<ion-icon name="time-outline"></ion-icon> ' +
+                (min > 0 ? min + 'min ' : '') + s + 's';
+        }
+
+        // Scroll suave para o painel
+        if (status === 'running' && processados === 0) {
+            painel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    /**
+     * Fecha o painel de progresso (só quando finalizado).
+     */
+    function fecharPainelProgresso() {
+        document.getElementById('trainProgressPanel').style.display = 'none';
+    }
+
+    /**
+     * Polling: consulta progresso do treino a cada 5s.
+     * Atualiza o painel de progresso com informações em tempo real.
+     * Para automaticamente quando o treino finaliza.
+     */
+    function iniciarPollingTreino() {
+        // Limpar polling anterior se houver
+        if (_trainAllPolling) clearInterval(_trainAllPolling);
+
+        _trainAllPolling = setInterval(function () {
+            fetch('bd/operacoes/predicaoTensorFlow.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ acao: 'train_all_status' })
+            })
+                .then(r => r.json())
+                .then(prog => {
+                    if (!prog.success && !prog.status) return;
+
+                    const status = prog.status;
+                    const sucesso = prog.sucesso || 0;
+                    const falha = prog.falha || 0;
+                    const total = prog.total || (sucesso + falha);
+                    const msgDetalhe = prog.ponto_atual || prog.message || '';
+
+                    if (status === 'running') {
+                        mostrarPainelProgresso('running', msgDetalhe, sucesso, falha, total);
+
+                    } else if (status === 'completed' || status === 'error') {
+                        // Treino finalizado — parar polling
+                        clearInterval(_trainAllPolling);
+                        _trainAllPolling = null;
+
+                        mostrarPainelProgresso(status, prog.resumo || prog.message || '', sucesso, falha, total);
+
+                        if (status === 'completed') {
+                            showToast(
+                                `Treino finalizado! ✅ ${sucesso} sucesso, ❌ ${falha} falha`,
+                                falha > 0 ? 'alerta' : 'sucesso'
+                            );
+                        } else {
+                            showToast(prog.message || 'Treino encerrado com erros', 'erro');
+                        }
+
+                        // Recarregar lista de modelos
+                        carregarModelos();
+
+                    } else if (status === 'idle') {
+                        clearInterval(_trainAllPolling);
+                        _trainAllPolling = null;
+                    }
+                })
+                .catch(() => {
+                    // Erro de rede temporário — manter polling
+                });
+        }, 5000);
+    }
+
+    /**
+     * Ao carregar a página, verificar se há treino em andamento
+     * (caso o usuário tenha navegado e voltou).
+     */
+    (function verificarTreinoEmAndamento() {
+        fetch('bd/operacoes/predicaoTensorFlow.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ acao: 'train_all_status' })
+        })
+            .then(r => r.json())
+            .then(prog => {
+                if (prog.status === 'running') {
+                    // Treino em andamento — retomar polling
+                    _trainAllInicio = prog.inicio ? new Date(prog.inicio).getTime() : Date.now();
+                    mostrarPainelProgresso('running', prog.ponto_atual || prog.message || '', prog.sucesso || 0, prog.falha || 0, prog.total || 0);
+                    iniciarPollingTreino();
+                } else if (prog.status === 'completed' || prog.status === 'error') {
+                    // Último treino finalizou — mostrar resultado
+                    _trainAllInicio = prog.inicio ? new Date(prog.inicio).getTime() : Date.now();
+                    mostrarPainelProgresso(prog.status, prog.resumo || prog.message || '', prog.sucesso || 0, prog.falha || 0, prog.total || 0);
+                }
+            })
+            .catch(() => { /* silencioso */ });
+    })();
     /**
      * Abre modal de retreino com seleção de período.
      * @param {number} cdPonto - Código do ponto
