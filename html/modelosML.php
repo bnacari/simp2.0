@@ -3369,7 +3369,6 @@ try {
         <select class="filter-select" id="filterTipo" onchange="filtrarModelos()">
             <option value="">Todos os tipos</option>
             <option value="xgboost">XGBoost</option>
-            <option value="lstm">LSTM (legado)</option>
         </select>
         <button type="button" class="btn-refresh" id="btnRefresh" onclick="carregarModelos()">
             <ion-icon name="refresh-outline"></ion-icon>

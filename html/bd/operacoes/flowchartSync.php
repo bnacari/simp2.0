@@ -6,8 +6,10 @@
  * com as relações da tabela AUX_RELACAO_PONTOS_MEDICAO usadas pelo treinamento ML.
  * 
  * Regras de derivação (baseadas em engenharia hidráulica):
- *   - Vizinhos diretos: conexões bidirecionais (upstream + downstream)
- *   - Irmãos: nós que compartilham o mesmo pai (ex: 2 saídas da mesma ETA)
+ *   - Vizinhos lógicos: BFS bidirecional que ATRAVESSA nós sem ponto de medição
+ *     (ETA, Manancial, Booster sem sensor, junções). Max 4 hops físicos.
+ *   - Irmãos lógicos: nós que compartilham ancestral ou descendente comum,
+ *     mesmo que o nó intermediário não tenha sensor.
  *   - Tipos permitidos: Macromedidor(1), Pitométrica(2), Pressão(4), Reservatório(6)
  *   - Excluídos: Hidrômetro(8) — micromedição, escala/granularidade incompatível
  * 
@@ -17,7 +19,7 @@
  *   - sync_preview: Retorna preview das relações derivadas do flowchart (sem gravar)
  * 
  * @author Bruno - CESAN
- * @version 1.0
+ * @version 1.1 — Travessia de nós passantes (sem CD_PONTO_MEDICAO)
  * @date 2026-02
  */
 
@@ -320,18 +322,187 @@ function executarSyncApply(PDO $pdo, array $adicionar, array $remover): array
 
 
 // ============================================
+// FUNÇÕES DE TRAVESSIA DE NÓS PASSANTES (v1.1)
+// ============================================
+
+/**
+ * Encontra vizinhos "lógicos" de um nó, atravessando nós sem ponto de medição.
+ * 
+ * Nós passantes (ETA, Manancial, Booster sem sensor, junções) não possuem
+ * CD_PONTO_MEDICAO mas são reais na topologia. A busca não para neles —
+ * continua caminhando até encontrar nós com ponto de medição.
+ * 
+ * Exemplo real (Guarapari):
+ *   1393 (captação Rio Jabuti) → ETA Guarapari (sem ponto) → RAP ETA 2249 (com ponto)
+ *   Sem esta função: 1393 não vê 2249 (ETA bloqueia a 1 hop)
+ *   Com esta função:  1393 vê 2249 (ETA é atravessada como nó passante)
+ * 
+ * @param int   $cdNodoInicial   CD_CHAVE do nó de partida
+ * @param array $vizinhos        Grafo de adjacência bidirecional [CD_NODO => [vizinhos]]
+ * @param array $mapaNodo        Mapa dos nós que possuem ponto de medição
+ * @param int   $maxHops         Máximo de saltos físicos (default 4, evita explosão)
+ * @return array                 Lista de CD_NODOs com ponto de medição alcançáveis
+ */
+function encontrarVizinhosLogicos(int $cdNodoInicial, array $vizinhos, array $mapaNodo, int $maxHops = 4): array
+{
+    $encontrados = [];   // CD_NODOs com ponto de medição encontrados
+    $visitados = [];     // Controle de ciclos (evita loop infinito)
+    
+    // BFS com controle de profundidade
+    // Cada item na fila: [cd_nodo, profundidade_atual]
+    $fila = [];
+    
+    // Iniciar BFS a partir dos vizinhos diretos do nó inicial
+    $vizinhosDoNo = $vizinhos[$cdNodoInicial] ?? [];
+    foreach ($vizinhosDoNo as $cdVizinho) {
+        $fila[] = [$cdVizinho, 1];
+    }
+    $visitados[$cdNodoInicial] = true; // Não voltar para si mesmo
+    
+    while (!empty($fila)) {
+        list($cdAtual, $profundidade) = array_shift($fila);
+        
+        // Evitar revisitar nós (grafo pode ter ciclos)
+        if (isset($visitados[$cdAtual])) {
+            continue;
+        }
+        $visitados[$cdAtual] = true;
+        
+        // Se o nó tem ponto de medição → encontrado! Não continua por ele.
+        if (isset($mapaNodo[$cdAtual])) {
+            $encontrados[] = $cdAtual;
+            continue; // Para aqui — já encontrou sensor
+        }
+        
+        // Nó SEM ponto de medição (passante) → continuar caminhando
+        if ($profundidade < $maxHops) {
+            $vizinhosPassante = $vizinhos[$cdAtual] ?? [];
+            foreach ($vizinhosPassante as $cdProximo) {
+                if (!isset($visitados[$cdProximo])) {
+                    $fila[] = [$cdProximo, $profundidade + 1];
+                }
+            }
+        }
+    }
+    
+    return $encontrados;
+}
+
+
+/**
+ * Encontra irmãos "lógicos": nós que compartilham ancestral ou descendente
+ * comum através de nós passantes (sem ponto de medição).
+ * 
+ * Exemplo (Guarapari):
+ *   1393 → ETA → RAP ETA, 1394 → ETA → RAP ETA
+ *   1393 e 1394 são irmãos (mesmo destino "ETA", mesmo que ETA não tenha sensor)
+ * 
+ * @param int   $cdNodoInicial  CD_CHAVE do nó de partida
+ * @param array $conexoes       Lista de conexões [CD_NODO_ORIGEM, CD_NODO_DESTINO]
+ * @param array $vizinhos       Grafo de adjacência bidirecional
+ * @param array $mapaNodo       Mapa dos nós com ponto de medição
+ * @param int   $maxHops        Máximo de saltos para encontrar nó intermediário
+ * @return array                Lista de CD_NODOs irmãos com ponto de medição
+ */
+function encontrarIrmaosLogicos(int $cdNodoInicial, array $conexoes, array $vizinhos, array $mapaNodo, int $maxHops = 3): array
+{
+    $irmaos = [];
+    
+    // --- Coletar nós intermediários (passantes) alcançáveis a partir do nó ---
+    // BFS curta só para encontrar nós passantes conectados ao nó inicial
+    $nosIntermediarios = [$cdNodoInicial]; // O próprio nó também conta como "origem"
+    $visitados = [$cdNodoInicial => true];
+    $fila = [];
+    
+    // Vizinhos diretos sem ponto → são intermediários
+    foreach (($vizinhos[$cdNodoInicial] ?? []) as $v) {
+        if (!isset($mapaNodo[$v])) {
+            $fila[] = [$v, 1];
+        }
+    }
+    
+    while (!empty($fila)) {
+        list($cdAtual, $prof) = array_shift($fila);
+        if (isset($visitados[$cdAtual])) continue;
+        $visitados[$cdAtual] = true;
+        
+        // Só nós passantes (sem ponto) são intermediários
+        if (!isset($mapaNodo[$cdAtual])) {
+            $nosIntermediarios[] = $cdAtual;
+            if ($prof < $maxHops) {
+                foreach (($vizinhos[$cdAtual] ?? []) as $prox) {
+                    if (!isset($visitados[$prox])) {
+                        $fila[] = [$prox, $prof + 1];
+                    }
+                }
+            }
+        }
+    }
+    
+    // --- Para cada nó intermediário, buscar quem mais se conecta a ele ---
+    foreach ($nosIntermediarios as $cdInterm) {
+        foreach ($conexoes as $cx) {
+            $dest = intval($cx['CD_NODO_DESTINO']);
+            $orig = intval($cx['CD_NODO_ORIGEM']);
+            
+            // Irmãos por destino comum: quem mais aponta para cdInterm?
+            if ($dest === $cdInterm && $orig !== $cdNodoInicial) {
+                if (isset($mapaNodo[$orig])) {
+                    // Irmão direto com ponto de medição
+                    $irmaos[] = $orig;
+                } else {
+                    // Sem ponto → buscar quem está atrás dele (upstream com ponto)
+                    $atras = encontrarVizinhosLogicos($orig, $vizinhos, $mapaNodo, 2);
+                    foreach ($atras as $a) {
+                        if ($a !== $cdNodoInicial) {
+                            $irmaos[] = $a;
+                        }
+                    }
+                }
+            }
+            
+            // Irmãos por origem comum: quem mais recebe de cdInterm?
+            if ($orig === $cdInterm && $dest !== $cdNodoInicial) {
+                if (isset($mapaNodo[$dest])) {
+                    // Irmão direto com ponto de medição
+                    $irmaos[] = $dest;
+                } else {
+                    // Sem ponto → buscar quem está adiante dele (downstream com ponto)
+                    $adiante = encontrarVizinhosLogicos($dest, $vizinhos, $mapaNodo, 2);
+                    foreach ($adiante as $a) {
+                        if ($a !== $cdNodoInicial) {
+                            $irmaos[] = $a;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    return array_unique($irmaos);
+}
+
+
+// ============================================
 // FUNÇÕES DE DERIVAÇÃO DO FLOWCHART
 // ============================================
 
 /**
  * Deriva relações TAG_PRINCIPAL → [TAG_AUXILIAR] a partir da topologia do flowchart.
  * 
- * Regra hidráulica (1 hop bidirecional + irmãos):
+ * Regra hidráulica (vizinhança lógica + irmãos lógicos):
  *   Para cada nó N com ponto de medição (tipo IN 1,2,4,6):
- *     1. Vizinhos diretos (upstream + downstream) via ENTIDADE_NODO_CONEXAO
- *     2. Irmãos: nós que compartilham pai na mesma conexão
- *     3. Filtrar: só nós com CD_PONTO_MEDICAO e tipo permitido
+ *     1. Vizinhos lógicos: BFS bidirecional que ATRAVESSA nós sem ponto de medição
+ *        (ETA, Manancial, Booster sem sensor, junções). Max 4 hops físicos.
+ *     2. Irmãos lógicos: nós que compartilham ancestral ou descendente comum,
+ *        mesmo que o nó intermediário não tenha sensor.
+ *     3. Filtrar: só nós com CD_PONTO_MEDICAO e tipo permitido (1,2,4,6)
  *     4. Resolver TAG via PONTO_MEDICAO
+ * 
+ * Exemplo (Guarapari):
+ *   1393 (captação Rio Jabuti) → ETA Guarapari (sem ponto) → RAP ETA 2249 (com ponto)
+ *   Antes (v1.0): 1393 não via 2249 (ETA bloqueava por não ter CD_PONTO_MEDICAO)
+ *   Agora (v1.1): 1393 vê 2249 (ETA é atravessada como nó passante)
  * 
  * @param PDO $pdo        Conexão PDO com SIMP
  * @param int $cdSistema  CD_CHAVE do nó raiz (0 = todos)
@@ -396,9 +567,8 @@ function derivarRelacoesDoFlowchart(PDO $pdo, int $cdSistema = 0): array
     }
 
     // --- 4. Construir grafo de adjacência bidirecional ---
-    // Para cada nó, quem são seus vizinhos diretos (tanto upstream quanto downstream)
+    // Inclui TODOS os nós (com e sem ponto de medição) para permitir travessia
     $vizinhos = [];       // CD_NODO => [CD_NODO vizinhos]
-    $paisComuns = [];     // Para detectar irmãos: CD_ORIGEM => [CD_DESTINOS]
 
     foreach ($conexoes as $cx) {
         $origem  = intval($cx['CD_NODO_ORIGEM']);
@@ -410,13 +580,9 @@ function derivarRelacoesDoFlowchart(PDO $pdo, int $cdSistema = 0): array
 
         $vizinhos[$origem][]  = $destino;
         $vizinhos[$destino][] = $origem;
-
-        // Mapa de pai→filhos (para irmãos)
-        if (!isset($paisComuns[$origem])) $paisComuns[$origem] = [];
-        $paisComuns[$origem][] = $destino;
     }
 
-    // --- 5. Para cada nó com ponto, derivar auxiliares ---
+    // --- 5. Para cada nó com ponto, derivar auxiliares (com travessia de nós passantes) ---
     $relacoes = [];
 
     foreach ($mapaNodo as $cdNodo => $infoNodo) {
@@ -428,42 +594,22 @@ function derivarRelacoesDoFlowchart(PDO $pdo, int $cdSistema = 0): array
         $tagPrincipal = $infoNodo['tag'];
         $auxiliares = [];
 
-        // 5a. Vizinhos diretos (bidirecional — 1 hop)
-        $vizinhosDoNo = $vizinhos[$cdNodo] ?? [];
-        foreach ($vizinhosDoNo as $cdVizinho) {
-            if (isset($mapaNodo[$cdVizinho]) && $cdVizinho !== $cdNodo) {
+        // 5a. Vizinhos lógicos (atravessa nós sem ponto de medição, max 4 hops)
+        //     Substitui o antigo "1-hop direto" que parava em ETA/Manancial/Booster
+        $vizinhosLogicos = encontrarVizinhosLogicos($cdNodo, $vizinhos, $mapaNodo, 4);
+        foreach ($vizinhosLogicos as $cdVizinho) {
+            if ($cdVizinho !== $cdNodo && isset($mapaNodo[$cdVizinho])) {
                 $auxiliares[] = $mapaNodo[$cdVizinho]['tag'];
             }
         }
 
-        // 5b. Irmãos (nós que compartilham o mesmo pai via conexão)
-        foreach ($paisComuns as $cdPai => $filhos) {
-            if (in_array($cdNodo, $filhos)) {
-                // Os outros filhos desse pai são irmãos
-                foreach ($filhos as $cdIrmao) {
-                    if ($cdIrmao !== $cdNodo && isset($mapaNodo[$cdIrmao])) {
-                        $auxiliares[] = $mapaNodo[$cdIrmao]['tag'];
-                    }
-                }
-            }
-        }
-
-        // 5c. Irmãos reverso: nós que alimentam o mesmo destino
-        // Se N → B e X → B, então X é irmão de N
-        foreach ($conexoes as $cx) {
-            $destino = intval($cx['CD_NODO_DESTINO']);
-            $origem  = intval($cx['CD_NODO_ORIGEM']);
-
-            // Se o nó atual aponta para 'destino', buscar quem mais aponta para 'destino'
-            if ($origem === $cdNodo) {
-                foreach ($conexoes as $cx2) {
-                    $outraOrigem = intval($cx2['CD_NODO_ORIGEM']);
-                    if (intval($cx2['CD_NODO_DESTINO']) === $destino
-                        && $outraOrigem !== $cdNodo
-                        && isset($mapaNodo[$outraOrigem])) {
-                        $auxiliares[] = $mapaNodo[$outraOrigem]['tag'];
-                    }
-                }
+        // 5b. Irmãos lógicos (compartilham nó intermediário, mesmo que passante)
+        //     Substitui os antigos "irmãos por pai" e "irmãos por destino"
+        //     que não enxergavam através de ETA/Manancial sem sensor
+        $irmaosLogicos = encontrarIrmaosLogicos($cdNodo, $conexoes, $vizinhos, $mapaNodo, 3);
+        foreach ($irmaosLogicos as $cdIrmao) {
+            if ($cdIrmao !== $cdNodo && isset($mapaNodo[$cdIrmao])) {
+                $auxiliares[] = $mapaNodo[$cdIrmao]['tag'];
             }
         }
 
