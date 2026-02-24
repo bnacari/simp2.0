@@ -40,6 +40,14 @@ docker service update --force simp20-php_simp20-tensorflow
 # 4. Redeploy
 docker stack deploy --with-registry-auth -c docker/stack.yml simp20-php
 
+```
+
+PARA VERIFICAR AS CREDENCIAIS DE DENTRO DO CONTAINER
+
+acessar o (https://portainer-swarm.sistemas.cesan.com.br/) e de dentro do container digitar. 
+as variáveis devem ser as passadas no CICD do gitlab
+
+echo "HOST=$DB_HOST | USER=$DB_USER | PASS=$DB_PASS | NAME=$DB_NAME"
 
 
 ```
