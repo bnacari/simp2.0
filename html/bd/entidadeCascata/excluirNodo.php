@@ -15,6 +15,8 @@ header('Content-Type: application/json; charset=utf-8');
 
 // Verificar permissão
 require_once __DIR__ . '/../../includes/auth.php';
+@include_once 'topologiaHelper.php';
+
 if (!podeEditarTela('Cadastro de Entidade')) {
     echo json_encode(['success' => false, 'message' => 'Sem permissão para esta operação']);
     exit;
@@ -27,7 +29,7 @@ try {
         throw new Exception('Conexão não estabelecida');
     }
 
-    $cd   = isset($_POST['cd']) ? (int)$_POST['cd'] : 0;
+    $cd = isset($_POST['cd']) ? (int) $_POST['cd'] : 0;
     $modo = isset($_POST['modo']) ? trim($_POST['modo']) : 'soft';
 
     if ($cd <= 0) {
@@ -59,7 +61,7 @@ try {
     ";
     $stmtDesc = $pdoSIMP->prepare($sqlDesc);
     $stmtDesc->execute([':cd' => $cd]);
-    $totalDesc = (int)$stmtDesc->fetch(PDO::FETCH_ASSOC)['QTD'];
+    $totalDesc = (int) $stmtDesc->fetch(PDO::FETCH_ASSOC)['QTD'];
 
     $pdoSIMP->beginTransaction();
 
@@ -82,10 +84,11 @@ try {
         $stmtIds->execute([':cd' => $cd]);
         $idsExcluir = [];
         while ($r = $stmtIds->fetch(PDO::FETCH_ASSOC)) {
-            $idsExcluir[] = (int)$r['CD_CHAVE'];
+            $idsExcluir[] = (int) $r['CD_CHAVE'];
         }
 
-        if (empty($idsExcluir)) $idsExcluir = [$cd];
+        if (empty($idsExcluir))
+            $idsExcluir = [$cd];
         $placeholders = implode(',', $idsExcluir);
 
         // 1. Excluir conexões que envolvam qualquer nó do grupo
@@ -116,17 +119,29 @@ try {
         try {
             @include_once '../logHelper.php';
             if (function_exists('registrarLogDelete')) {
-                registrarLogDelete('Cadastro Cascata', 'Nodo (cascade)', $cd, 
-                    $dadosNodo['DS_NOME'] . " (+$totalDesc descendentes)", $dadosNodo);
+                registrarLogDelete(
+                    'Cadastro Cascata',
+                    'Nodo (cascade)',
+                    $cd,
+                    $dadosNodo['DS_NOME'] . " (+$totalDesc descendentes)",
+                    $dadosNodo
+                );
             }
-        } catch (Exception $logEx) {}
+        } catch (Exception $logEx) {
+        }
 
         echo json_encode([
-            'success'    => true,
-            'message'    => "Nó e $totalDesc descendente(s) excluídos com sucesso!",
-            'excluidos'  => $totalDesc + 1
+            'success' => true,
+            'message' => "Nó e $totalDesc descendente(s) excluídos com sucesso!",
+            'excluidos' => $totalDesc + 1
         ], JSON_UNESCAPED_UNICODE);
-
+        // Snapshot topologia (Fase A1 - Governança)
+        try {
+            if (function_exists('dispararSnapshotTopologia')) {
+                dispararSnapshotTopologia($pdoSIMP, 'Nó excluído (cascade): ' . $dadosNodo['DS_NOME'] . " (+$totalDesc descendentes)");
+            }
+        } catch (Exception $snapEx) {
+        }
     } else {
         // --------------------------------------------------
         // Soft delete (marca como inativo)
@@ -160,16 +175,30 @@ try {
         try {
             @include_once '../logHelper.php';
             if (function_exists('registrarLogUpdate')) {
-                registrarLogUpdate('Cadastro Cascata', 'Nodo (soft delete)', $cd, 
-                    $dadosNodo['DS_NOME'], ['modo' => 'soft', 'descendentes' => $totalDesc]);
+                registrarLogUpdate(
+                    'Cadastro Cascata',
+                    'Nodo (soft delete)',
+                    $cd,
+                    $dadosNodo['DS_NOME'],
+                    ['modo' => 'soft', 'descendentes' => $totalDesc]
+                );
             }
-        } catch (Exception $logEx) {}
+        } catch (Exception $logEx) {
+        }
 
         echo json_encode([
-            'success'     => true,
-            'message'     => "Nó desativado com sucesso!" . ($totalDesc > 0 ? " ($totalDesc descendente(s) também)" : ""),
+            'success' => true,
+            'message' => "Nó desativado com sucesso!" . ($totalDesc > 0 ? " ($totalDesc descendente(s) também)" : ""),
             'desativados' => $totalDesc + 1
         ], JSON_UNESCAPED_UNICODE);
+    }
+
+    // Snapshot topologia (Fase A1 - Governança)
+    try {
+        if (function_exists('dispararSnapshotTopologia')) {
+            dispararSnapshotTopologia($pdoSIMP, 'Nó desativado: ' . $dadosNodo['DS_NOME'] . ($totalDesc > 0 ? " (+$totalDesc descendentes)" : ''));
+        }
+    } catch (Exception $snapEx) {
     }
 
 } catch (Exception $e) {
@@ -183,7 +212,8 @@ try {
         if (function_exists('registrarLogErro')) {
             registrarLogErro('Cadastro Cascata', 'DELETE', $e->getMessage(), ['cd' => $cd ?? null]);
         }
-    } catch (Exception $logEx) {}
+    } catch (Exception $logEx) {
+    }
 
     echo json_encode([
         'success' => false,

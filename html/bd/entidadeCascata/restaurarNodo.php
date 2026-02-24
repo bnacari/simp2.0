@@ -15,6 +15,8 @@ header('Content-Type: application/json; charset=utf-8');
 
 // Verificar permissão
 require_once __DIR__ . '/../../includes/auth.php';
+@include_once 'topologiaHelper.php';
+
 if (!podeEditarTela('Cadastro de Entidade')) {
     echo json_encode(['success' => false, 'message' => 'Sem permissão para esta operação']);
     exit;
@@ -27,8 +29,8 @@ try {
         throw new Exception('Conexão não estabelecida');
     }
 
-    $cd = isset($_POST['cd']) ? (int)$_POST['cd'] : 0;
-    $incluirDesc = isset($_POST['incluirDescendentes']) ? (int)$_POST['incluirDescendentes'] : 1;
+    $cd = isset($_POST['cd']) ? (int) $_POST['cd'] : 0;
+    $incluirDesc = isset($_POST['incluirDescendentes']) ? (int) $_POST['incluirDescendentes'] : 1;
 
     if ($cd <= 0) {
         throw new Exception('ID do nó não informado');
@@ -62,7 +64,7 @@ try {
         $stmtPai = $pdoSIMP->prepare($sqlPai);
         $stmtPai->execute([':cdPai' => $dadosNodo['CD_PAI']]);
         $pai = $stmtPai->fetch(PDO::FETCH_ASSOC);
-        
+
         if ($pai && $pai['OP_ATIVO'] == 0) {
             throw new Exception('O nó pai "' . $pai['DS_NOME'] . '" está inativo. Restaure-o primeiro.');
         }
@@ -85,7 +87,7 @@ try {
         ";
         $stmtDesc = $pdoSIMP->prepare($sqlDesc);
         $stmtDesc->execute([':cd' => $cd]);
-        $totalDesc = (int)$stmtDesc->fetch(PDO::FETCH_ASSOC)['QTD'];
+        $totalDesc = (int) $stmtDesc->fetch(PDO::FETCH_ASSOC)['QTD'];
     }
 
     // ========================================
@@ -126,16 +128,30 @@ try {
     try {
         @include_once '../logHelper.php';
         if (function_exists('registrarLogUpdate')) {
-            registrarLogUpdate('Cadastro Cascata', 'Nodo (restaurar)', $cd, 
-                $dadosNodo['DS_NOME'], ['descendentes_restaurados' => $totalDesc]);
+            registrarLogUpdate(
+                'Cadastro Cascata',
+                'Nodo (restaurar)',
+                $cd,
+                $dadosNodo['DS_NOME'],
+                ['descendentes_restaurados' => $totalDesc]
+            );
         }
-    } catch (Exception $logEx) {}
+    } catch (Exception $logEx) {
+    }
 
     echo json_encode([
-        'success'      => true,
-        'message'      => 'Nó restaurado com sucesso!' . ($totalDesc > 0 ? " ($totalDesc descendente(s) também)" : ''),
-        'restaurados'  => $totalDesc + 1
+        'success' => true,
+        'message' => 'Nó restaurado com sucesso!' . ($totalDesc > 0 ? " ($totalDesc descendente(s) também)" : ''),
+        'restaurados' => $totalDesc + 1
     ], JSON_UNESCAPED_UNICODE);
+
+    // Snapshot topologia (Fase A1 - Governança)
+    try {
+        if (function_exists('dispararSnapshotTopologia')) {
+            dispararSnapshotTopologia($pdoSIMP, 'Nó restaurado: ' . $dadosNodo['DS_NOME'] . ($totalDesc > 0 ? " (+$totalDesc descendentes)" : ''));
+        }
+    } catch (Exception $snapEx) {
+    }
 
 } catch (Exception $e) {
     if (isset($pdoSIMP) && $pdoSIMP->inTransaction()) {
@@ -148,7 +164,8 @@ try {
         if (function_exists('registrarLogErro')) {
             registrarLogErro('Cadastro Cascata', 'RESTAURAR', $e->getMessage(), ['cd' => $cd ?? null]);
         }
-    } catch (Exception $logEx) {}
+    } catch (Exception $logEx) {
+    }
 
     echo json_encode([
         'success' => false,

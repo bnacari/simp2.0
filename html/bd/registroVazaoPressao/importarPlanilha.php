@@ -142,7 +142,7 @@ try {
         foreach ($regs as $reg) {
             $linha = isset($reg['linha']) ? $reg['linha'] : '?';
 
-            if ($isMacromedidor) {
+            if ($isMacromedidor || $tipoMedidor == 8) {
                 $temVolume = isset($reg['volume']) && $reg['volume'] !== null && $reg['volume'] !== '';
                 $temPeriodo = isset($reg['periodo']) && $reg['periodo'] !== null && $reg['periodo'] !== '';
 
@@ -185,28 +185,33 @@ try {
 
             // Calcular vazão efetiva
             $vazaoEfetiva = null;
-            if ($isMacromedidor && isset($reg['volume']) && isset($reg['periodo']) && $reg['periodo'] > 0) {
+            if (($isMacromedidor || $tipoMedidor == 8) && isset($reg['volume']) && isset($reg['periodo']) && $reg['periodo'] > 0) {
                 $vazaoEfetiva = ($reg['volume'] * 1000) / $reg['periodo'];
             }
 
             // Verificar se existe
+            // Busca registros ativos no mesmo ponto e minuto (ignora segundos)
             $sqlVerifica = "SELECT CD_CHAVE FROM REGISTRO_VAZAO_PRESSAO 
-                            WHERE CD_PONTO_MEDICAO = ? AND DT_LEITURA = ? AND ID_SITUACAO = 1";
+                WHERE CD_PONTO_MEDICAO = ? 
+                  AND CONVERT(VARCHAR(16), DT_LEITURA, 120) = CONVERT(VARCHAR(16), CAST(? AS DATETIME), 120)
+                  AND ID_SITUACAO = 1";
             $stmtV = $pdoSIMP->prepare($sqlVerifica);
             $stmtV->execute([$cdPonto, $dtLeitura]);
-            $existe = $stmtV->fetch(PDO::FETCH_ASSOC);
+            $existentes = $stmtV->fetchAll(PDO::FETCH_ASSOC);
 
-            if ($existe) {
+            if (!empty($existentes)) {
                 if ($sobrescrever) {
-                    // Inativar registro existente
+                    // Inativar todos os registros existentes naquele ponto e minuto
                     $sqlInativar = "UPDATE REGISTRO_VAZAO_PRESSAO 
-                                    SET ID_SITUACAO = 2,
-                                        CD_USUARIO_ULTIMA_ATUALIZACAO = ?,
-                                        DT_ULTIMA_ATUALIZACAO = GETDATE()
-                                    WHERE CD_CHAVE = ?";
+                        SET ID_SITUACAO = 2,
+                            CD_USUARIO_ULTIMA_ATUALIZACAO = ?,
+                            DT_ULTIMA_ATUALIZACAO = GETDATE()
+                        WHERE CD_PONTO_MEDICAO = ?
+                          AND CONVERT(VARCHAR(16), DT_LEITURA, 120) = CONVERT(VARCHAR(16), CAST(? AS DATETIME), 120)
+                          AND ID_SITUACAO = 1";
                     $stmtIn = $pdoSIMP->prepare($sqlInativar);
-                    $stmtIn->execute([$cdUsuario, $existe['CD_CHAVE']]);
-                    $countSobrescritos++;
+                    $stmtIn->execute([$cdUsuario, $cdPonto, $dtLeitura]);
+                    $countSobrescritos += count($existentes);
                 } else {
                     $countDuplicados++;
                     continue;

@@ -237,10 +237,6 @@ try {
             <button class="btn-gov secondary" onclick="abrirModalTimeline()" title="Hist&oacute;rico de vers&otilde;es">
                 <ion-icon name="time-outline"></ion-icon> Hist&oacute;rico
             </button>
-            <button class="btn-gov danger" id="btnRetreinarGov" style="display:none;"
-                onclick="retreinarDesatualizados()" title="Retreinar modelos desatualizados">
-                <ion-icon name="refresh-outline"></ion-icon> Retreinar
-            </button>
         </div>
     </div>
 

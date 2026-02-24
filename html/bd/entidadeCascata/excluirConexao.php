@@ -13,6 +13,8 @@
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../../includes/auth.php';
+@include_once 'topologiaHelper.php';
+
 if (!podeEditarTela('Cadastro de Entidade')) {
     echo json_encode(['success' => false, 'message' => 'Sem permissão para esta operação']);
     exit;
@@ -21,7 +23,7 @@ if (!podeEditarTela('Cadastro de Entidade')) {
 try {
     include_once '../conexao.php';
 
-    $cd = isset($_POST['cd']) ? (int)$_POST['cd'] : 0;
+    $cd = isset($_POST['cd']) ? (int) $_POST['cd'] : 0;
     if ($cd <= 0) {
         throw new Exception('ID da conexão não informado');
     }
@@ -42,12 +44,22 @@ try {
             $desc = $dados ? ($dados['DS_ORIGEM'] . ' → ' . $dados['DS_DESTINO']) : "ID: $cd";
             registrarLogDelete('Cadastro Cascata', 'Conexão Fluxo', $cd, $desc, $dados);
         }
-    } catch (Exception $logEx) {}
+    } catch (Exception $logEx) {
+    }
 
     echo json_encode([
         'success' => true,
         'message' => 'Conexão removida com sucesso!'
     ], JSON_UNESCAPED_UNICODE);
+
+    // Snapshot topologia (Fase A1 - Governança)
+    try {
+        if (function_exists('dispararSnapshotTopologia')) {
+            $descSnap = $dados ? ($dados['DS_ORIGEM'] . ' → ' . $dados['DS_DESTINO']) : "ID: $cd";
+            dispararSnapshotTopologia($pdoSIMP, 'Conexão excluída: ' . $descSnap);
+        }
+    } catch (Exception $snapEx) {
+    }
 
 } catch (Exception $e) {
     echo json_encode([

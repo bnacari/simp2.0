@@ -1539,6 +1539,13 @@ if (isset($_SESSION['msg'])) {
                     </a>
                 </li>
                 <li class="sidebar-item">
+                    <a href="tratamentoLote.php" class="sidebar-link <?= $paginaAtual === 'tratamentoLote' ? 'active' : '' ?>"
+                        data-title="Tratamento em Lote">
+                        <ion-icon name="checkmark-done-outline"></ion-icon>
+                        <span class="sidebar-link-text">Tratamento Lote</span>
+                    </a>
+                </li>
+                <li class="sidebar-item">
                     <a href="iaRegras.php" class="sidebar-link <?= $paginaAtual === 'iaRegras' ? 'active' : '' ?>"
                         data-title="Treinamento IA">
                         <ion-icon name="sparkles-outline"></ion-icon>

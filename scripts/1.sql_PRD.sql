@@ -1364,3 +1364,688 @@ PRINT '================================================';
 PRINT 'Fase A1 - Governanca e Versionamento: SQL OK';
 PRINT '================================================';
 GO
+
+-- ============================================================
+-- SIMP 2.0 - Fase A2: Tratamento de Dados em Lote
+-- ============================================================
+-- 
+-- Objetivo: Inverter o fluxo de trabalho do operador.
+--   ANTES: operador procura problemas (8h/dia, ponto a ponto)
+--   DEPOIS: sistema apresenta problemas com solucao sugerida (~25min)
+--
+-- Componentes:
+--   1. Tabela IA_PENDENCIA_TRATAMENTO (pendencias com sugestao)
+--   2. Indices para performance
+--   3. View para frontend (VW_PENDENCIA_TRATAMENTO)
+--   4. SP de processamento batch (SP_GERAR_PENDENCIAS_BATCH)
+--
+-- Dependencias: IA_METRICAS_DIARIAS, PONTO_MEDICAO, VERSAO_TOPOLOGIA
+--
+-- @author Bruno - CESAN
+-- @version 1.0
+-- @date 2026-02
+-- ============================================================
+
+USE [SIMP]
+GO
+
+PRINT '================================================';
+PRINT 'SIMP 2.0 - FASE A2: TRATAMENTO EM LOTE';
+PRINT '================================================';
+PRINT '';
+
+-- ============================================================
+-- PARTE 1: TABELA IA_PENDENCIA_TRATAMENTO
+-- ============================================================
+
+PRINT 'Criando tabela IA_PENDENCIA_TRATAMENTO...';
+
+IF OBJECT_ID('dbo.IA_PENDENCIA_TRATAMENTO', 'U') IS NOT NULL
+BEGIN
+    PRINT '  - Tabela existente encontrada. Removendo...';
+    DROP TABLE dbo.IA_PENDENCIA_TRATAMENTO;
+END
+GO
+
+CREATE TABLE [dbo].[IA_PENDENCIA_TRATAMENTO] (
+
+    -- =============================================
+    -- IDENTIFICACAO
+    -- =============================================
+    [CD_CHAVE]              BIGINT IDENTITY(1,1) NOT NULL,
+    [CD_PONTO_MEDICAO]      INT NOT NULL,
+    [DT_REFERENCIA]         DATE NOT NULL,              -- Dia da anomalia
+    [NR_HORA]               TINYINT NOT NULL,           -- Hora (0-23)
+
+    -- =============================================
+    -- DETECCAO DA ANOMALIA
+    -- =============================================
+    [ID_TIPO_ANOMALIA]      TINYINT NOT NULL,
+    -- 1 = Valor zerado (vazao)
+    -- 2 = Sensor travado (valor constante)
+    -- 3 = Spike (valor extremo)
+    -- 4 = Desvio estatistico (Z-score)
+    -- 5 = Padrao incomum (autoencoder)
+    -- 6 = Desvio do modelo (XGBoost)
+    -- 7 = Gap de comunicacao (sem dados)
+    -- 8 = Fora de faixa operacional
+
+    [ID_CLASSE_ANOMALIA]    TINYINT NOT NULL DEFAULT 1,
+    -- 1 = Correcao tecnica (so este ponto diverge, vizinhos normais)
+    -- 2 = Evento operacional real (multiplos vizinhos divergem)
+
+    [DS_SEVERIDADE]         VARCHAR(10) NOT NULL DEFAULT 'media',
+    -- 'critica', 'alta', 'media', 'baixa'
+
+    -- =============================================
+    -- VALORES
+    -- =============================================
+    [VL_REAL]               DECIMAL(18,4) NULL,         -- Valor lido do sensor
+    [VL_SUGERIDO]           DECIMAL(18,4) NULL,         -- Valor sugerido pelo modelo
+    [VL_MEDIA_HISTORICA]    DECIMAL(18,4) NULL,         -- Media historica da mesma hora
+    [VL_PREDICAO_XGBOOST]  DECIMAL(18,4) NULL,         -- Predicao XGBoost
+    [VL_PREDICAO_GNN]       DECIMAL(18,4) NULL,         -- Predicao GNN (Fase B, NULL por ora)
+
+    -- =============================================
+    -- SCORE DE CONFIANCA COMPOSTO
+    -- =============================================
+    -- Formula: 0.30*Estat + 0.30*Modelo + 0.20*Topologia + 0.10*Historico + 0.10*Padrao
+    [VL_CONFIANCA]          DECIMAL(5,4) NOT NULL,      -- Score final (0.0000 a 1.0000)
+    [VL_SCORE_ESTATISTICO]  DECIMAL(5,4) NULL,          -- Z-score normalizado
+    [VL_SCORE_MODELO]       DECIMAL(5,4) NULL,          -- Diferenca real vs predicao
+    [VL_SCORE_TOPOLOGICO]   DECIMAL(5,4) NULL,          -- Consistencia com vizinhos
+    [VL_SCORE_HISTORICO]    DECIMAL(5,4) NULL,          -- Frequencia deste tipo de anomalia
+    [VL_SCORE_PADRAO]       DECIMAL(5,4) NULL,          -- Padrao ja visto e validado antes
+
+    -- =============================================
+    -- METODO DE DETECCAO
+    -- =============================================
+    [DS_METODO_DETECCAO]    VARCHAR(50) NULL,           -- 'regras', 'zscore', 'autoencoder', 'xgboost', 'combinado'
+    [VL_ZSCORE]             DECIMAL(8,2) NULL,          -- Z-score calculado
+    [DS_DESCRICAO]          VARCHAR(500) NULL,          -- Descricao legivel da anomalia
+
+    -- =============================================
+    -- RASTREABILIDADE DO MODELO
+    -- =============================================
+    [CD_MODELO_UTILIZADO]   INT NULL,                   -- FK para MODELO_REGISTRO (Fase A1)
+    [DS_VERSAO_MODELO]      VARCHAR(20) NULL,           -- Ex: 'v6.1', 'GNN-v1.0'
+    [CD_VERSAO_TOPOLOGIA]   INT NULL,                   -- FK para VERSAO_TOPOLOGIA (Fase A1)
+
+    -- =============================================
+    -- CONTEXTO TOPOLOGICO (preparado para Fase B - GNN)
+    -- =============================================
+    [QTD_VIZINHOS_ANOMALOS] TINYINT NULL DEFAULT 0,     -- Quantos vizinhos tambem estao anomalos
+    [DS_VIZINHOS_ANOMALOS]  VARCHAR(500) NULL,          -- Lista de vizinhos anomalos (JSON)
+    [OP_EVENTO_PROPAGADO]   BIT NULL DEFAULT 0,         -- Se anomalia se propaga pela rede
+
+    -- =============================================
+    -- STATUS E ACAO DO OPERADOR
+    -- =============================================
+    [ID_STATUS]             TINYINT NOT NULL DEFAULT 0,
+    -- 0 = Pendente
+    -- 1 = Aprovada (valor sugerido aplicado)
+    -- 2 = Ajustada (operador informou outro valor)
+    -- 3 = Ignorada (operador decidiu manter original)
+    -- 4 = Auto-aprovada (Fase C, confianca >= 95%)
+    -- 9 = Expirada (nao tratada no prazo)
+
+    [VL_VALOR_APLICADO]     DECIMAL(18,4) NULL,         -- Valor efetivamente aplicado (se aprovada/ajustada)
+    [CD_USUARIO_ACAO]       INT NULL,                   -- Quem aprovou/ignorou
+    [DT_ACAO]               DATETIME NULL,              -- Quando foi tratada
+    [DS_JUSTIFICATIVA]      VARCHAR(500) NULL,          -- Motivo (obrigatorio se ignorada)
+
+    -- =============================================
+    -- METADADOS
+    -- =============================================
+    [DT_GERACAO]            DATETIME NOT NULL DEFAULT GETDATE(),  -- Quando a pendencia foi gerada
+    [DS_ORIGEM]             VARCHAR(50) NULL DEFAULT 'BATCH',     -- 'BATCH', 'MANUAL', 'CRON'
+    [ID_TIPO_MEDIDOR]       TINYINT NULL,                         -- 1=M, 2=E, 4=P, 6=R, 8=H
+
+    -- =============================================
+    -- CONSTRAINTS
+    -- =============================================
+    CONSTRAINT [PK_IA_PENDENCIA] PRIMARY KEY CLUSTERED ([CD_CHAVE]),
+
+    -- Unicidade: 1 pendencia por ponto+data+hora+tipo (idempotente)
+    CONSTRAINT [UK_IA_PENDENCIA_UPSERT] UNIQUE (
+        [CD_PONTO_MEDICAO], [DT_REFERENCIA], [NR_HORA], [ID_TIPO_ANOMALIA]
+    ),
+
+    CONSTRAINT [FK_PENDENCIA_PONTO] FOREIGN KEY ([CD_PONTO_MEDICAO])
+        REFERENCES [dbo].[PONTO_MEDICAO] ([CD_PONTO_MEDICAO]),
+
+    -- Confianca minima para gerar pendencia (>= 0.70)
+    CONSTRAINT [CK_CONFIANCA_MINIMA] CHECK ([VL_CONFIANCA] >= 0.70)
+);
+GO
+
+PRINT '  - Tabela criada com sucesso.';
+PRINT '';
+
+-- ============================================================
+-- PARTE 2: INDICES
+-- ============================================================
+
+PRINT 'Criando indices...';
+
+-- Principal: busca por status (tela de tratamento)
+CREATE INDEX IX_PENDENCIA_STATUS 
+    ON IA_PENDENCIA_TRATAMENTO (ID_STATUS, DT_REFERENCIA DESC)
+    INCLUDE (CD_PONTO_MEDICAO, VL_CONFIANCA, ID_TIPO_ANOMALIA);
+
+-- Busca por ponto+data (motor batch, verificacao duplicidade)
+CREATE INDEX IX_PENDENCIA_PONTO_DATA 
+    ON IA_PENDENCIA_TRATAMENTO (CD_PONTO_MEDICAO, DT_REFERENCIA)
+    INCLUDE (NR_HORA, ID_STATUS);
+
+-- Ordenacao por confianca (priorizacao na tela)
+CREATE INDEX IX_PENDENCIA_CONFIANCA 
+    ON IA_PENDENCIA_TRATAMENTO (VL_CONFIANCA DESC)
+    WHERE ID_STATUS = 0;  -- Apenas pendentes
+
+-- Classe de anomalia (filtro tecnica vs operacional)
+CREATE INDEX IX_PENDENCIA_CLASSE 
+    ON IA_PENDENCIA_TRATAMENTO (ID_CLASSE_ANOMALIA, ID_STATUS)
+    INCLUDE (CD_PONTO_MEDICAO, DT_REFERENCIA);
+
+-- Tipo medidor (filtro por tipo)
+CREATE INDEX IX_PENDENCIA_TIPO_MEDIDOR 
+    ON IA_PENDENCIA_TRATAMENTO (ID_TIPO_MEDIDOR, ID_STATUS)
+    INCLUDE (DT_REFERENCIA, VL_CONFIANCA);
+
+-- Auditoria: quem tratou quando
+CREATE INDEX IX_PENDENCIA_AUDITORIA 
+    ON IA_PENDENCIA_TRATAMENTO (CD_USUARIO_ACAO, DT_ACAO)
+    WHERE ID_STATUS IN (1, 2, 3);
+
+GO
+
+PRINT '  - Indices criados com sucesso.';
+PRINT '';
+
+-- ============================================================
+-- PARTE 3: VIEW PARA FRONTEND (VW_PENDENCIA_TRATAMENTO)
+-- ============================================================
+
+PRINT 'Criando view VW_PENDENCIA_TRATAMENTO...';
+GO
+
+IF EXISTS (SELECT * FROM sys.views WHERE name = 'VW_PENDENCIA_TRATAMENTO')
+    DROP VIEW dbo.VW_PENDENCIA_TRATAMENTO;
+GO
+
+CREATE VIEW [dbo].[VW_PENDENCIA_TRATAMENTO] AS
+SELECT
+    -- Pendencia
+    P.CD_CHAVE,
+    P.CD_PONTO_MEDICAO,
+    P.DT_REFERENCIA,
+    P.NR_HORA,
+    P.ID_TIPO_ANOMALIA,
+    P.ID_CLASSE_ANOMALIA,
+    P.DS_SEVERIDADE,
+    P.VL_REAL,
+    P.VL_SUGERIDO,
+    P.VL_MEDIA_HISTORICA,
+    P.VL_PREDICAO_XGBOOST,
+    P.VL_CONFIANCA,
+    P.VL_ZSCORE,
+    P.DS_DESCRICAO,
+    P.DS_METODO_DETECCAO,
+    P.ID_STATUS,
+    P.VL_VALOR_APLICADO,
+    P.CD_USUARIO_ACAO,
+    P.DT_ACAO,
+    P.DS_JUSTIFICATIVA,
+    P.DT_GERACAO,
+    P.ID_TIPO_MEDIDOR,
+    P.QTD_VIZINHOS_ANOMALOS,
+    P.OP_EVENTO_PROPAGADO,
+
+    -- Ponto de Medicao
+    PM.DS_NOME AS DS_PONTO_NOME,
+    PM.DS_TAG_VAZAO,
+    PM.DS_TAG_PRESSAO,
+    PM.DS_TAG_RESERVATORIO,
+
+    -- Localidade e Unidade
+    L.CD_LOCALIDADE AS CD_LOCALIDADE_CODIGO,
+    L.DS_NOME AS DS_LOCALIDADE,
+    L.CD_UNIDADE,
+    U.DS_NOME AS DS_UNIDADE,
+
+    -- Codigo formatado: LOCALIDADE-CD_PONTO(6dig)-LETRA-UNIDADE
+    ISNULL(CAST(L.CD_LOCALIDADE AS VARCHAR), '000') + '-' +
+    RIGHT('000000' + CAST(PM.CD_PONTO_MEDICAO AS VARCHAR), 6) + '-' +
+    CASE P.ID_TIPO_MEDIDOR
+        WHEN 1 THEN 'M'
+        WHEN 2 THEN 'E'
+        WHEN 4 THEN 'P'
+        WHEN 6 THEN 'R'
+        WHEN 8 THEN 'H'
+        ELSE 'X'
+    END + '-' +
+    ISNULL(CAST(L.CD_UNIDADE AS VARCHAR), '00') AS DS_CODIGO_FORMATADO,
+
+    -- Descricoes de tipo
+    CASE P.ID_TIPO_ANOMALIA
+        WHEN 1 THEN 'Valor zerado'
+        WHEN 2 THEN 'Sensor travado'
+        WHEN 3 THEN 'Spike (extremo)'
+        WHEN 4 THEN 'Desvio estatistico'
+        WHEN 5 THEN 'Padrao incomum'
+        WHEN 6 THEN 'Desvio do modelo'
+        WHEN 7 THEN 'Gap comunicacao'
+        WHEN 8 THEN 'Fora de faixa'
+        ELSE 'Desconhecido'
+    END AS DS_TIPO_ANOMALIA,
+
+    CASE P.ID_CLASSE_ANOMALIA
+        WHEN 1 THEN 'Correcao tecnica'
+        WHEN 2 THEN 'Evento operacional'
+        ELSE 'Nao classificada'
+    END AS DS_CLASSE_ANOMALIA,
+
+    CASE P.ID_STATUS
+        WHEN 0 THEN 'Pendente'
+        WHEN 1 THEN 'Aprovada'
+        WHEN 2 THEN 'Ajustada'
+        WHEN 3 THEN 'Ignorada'
+        WHEN 4 THEN 'Auto-aprovada'
+        WHEN 9 THEN 'Expirada'
+        ELSE 'Desconhecido'
+    END AS DS_STATUS_NOME,
+
+    -- Badge de confianca
+    CASE
+        WHEN P.VL_CONFIANCA >= 0.95 THEN 'alta'      -- Badge verde
+        WHEN P.VL_CONFIANCA >= 0.85 THEN 'confiavel'  -- Badge azul
+        WHEN P.VL_CONFIANCA >= 0.70 THEN 'atencao'    -- Badge amarelo
+        ELSE 'baixa'
+    END AS DS_BADGE_CONFIANCA,
+
+    -- Tipo de medidor por extenso
+    CASE P.ID_TIPO_MEDIDOR
+        WHEN 1 THEN 'Macromedidor'
+        WHEN 2 THEN 'Pitometrica'
+        WHEN 4 THEN 'Pressao'
+        WHEN 6 THEN 'Reservatorio'
+        WHEN 8 THEN 'Hidrometro'
+        ELSE 'Outro'
+    END AS DS_TIPO_MEDIDOR_NOME,
+
+    -- Prioridade hidraulica (reservatorio > macro > pressao)
+    CASE P.ID_TIPO_MEDIDOR
+        WHEN 6 THEN 1  -- Reservatorio = prioridade maxima
+        WHEN 1 THEN 2  -- Macromedidor
+        WHEN 2 THEN 3  -- Pitometrica
+        WHEN 4 THEN 4  -- Pressao
+        WHEN 8 THEN 5  -- Hidrometro
+        ELSE 9
+    END AS NR_PRIORIDADE_HIDRAULICA,
+
+    -- Hora formatada
+    RIGHT('0' + CAST(P.NR_HORA AS VARCHAR), 2) + ':00' AS DS_HORA_FORMATADA,
+
+    -- Metricas do dia (join com IA_METRICAS_DIARIAS)
+    IM.PERC_COBERTURA,
+    IM.DS_STATUS AS DS_STATUS_DIA,
+
+    -- Nodo do grafo (para contexto topologico)
+    EN.CD_CHAVE AS CD_NODO,
+    EN.DS_NOME AS DS_NODO_NOME
+
+FROM [dbo].[IA_PENDENCIA_TRATAMENTO] P
+
+INNER JOIN [dbo].[PONTO_MEDICAO] PM 
+    ON PM.CD_PONTO_MEDICAO = P.CD_PONTO_MEDICAO
+
+LEFT JOIN [dbo].[LOCALIDADE] L 
+    ON L.CD_CHAVE = PM.CD_LOCALIDADE
+
+LEFT JOIN [dbo].[UNIDADE] U 
+    ON U.CD_UNIDADE = L.CD_UNIDADE
+
+LEFT JOIN [dbo].[IA_METRICAS_DIARIAS] IM 
+    ON IM.CD_PONTO_MEDICAO = P.CD_PONTO_MEDICAO 
+    AND IM.DT_REFERENCIA = P.DT_REFERENCIA
+
+LEFT JOIN [dbo].[ENTIDADE_NODO] EN 
+    ON EN.CD_PONTO_MEDICAO = PM.CD_PONTO_MEDICAO 
+    AND EN.OP_ATIVO = 1;
+GO
+
+PRINT '  - View criada com sucesso.';
+PRINT '';
+
+-- ============================================================
+-- PARTE 4: STORED PROCEDURE - APLICAR TRATAMENTO
+-- ============================================================
+-- ============================================================
+-- SP_APLICAR_TRATAMENTO v2.0
+-- Replica o comportamento do modal de validacao (validarDados.php):
+--   1. Inativa registros existentes na hora (ID_SITUACAO = 1 -> 2)
+--   2. Insere 60 novos registros (1 por minuto) com valor corrigido
+--   3. Registra usuario, observacao e tipo de registro = 2 (manual)
+--   4. Atualiza pendencia com status e auditoria
+--   5. Enfileira reprocessamento de metricas
+-- ============================================================
+
+CREATE OR ALTER PROCEDURE [dbo].[SP_APLICAR_TRATAMENTO]
+    @CD_PENDENCIA       BIGINT,
+    @ID_ACAO            TINYINT,        -- 1=Aprovar, 2=Ajustar, 3=Ignorar
+    @VL_VALOR_APLICADO  DECIMAL(18,4) = NULL,  -- Obrigatorio se acao=2
+    @CD_USUARIO         INT,
+    @DS_JUSTIFICATIVA   VARCHAR(500) = NULL     -- Obrigatorio se acao=3
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- ========================================
+    -- VALIDACOES
+    -- ========================================
+    IF NOT EXISTS (SELECT 1 FROM IA_PENDENCIA_TRATAMENTO WHERE CD_CHAVE = @CD_PENDENCIA AND ID_STATUS = 0)
+    BEGIN
+        RAISERROR('Pendencia nao encontrada ou ja tratada.', 16, 1);
+        RETURN;
+    END
+
+    IF @ID_ACAO = 3 AND (ISNULL(@DS_JUSTIFICATIVA, '') = '')
+    BEGIN
+        RAISERROR('Justificativa obrigatoria para ignorar pendencia.', 16, 1);
+        RETURN;
+    END
+
+    -- ========================================
+    -- BUSCAR DADOS DA PENDENCIA
+    -- ========================================
+    DECLARE @CD_PONTO INT, @DT_REF DATE, @NR_HORA TINYINT, 
+            @VL_SUGERIDO DECIMAL(18,4), @ID_TIPO_MEDIDOR TINYINT,
+            @DS_TIPO_ANOMALIA VARCHAR(50), @DS_PONTO_NOME VARCHAR(200);
+
+    SELECT 
+        @CD_PONTO = P.CD_PONTO_MEDICAO,
+        @DT_REF = P.DT_REFERENCIA,
+        @NR_HORA = P.NR_HORA,
+        @VL_SUGERIDO = P.VL_SUGERIDO,
+        @ID_TIPO_MEDIDOR = P.ID_TIPO_MEDIDOR,
+        @DS_TIPO_ANOMALIA = CASE P.ID_TIPO_ANOMALIA
+            WHEN 1 THEN 'Valor zerado' WHEN 2 THEN 'Sensor travado'
+            WHEN 3 THEN 'Spike' WHEN 4 THEN 'Desvio estatistico'
+            WHEN 5 THEN 'Padrao incomum' WHEN 6 THEN 'Desvio modelo'
+            WHEN 7 THEN 'Gap comunicacao' WHEN 8 THEN 'Fora de faixa'
+            ELSE 'Anomalia' END,
+        @DS_PONTO_NOME = PM.DS_NOME
+    FROM IA_PENDENCIA_TRATAMENTO P
+    INNER JOIN PONTO_MEDICAO PM ON PM.CD_PONTO_MEDICAO = P.CD_PONTO_MEDICAO
+    WHERE P.CD_CHAVE = @CD_PENDENCIA;
+
+    -- Determinar valor a aplicar
+    DECLARE @VALOR_FINAL DECIMAL(18,4);
+    SET @VALOR_FINAL = CASE @ID_ACAO
+        WHEN 1 THEN @VL_SUGERIDO            -- Aprovar: usa valor sugerido
+        WHEN 2 THEN @VL_VALOR_APLICADO      -- Ajustar: usa valor informado
+        ELSE NULL                             -- Ignorar: nao altera
+    END;
+
+    -- Montar observacao descritiva (mesmo padrao do validarDados.php)
+    DECLARE @DS_OBS VARCHAR(500);
+    SET @DS_OBS = 'Tratamento Lote IA - ' + 
+        CASE @ID_ACAO 
+            WHEN 1 THEN 'Aprovado (valor sugerido)' 
+            WHEN 2 THEN 'Ajustado manualmente' 
+            WHEN 3 THEN 'Ignorado' 
+            ELSE '' END +
+        ' | Anomalia: ' + @DS_TIPO_ANOMALIA +
+        ' | Pendencia #' + CAST(@CD_PENDENCIA AS VARCHAR);
+
+    -- Contadores para retorno
+    DECLARE @TOTAL_INATIVADOS INT = 0;
+    DECLARE @TOTAL_INSERIDOS INT = 0;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        -- ========================================
+        -- 1. ATUALIZAR PENDENCIA (auditoria)
+        -- ========================================
+        UPDATE IA_PENDENCIA_TRATAMENTO
+        SET ID_STATUS = @ID_ACAO,
+            VL_VALOR_APLICADO = @VALOR_FINAL,
+            CD_USUARIO_ACAO = @CD_USUARIO,
+            DT_ACAO = GETDATE(),
+            DS_JUSTIFICATIVA = @DS_JUSTIFICATIVA
+        WHERE CD_CHAVE = @CD_PENDENCIA;
+
+        -- ========================================
+        -- 2. APLICAR CORRECAO NOS REGISTROS
+        --    (replica validarDados.php: inativar + inserir 60 novos)
+        -- ========================================
+        IF @ID_ACAO IN (1, 2) AND @VALOR_FINAL IS NOT NULL
+        BEGIN
+            -- Intervalo da hora
+            DECLARE @DT_HORA_INI DATETIME = DATEADD(HOUR, @NR_HORA, CAST(@DT_REF AS DATETIME));
+            DECLARE @DT_HORA_FIM DATETIME = DATEADD(HOUR, 1, @DT_HORA_INI);
+
+            -- ----------------------------------------
+            -- 2a. INATIVAR registros existentes na hora
+            --     (ID_SITUACAO = 1 -> 2, mesmo que validarDados.php)
+            -- ----------------------------------------
+            UPDATE REGISTRO_VAZAO_PRESSAO
+            SET ID_SITUACAO = 2,
+                CD_USUARIO_ULTIMA_ATUALIZACAO = @CD_USUARIO,
+                DT_ULTIMA_ATUALIZACAO = GETDATE()
+            WHERE CD_PONTO_MEDICAO = @CD_PONTO
+              AND DT_LEITURA >= @DT_HORA_INI
+              AND DT_LEITURA < @DT_HORA_FIM
+              AND ID_SITUACAO = 1;
+
+            SET @TOTAL_INATIVADOS = @@ROWCOUNT;
+
+            -- ----------------------------------------
+            -- 2b. INSERIR 60 novos registros (1 por minuto)
+            --     Coluna correta por tipo de medidor
+            --     ID_TIPO_REGISTRO = 2 (tratamento manual/IA)
+            --     ID_TIPO_MEDICAO  = 2 
+            --     ID_TIPO_VAZAO    = 1
+            --     ID_SITUACAO      = 1 (ativo)
+            -- ----------------------------------------
+            DECLARE @MINUTO INT = 0;
+            DECLARE @DT_LEITURA DATETIME;
+
+            WHILE @MINUTO < 60
+            BEGIN
+                SET @DT_LEITURA = DATEADD(MINUTE, @MINUTO, @DT_HORA_INI);
+
+                -- Vazao (Macromedidor, Pitometrica, Hidrometro)
+                IF @ID_TIPO_MEDIDOR IN (1, 2, 8)
+                BEGIN
+                    INSERT INTO REGISTRO_VAZAO_PRESSAO
+                    (CD_PONTO_MEDICAO, DT_LEITURA, DT_EVENTO_MEDICAO,
+                     VL_VAZAO_EFETIVA, ID_SITUACAO,
+                     ID_TIPO_REGISTRO, ID_TIPO_MEDICAO, ID_TIPO_VAZAO,
+                     CD_USUARIO_RESPONSAVEL, CD_USUARIO_ULTIMA_ATUALIZACAO,
+                     DT_ULTIMA_ATUALIZACAO, DS_OBSERVACAO)
+                    VALUES
+                    (@CD_PONTO, @DT_LEITURA, GETDATE(),
+                     @VALOR_FINAL, 1,
+                     2, 2, 1,
+                     @CD_USUARIO, @CD_USUARIO,
+                     GETDATE(), @DS_OBS);
+                END
+
+                -- Pressao
+                ELSE IF @ID_TIPO_MEDIDOR = 4
+                BEGIN
+                    INSERT INTO REGISTRO_VAZAO_PRESSAO
+                    (CD_PONTO_MEDICAO, DT_LEITURA, DT_EVENTO_MEDICAO,
+                     VL_PRESSAO, ID_SITUACAO,
+                     ID_TIPO_REGISTRO, ID_TIPO_MEDICAO, ID_TIPO_VAZAO,
+                     CD_USUARIO_RESPONSAVEL, CD_USUARIO_ULTIMA_ATUALIZACAO,
+                     DT_ULTIMA_ATUALIZACAO, DS_OBSERVACAO)
+                    VALUES
+                    (@CD_PONTO, @DT_LEITURA, GETDATE(),
+                     @VALOR_FINAL, 1,
+                     2, 2, 1,
+                     @CD_USUARIO, @CD_USUARIO,
+                     GETDATE(), @DS_OBS);
+                END
+
+                -- Reservatorio
+                ELSE IF @ID_TIPO_MEDIDOR = 6
+                BEGIN
+                    INSERT INTO REGISTRO_VAZAO_PRESSAO
+                    (CD_PONTO_MEDICAO, DT_LEITURA, DT_EVENTO_MEDICAO,
+                     VL_RESERVATORIO, ID_SITUACAO,
+                     ID_TIPO_REGISTRO, ID_TIPO_MEDICAO, ID_TIPO_VAZAO,
+                     CD_USUARIO_RESPONSAVEL, CD_USUARIO_ULTIMA_ATUALIZACAO,
+                     DT_ULTIMA_ATUALIZACAO, DS_OBSERVACAO)
+                    VALUES
+                    (@CD_PONTO, @DT_LEITURA, GETDATE(),
+                     @VALOR_FINAL, 1,
+                     2, 2, 1,
+                     @CD_USUARIO, @CD_USUARIO,
+                     GETDATE(), @DS_OBS);
+                END
+
+                SET @TOTAL_INSERIDOS = @TOTAL_INSERIDOS + 1;
+                SET @MINUTO = @MINUTO + 1;
+            END
+
+            -- ----------------------------------------
+            -- 2c. ENFILEIRAR reprocessamento de metricas
+            -- ----------------------------------------
+            IF EXISTS (SELECT 1 FROM sys.procedures WHERE name = 'SP_ENFILEIRAR_REPROCESSAMENTO')
+            BEGIN
+                EXEC SP_ENFILEIRAR_REPROCESSAMENTO 
+                    @DT_REFERENCIA = @DT_REF,
+                    @DS_ORIGEM = 'TRATAMENTO_LOTE',
+                    @CD_USUARIO = @CD_USUARIO;
+            END
+        END
+
+        COMMIT TRANSACTION;
+
+        -- Retorno com detalhes (mesmo padrao validarDados.php)
+        SELECT 
+            @CD_PENDENCIA AS CD_PENDENCIA,
+            @ID_ACAO AS ID_ACAO,
+            @VALOR_FINAL AS VL_APLICADO,
+            @TOTAL_INATIVADOS AS TOTAL_INATIVADOS,
+            @TOTAL_INSERIDOS AS TOTAL_INSERIDOS,
+            @DS_PONTO_NOME AS DS_PONTO_NOME,
+            @NR_HORA AS NR_HORA,
+            'OK' AS RESULTADO;
+
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END
+GO
+
+PRINT 'SP_APLICAR_TRATAMENTO v2.0 atualizada com sucesso!';
+PRINT 'Comportamento: inativar existentes + inserir 60 novos (replica validarDados.php)';
+GO
+
+-- ============================================================
+-- PARTE 5: SP APLICAR EM MASSA
+-- ============================================================
+
+PRINT 'Criando SP_APLICAR_TRATAMENTO_MASSA...';
+GO
+
+CREATE OR ALTER PROCEDURE [dbo].[SP_APLICAR_TRATAMENTO_MASSA]
+    @IDS            VARCHAR(MAX),       -- Lista de CD_CHAVE separados por virgula
+    @ID_ACAO        TINYINT,            -- 1=Aprovar, 3=Ignorar
+    @CD_USUARIO     INT,
+    @DS_JUSTIFICATIVA VARCHAR(500) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Parse IDs
+    DECLARE @Pendencias TABLE (CD_CHAVE BIGINT);
+    INSERT INTO @Pendencias
+    SELECT CAST(value AS BIGINT) 
+    FROM STRING_SPLIT(@IDS, ',')
+    WHERE ISNUMERIC(value) = 1;
+
+    DECLARE @Total INT = (SELECT COUNT(*) FROM @Pendencias);
+    DECLARE @Sucesso INT = 0;
+    DECLARE @Erro INT = 0;
+
+    -- Processar cada pendencia
+    DECLARE @CD BIGINT;
+    DECLARE cur CURSOR LOCAL FAST_FORWARD FOR
+        SELECT CD_CHAVE FROM @Pendencias;
+
+    OPEN cur;
+    FETCH NEXT FROM cur INTO @CD;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        BEGIN TRY
+            EXEC SP_APLICAR_TRATAMENTO 
+                @CD_PENDENCIA = @CD,
+                @ID_ACAO = @ID_ACAO,
+                @VL_VALOR_APLICADO = NULL,
+                @CD_USUARIO = @CD_USUARIO,
+                @DS_JUSTIFICATIVA = @DS_JUSTIFICATIVA;
+            
+            SET @Sucesso = @Sucesso + 1;
+        END TRY
+        BEGIN CATCH
+            SET @Erro = @Erro + 1;
+        END CATCH
+
+        FETCH NEXT FROM cur INTO @CD;
+    END
+
+    CLOSE cur;
+    DEALLOCATE cur;
+
+    SELECT 
+        @Total AS TOTAL,
+        @Sucesso AS SUCESSO,
+        @Erro AS ERRO;
+END
+GO
+
+PRINT '  - SP_APLICAR_TRATAMENTO_MASSA criada com sucesso.';
+PRINT '';
+
+-- ============================================================
+-- PARTE 6: RESUMO E VERIFICACAO
+-- ============================================================
+
+PRINT '';
+PRINT '================================================';
+PRINT 'INSTALACAO CONCLUIDA - FASE A2';
+PRINT '================================================';
+PRINT '';
+PRINT 'Objetos criados:';
+PRINT '  - Tabela: IA_PENDENCIA_TRATAMENTO';
+PRINT '  - View:   VW_PENDENCIA_TRATAMENTO';
+PRINT '  - SP:     SP_APLICAR_TRATAMENTO (individual)';
+PRINT '  - SP:     SP_APLICAR_TRATAMENTO_MASSA (lote)';
+PRINT '  - 6 indices de performance';
+PRINT '';
+PRINT 'Proximos passos:';
+PRINT '  1. Backend PHP: Motor batch que gera pendencias';
+PRINT '  2. Backend PHP: Endpoint de tratamento (aprovar/ajustar/ignorar)';
+PRINT '  3. Frontend:    Tela de tratamento em lote';
+PRINT '';
+
+-- Verificacao rapida
+SELECT 
+    t.name AS TABELA,
+    SUM(p.rows) AS REGISTROS
+FROM sys.tables t
+INNER JOIN sys.partitions p ON t.object_id = p.object_id AND p.index_id IN (0,1)
+WHERE t.name IN ('IA_PENDENCIA_TRATAMENTO', 'IA_METRICAS_DIARIAS', 'VERSAO_TOPOLOGIA', 'MODELO_REGISTRO')
+GROUP BY t.name
+ORDER BY t.name;
+
+GO

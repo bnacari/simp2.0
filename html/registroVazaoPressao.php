@@ -390,7 +390,7 @@ $descartes = [
     // Configurações Globais
     // ============================================
     window.podeEditar = <?= $podeEditar ? 'true' : 'false' ?>;
-    
+
     // Tipos de Registro
     const tiposRegistro = <?= json_encode($tiposRegistro) ?>;
 
@@ -3634,6 +3634,13 @@ $descartes = [
                 const registros = [];
                 const pontosSet = new Set();
 
+                // Converte valor para número, aceitando zero como válido
+                function parsearNumero(val) {
+                    if (val === null || val === undefined || val === '') return null;
+                    var num = parseFloat(val);
+                    return isNaN(num) ? null : num;
+                }
+
                 for (let i = 1; i < jsonData.length; i++) {
                     const linha = jsonData[i];
 
@@ -3673,11 +3680,11 @@ $descartes = [
                         data: dataConvertida,
                         hora: horaConvertida,
                         pontoMedicao: cdPonto,
-                        tempAgua: colMap['TEMP_AGUA'] !== undefined ? parseFloat(linha[colMap['TEMP_AGUA']]) || null : null,
-                        tempAmb: colMap['TEMP_AMB'] !== undefined ? parseFloat(linha[colMap['TEMP_AMB']]) || null : null,
-                        pressao: colMap['PRESSAO'] !== undefined ? parseFloat(linha[colMap['PRESSAO']]) || null : null,
-                        volume: colMap['VOLUME'] !== undefined ? parseFloat(linha[colMap['VOLUME']]) || null : null,
-                        periodo: colMap['PERIODO'] !== undefined ? parseFloat(linha[colMap['PERIODO']]) || null : null
+                        tempAgua: colMap['TEMP_AGUA'] !== undefined ? parsearNumero(linha[colMap['TEMP_AGUA']]) : null,
+                        tempAmb: colMap['TEMP_AMB'] !== undefined ? parsearNumero(linha[colMap['TEMP_AMB']]) : null,
+                        pressao: colMap['PRESSAO'] !== undefined ? parsearNumero(linha[colMap['PRESSAO']]) : null,
+                        volume: colMap['VOLUME'] !== undefined ? parsearNumero(linha[colMap['VOLUME']]) : null,
+                        periodo: colMap['PERIODO'] !== undefined ? parsearNumero(linha[colMap['PERIODO']]) : null
                     });
                 }
 
