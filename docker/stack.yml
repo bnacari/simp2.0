@@ -21,6 +21,7 @@ services:
       - HTTP_PROXY=http://cntlm:3128/
       - HTTPS_PROXY=http://cntlm:3128/
       - no_proxy=localhost,127.0.0.1,simp20-tensorflow
+      - NO_PROXY=localhost,127.0.0.1,simp20-tensorflow
     networks:
       - frontend
       - cntlm
@@ -54,6 +55,7 @@ services:
       - HTTP_PROXY=http://cntlm:3128/
       - HTTPS_PROXY=http://cntlm:3128/
       - no_proxy=localhost,127.0.0.1,simp20-php
+      - NO_PROXY=localhost,127.0.0.1,simp20-php
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /nfs/swarm/simp20-php/modelos_treinados:/app/models

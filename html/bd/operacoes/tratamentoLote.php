@@ -45,7 +45,7 @@ register_shutdown_function(function () {
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode([
             'success' => false,
-            'error' => 'Erro PHP: ' . $error['message']
+            'error'   => 'Erro PHP: ' . $error['message']
         ], JSON_UNESCAPED_UNICODE);
     }
 });
@@ -63,7 +63,7 @@ try {
 
     // Receber dados
     $rawInput = file_get_contents('php://input');
-    $dados = json_decode($rawInput, true);
+    $dados    = json_decode($rawInput, true);
     if (json_last_error() !== JSON_ERROR_NONE) {
         $dados = $_GET;
     }
@@ -73,7 +73,7 @@ try {
     if (empty($acao)) {
         retornarJSON_TL([
             'success' => false,
-            'error' => 'Parametro "acao" obrigatorio.'
+            'error'   => 'Parametro "acao" obrigatorio.'
         ]);
     }
 
@@ -109,8 +109,8 @@ try {
         // AJUSTAR - Operador informa valor
         // ----------------------------------------
         case 'ajustar':
-            $cdPendencia = intval($dados['cd_pendencia'] ?? 0);
-            $valorAjuste = isset($dados['valor']) ? floatval($dados['valor']) : null;
+            $cdPendencia  = intval($dados['cd_pendencia'] ?? 0);
+            $valorAjuste  = isset($dados['valor']) ? floatval($dados['valor']) : null;
             if (!$cdPendencia || $valorAjuste === null) {
                 retornarJSON_TL(['success' => false, 'error' => 'cd_pendencia e valor obrigatorios']);
             }
@@ -122,7 +122,7 @@ try {
         // IGNORAR - Justificativa obrigatoria
         // ----------------------------------------
         case 'ignorar':
-            $cdPendencia = intval($dados['cd_pendencia'] ?? 0);
+            $cdPendencia   = intval($dados['cd_pendencia'] ?? 0);
             $justificativa = trim($dados['justificativa'] ?? '');
             if (!$cdPendencia || empty($justificativa)) {
                 retornarJSON_TL(['success' => false, 'error' => 'cd_pendencia e justificativa obrigatorios']);
@@ -147,7 +147,7 @@ try {
         // IGNORAR EM MASSA
         // ----------------------------------------
         case 'ignorar_massa':
-            $ids = $dados['ids'] ?? [];
+            $ids           = $dados['ids'] ?? [];
             $justificativa = trim($dados['justificativa'] ?? '');
             if (empty($ids) || !is_array($ids) || empty($justificativa)) {
                 retornarJSON_TL(['success' => false, 'error' => 'ids e justificativa obrigatorios']);
@@ -217,53 +217,53 @@ function listarPendencias(PDO $pdo, array $filtros): array
     $offset = ($pagina - 1) * $limite;
 
     // ---- Construir WHERE ----
-    $where = [];
+    $where  = [];
     $params = [];
 
     // Filtro de data
     if (!empty($filtros['data'])) {
-        $where[] = "P.DT_REFERENCIA = :data";
-        $params[':data'] = $filtros['data'];
+        $where[]             = "P.DT_REFERENCIA = :data";
+        $params[':data']     = $filtros['data'];
     } elseif (!empty($filtros['data_inicio']) && !empty($filtros['data_fim'])) {
-        $where[] = "P.DT_REFERENCIA BETWEEN :dt_ini AND :dt_fim";
-        $params[':dt_ini'] = $filtros['data_inicio'];
-        $params[':dt_fim'] = $filtros['data_fim'];
+        $where[]                  = "P.DT_REFERENCIA BETWEEN :dt_ini AND :dt_fim";
+        $params[':dt_ini']        = $filtros['data_inicio'];
+        $params[':dt_fim']        = $filtros['data_fim'];
     }
 
     // Status (default: pendentes)
     if (isset($filtros['status']) && $filtros['status'] !== '' && $filtros['status'] !== 'todos') {
-        $where[] = "P.ID_STATUS = :status";
-        $params[':status'] = intval($filtros['status']);
+        $where[]               = "P.ID_STATUS = :status";
+        $params[':status']     = intval($filtros['status']);
     }
 
     // Classe de anomalia
     if (!empty($filtros['classe'])) {
-        $where[] = "P.ID_CLASSE_ANOMALIA = :classe";
-        $params[':classe'] = intval($filtros['classe']);
+        $where[]              = "P.ID_CLASSE_ANOMALIA = :classe";
+        $params[':classe']    = intval($filtros['classe']);
     }
 
     // Tipo de anomalia
     if (!empty($filtros['tipo_anomalia'])) {
-        $where[] = "P.ID_TIPO_ANOMALIA = :tipo_anom";
-        $params[':tipo_anom'] = intval($filtros['tipo_anomalia']);
+        $where[]                    = "P.ID_TIPO_ANOMALIA = :tipo_anom";
+        $params[':tipo_anom']       = intval($filtros['tipo_anomalia']);
     }
 
     // Tipo de medidor
     if (!empty($filtros['tipo_medidor'])) {
-        $where[] = "P.ID_TIPO_MEDIDOR = :tipo_med";
-        $params[':tipo_med'] = intval($filtros['tipo_medidor']);
+        $where[]                    = "P.ID_TIPO_MEDIDOR = :tipo_med";
+        $params[':tipo_med']        = intval($filtros['tipo_medidor']);
     }
 
     // Unidade
     if (!empty($filtros['unidade'])) {
-        $where[] = "L.CD_UNIDADE = :unidade";
-        $params[':unidade'] = $filtros['unidade'];
+        $where[]                = "L.CD_UNIDADE = :unidade";
+        $params[':unidade']     = $filtros['unidade'];
     }
 
     // Confianca minima
     if (!empty($filtros['confianca_min'])) {
-        $where[] = "P.VL_CONFIANCA >= :conf_min";
-        $params[':conf_min'] = floatval($filtros['confianca_min']);
+        $where[]                      = "P.VL_CONFIANCA >= :conf_min";
+        $params[':conf_min']          = floatval($filtros['confianca_min']);
     }
 
     // Busca textual (nome, cd_ponto, tags)
@@ -274,7 +274,7 @@ function listarPendencias(PDO $pdo, array $filtros): array
                      OR PM.DS_TAG_VAZAO LIKE :busca3
                      OR PM.DS_TAG_PRESSAO LIKE :busca4
                      OR PM.DS_TAG_RESERVATORIO LIKE :busca5)";
-        $params[':busca'] = $termo;
+        $params[':busca']  = $termo;
         $params[':busca2'] = $termo;
         $params[':busca3'] = $termo;
         $params[':busca4'] = $termo;
@@ -285,19 +285,19 @@ function listarPendencias(PDO $pdo, array $filtros): array
 
     // ---- Ordenacao ----
     $ordenacaoPermitida = [
-        'confianca' => 'P.VL_CONFIANCA',
-        'data' => 'P.DT_REFERENCIA',
-        'hora' => 'P.NR_HORA',
-        'severidade' => "CASE P.DS_SEVERIDADE WHEN 'critica' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 ELSE 4 END",
-        'tipo' => 'P.ID_TIPO_ANOMALIA',
-        'prioridade' => "CASE P.ID_TIPO_MEDIDOR WHEN 6 THEN 1 WHEN 1 THEN 2 WHEN 2 THEN 3 WHEN 4 THEN 4 ELSE 9 END",
-        'ponto' => 'PM.DS_NOME',
-        'status' => 'P.ID_STATUS',
-        'geracao' => 'P.DT_GERACAO'
+        'confianca'   => 'P.VL_CONFIANCA',
+        'data'        => 'P.DT_REFERENCIA',
+        'hora'        => 'P.NR_HORA',
+        'severidade'  => "CASE P.DS_SEVERIDADE WHEN 'critica' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 ELSE 4 END",
+        'tipo'        => 'P.ID_TIPO_ANOMALIA',
+        'prioridade'  => "CASE P.ID_TIPO_MEDIDOR WHEN 6 THEN 1 WHEN 1 THEN 2 WHEN 2 THEN 3 WHEN 4 THEN 4 ELSE 9 END",
+        'ponto'       => 'PM.DS_NOME',
+        'status'      => 'P.ID_STATUS',
+        'geracao'     => 'P.DT_GERACAO'
     ];
 
     $campoOrdenar = $ordenacaoPermitida[$filtros['ordenar'] ?? 'prioridade'] ?? $ordenacaoPermitida['prioridade'];
-    $direcao = strtoupper($filtros['direcao'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
+    $direcao      = strtoupper($filtros['direcao'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
 
     // ---- Contar total ----
     $sqlCount = "
@@ -409,12 +409,12 @@ function listarPendencias(PDO $pdo, array $filtros): array
     $pendencias = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     return [
-        'success' => true,
+        'success'    => true,
         'pendencias' => $pendencias,
-        'total' => $total,
-        'pagina' => $pagina,
-        'limite' => $limite,
-        'paginas' => ceil($total / $limite)
+        'total'      => $total,
+        'pagina'     => $pagina,
+        'limite'     => $limite,
+        'paginas'    => ceil($total / $limite)
     ];
 }
 
@@ -481,7 +481,7 @@ function aplicarTratamento(
     } catch (PDOException $e) {
         return [
             'success' => false,
-            'error' => $e->getMessage()
+            'error'   => $e->getMessage()
         ];
     }
 }
@@ -503,13 +503,12 @@ function aplicarTratamentoMassa(
 ): array {
 
     $sucesso = 0;
-    $erros = 0;
+    $erros   = 0;
     $detalhes = [];
 
     foreach ($ids as $id) {
         $cdPendencia = intval($id);
-        if ($cdPendencia <= 0)
-            continue;
+        if ($cdPendencia <= 0) continue;
 
         $res = aplicarTratamento($pdo, $cdPendencia, $idAcao, null, $cdUsuario, $justificativa);
 
@@ -522,12 +521,12 @@ function aplicarTratamentoMassa(
     }
 
     return [
-        'success' => true,
-        'total' => count($ids),
-        'sucesso' => $sucesso,
-        'erros' => $erros,
+        'success'  => true,
+        'total'    => count($ids),
+        'sucesso'  => $sucesso,
+        'erros'    => $erros,
         'detalhes' => $detalhes,
-        'message' => "$sucesso tratamento(s) aplicado(s)" . ($erros > 0 ? ", $erros erro(s)" : '')
+        'message'  => "$sucesso tratamento(s) aplicado(s)" . ($erros > 0 ? ", $erros erro(s)" : '')
     ];
 }
 
@@ -617,11 +616,11 @@ function obterEstatisticas(PDO $pdo, ?string $dataRef): array
     $datasDisponiveis = $stmtDatas->fetchAll(PDO::FETCH_ASSOC);
 
     return [
-        'success' => true,
-        'data' => $dataRef,
-        'resumo' => $resumo,
-        'por_tipo_medidor' => $porTipoMedidor,
-        'por_severidade' => $porSeveridade,
+        'success'           => true,
+        'data'              => $dataRef,
+        'resumo'            => $resumo,
+        'por_tipo_medidor'  => $porTipoMedidor,
+        'por_severidade'    => $porSeveridade,
         'datas_disponiveis' => $datasDisponiveis
     ];
 }
@@ -679,9 +678,9 @@ function obterDetalhe(PDO $pdo, int $cdPendencia): array
     $outrasHoras = $stmtIrmas->fetchAll(PDO::FETCH_ASSOC);
 
     return [
-        'success' => true,
-        'pendencia' => $pendencia,
-        'scores' => $scores,
+        'success'      => true,
+        'pendencia'    => $pendencia,
+        'scores'       => $scores,
         'outras_horas' => $outrasHoras
     ];
 }
