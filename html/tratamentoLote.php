@@ -1176,6 +1176,230 @@ try {
         margin-left: 3px;
         vertical-align: middle;
     }
+
+    /* Modal regras - padrao SIMP */
+    .regra-tab {
+        flex: 1;
+        padding: 10px 16px;
+        background: transparent;
+        border: none;
+        font-size: 13px;
+        font-weight: 500;
+        color: #64748b;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: all .2s;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+    }
+
+    .regra-tab:hover {
+        color: #1e3a5f;
+        background: #eff6ff;
+    }
+
+    .regra-tab.active {
+        color: #1e3a5f;
+        font-weight: 600;
+        border-bottom-color: #1e3a5f;
+    }
+
+    .regra-tab ion-icon {
+        font-size: 16px;
+    }
+
+    .regra-secao {
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .regra-secao:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+
+    .regra-secao h4 {
+        margin: 0 0 10px;
+        font-size: 14px;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .regra-formula {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-family: 'SF Mono', Consolas, monospace;
+        font-size: 12px;
+        color: #334155;
+        margin-bottom: 12px;
+        text-align: center;
+        font-weight: 500;
+    }
+
+    .regra-tabela {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+
+    .regra-tabela th {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+        text-align: left;
+        padding: 8px 10px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .regra-tabela td {
+        padding: 7px 10px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+        vertical-align: top;
+    }
+
+    .regra-tabela tr:hover td {
+        background: #f8fafc;
+    }
+
+    .regra-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .regra-badge.amarelo {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .regra-badge.vermelho {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .regra-badge.azul {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .regra-badge.roxo {
+        background: #ede9fe;
+        color: #5b21b6;
+    }
+
+    .regra-badge.verde {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .regra-badge.laranja {
+        background: #ffedd5;
+        color: #9a3412;
+    }
+
+    .regra-badge.cinza {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .regra-badge-info {
+        font-size: 11px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 500;
+    }
+
+    .regra-badge-info.verde {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .regra-badge-info.azul {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .regra-badge-info.amarelo {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    /* Glossario */
+    .glossario-item {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        overflow: hidden;
+        transition: all .2s;
+    }
+
+    .glossario-item:hover {
+        border-color: #93c5fd;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.08);
+    }
+
+    .glossario-termo {
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        padding: 10px 14px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #1e3a5f;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .glossario-def {
+        padding: 10px 14px;
+    }
+
+    .glossario-def p {
+        font-size: 12px;
+        color: #475569;
+        margin: 0 0 6px;
+        line-height: 1.5;
+    }
+
+    .glossario-def p:last-child {
+        margin-bottom: 0;
+    }
+
+    .glossario-formula {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 6px 12px;
+        font-family: 'SF Mono', Consolas, monospace;
+        font-size: 12px;
+        color: #334155;
+        margin: 6px 0;
+        display: inline-block;
+    }
+
+    #modalRegras .modal-container {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease;
+    overflow: hidden;
+}
+
+    .modal-overlay.active {
+        display: flex;
+    }
 </style>
 
 <div class="page-container">
@@ -1200,6 +1424,10 @@ try {
                         <ion-icon name="time-outline" style="vertical-align:middle;margin-right:2px;"></ion-icon>
                         Ultimo batch: <strong id="dtUltimoBatch">-</strong>
                     </span>
+                    <button class="btn-header" onclick="abrirRegras()" title="Regras de deteccao e classificacao">
+                        <ion-icon name="book-outline"></ion-icon>
+                        Regras
+                    </button>
                     <button class="btn-header primary" onclick="executarBatch()" id="btnExecutarBatch"
                         title="Executar motor de analise para ontem">
                         <ion-icon name="play-outline"></ion-icon>
@@ -1512,6 +1740,457 @@ try {
     </div>
 </div>
 
+<!-- ============================================
+         MODAL: REGRAS DE DETECCAO E GLOSSARIO
+         ============================================ -->
+<div class="modal-overlay" id="modalRegras" onclick="if(event.target===this)fecharRegras()">
+    <div class="modal-container" style="max-width:760px;max-height:90vh;display:flex;flex-direction:column;">
+
+        <!-- Header padrao SIMP -->
+        <div class="modal-header">
+            <h3>
+                <ion-icon name="book-outline"></ion-icon>
+                Regras de Deteccao e Glossario
+            </h3>
+            <button class="modal-close" onclick="fecharRegras()">
+                <ion-icon name="close-outline"></ion-icon>
+            </button>
+        </div>
+
+        <!-- Tabs -->
+        <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;background:#f8fafc;">
+            <button class="regra-tab active" onclick="trocarAbaRegra('regras', this)">
+                <ion-icon name="shield-checkmark-outline"></ion-icon> Regras
+            </button>
+            <button class="regra-tab" onclick="trocarAbaRegra('glossario', this)">
+                <ion-icon name="library-outline"></ion-icon> Glossario
+            </button>
+        </div>
+
+        <!-- Body scrollavel -->
+        <div class="modal-body" style="overflow-y:auto;flex:1;">
+
+            <!-- ========== ABA REGRAS ========== -->
+            <div id="abaRegras">
+
+                <!-- Tipos de Anomalia -->
+                <div class="regra-secao">
+                    <h4><ion-icon name="warning-outline" style="color:#f59e0b;"></ion-icon> Tipos de Anomalia</h4>
+                    <table class="regra-tabela">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Descricao</th>
+                                <th>Criterio de Deteccao</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="regra-badge amarelo">1</span></td>
+                                <td>Valor zerado</td>
+                                <td>Vazao = 0 em hora com historico &gt; 0 (exceto reservatorio)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="regra-badge amarelo">2</span></td>
+                                <td>Sensor travado</td>
+                                <td>Valor constante por 3+ horas consecutivas (desvio padrao = 0)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="regra-badge vermelho">3</span></td>
+                                <td>Spike (extremo)</td>
+                                <td>Valor &gt; 3x a media historica da hora ou variacao &gt; 200% entre horas</td>
+                            </tr>
+                            <tr>
+                                <td><span class="regra-badge azul">4</span></td>
+                                <td>Desvio estatistico</td>
+                                <td>Z-score &gt; limiar dinamico (4.0 - sensibilidade x 2.5)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="regra-badge roxo">5</span></td>
+                                <td>Padrao incomum</td>
+                                <td>Autoencoder: erro de reconstrucao acima do threshold treinado</td>
+                            </tr>
+                            <tr>
+                                <td><span class="regra-badge azul">6</span></td>
+                                <td>Desvio do modelo</td>
+                                <td>Diferenca entre valor real e predicao XGBoost &gt; 2x o MAE do modelo</td>
+                            </tr>
+                            <tr>
+                                <td><span class="regra-badge cinza">7</span></td>
+                                <td>Gap comunicacao</td>
+                                <td>Sem registros na hora (0 de 60 minutos esperados)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="regra-badge vermelho">8</span></td>
+                                <td>Fora de faixa</td>
+                                <td>Valor fora dos limites operacionais configurados no ponto</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Classificacao -->
+                <div class="regra-secao">
+                    <h4><ion-icon name="git-branch-outline" style="color:#8b5cf6;"></ion-icon> Classificacao da Anomalia
+                    </h4>
+                    <table class="regra-tabela">
+                        <thead>
+                            <tr>
+                                <th>Classe</th>
+                                <th>Criterio</th>
+                                <th>Acao Recomendada</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="regra-badge azul">Tecnica</span></td>
+                                <td>Apenas este ponto diverge; vizinhos no grafo estao normais</td>
+                                <td>Aprovar valor sugerido (falha isolada do sensor)</td>
+                            </tr>
+                            <tr>
+                                <td><span class="regra-badge laranja">Operacional</span></td>
+                                <td>Multiplos vizinhos tambem apresentam anomalia simultanea</td>
+                                <td>Investigar antes de tratar (pode ser evento real na rede)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Score de Confianca -->
+                <div class="regra-secao">
+                    <h4><ion-icon name="shield-checkmark-outline" style="color:#16a34a;"></ion-icon> Score de Confianca
+                        Composto</h4>
+                    <div class="regra-formula">
+                        0.30 &times; Estatistico + 0.30 &times; Modelo + 0.20 &times; Topologico + 0.10 &times;
+                        Historico + 0.10 &times; Padrao
+                    </div>
+                    <table class="regra-tabela">
+                        <thead>
+                            <tr>
+                                <th style="width:25%">Componente</th>
+                                <th>Peso</th>
+                                <th>O que mede</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Estatistico</strong></td>
+                                <td>30%</td>
+                                <td>Z-score normalizado — quanto o valor desvia da distribuicao historica</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Modelo</strong></td>
+                                <td>30%</td>
+                                <td>Diferenca entre valor real e predicao XGBoost (se modelo treinado)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Topologico</strong></td>
+                                <td>20%</td>
+                                <td>Consistencia com vizinhos no grafo — se vizinhos estao normais, aumenta confianca
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Historico</strong></td>
+                                <td>10%</td>
+                                <td>Frequencia deste tipo de anomalia neste ponto (anomalias recorrentes = score maior)
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Padrao</strong></td>
+                                <td>10%</td>
+                                <td>Se anomalia similar ja foi aprovada antes no mesmo contexto</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;">
+                        <div class="regra-badge-info verde">&ge; 95% — Alta (altissima certeza)</div>
+                        <div class="regra-badge-info azul">&ge; 85% — Confiavel (recomendado aprovar)</div>
+                        <div class="regra-badge-info amarelo">&ge; 70% — Atencao (revisar antes)</div>
+                    </div>
+                </div>
+
+                <!-- Severidade -->
+                <div class="regra-secao">
+                    <h4><ion-icon name="flame-outline" style="color:#ef4444;"></ion-icon> Niveis de Severidade</h4>
+                    <table class="regra-tabela">
+                        <thead>
+                            <tr>
+                                <th>Severidade</th>
+                                <th>Criterio</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="regra-badge vermelho">Critica</span></td>
+                                <td>Z-score &gt; 6 ou gap total de comunicacao</td>
+                            </tr>
+                            <tr>
+                                <td><span class="regra-badge laranja">Alta</span></td>
+                                <td>Z-score entre 4 e 6 ou spike extremo</td>
+                            </tr>
+                            <tr>
+                                <td><span class="regra-badge amarelo">Media</span></td>
+                                <td>Z-score entre 2.5 e 4 ou desvio moderado</td>
+                            </tr>
+                            <tr>
+                                <td><span class="regra-badge cinza">Baixa</span></td>
+                                <td>Z-score &lt; 2.5, desvio leve detectado pelo autoencoder</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Valor Sugerido -->
+                <div class="regra-secao">
+                    <h4><ion-icon name="calculator-outline" style="color:#0891b2;"></ion-icon> Calculo do Valor Sugerido
+                    </h4>
+                    <table class="regra-tabela">
+                        <thead>
+                            <tr>
+                                <th style="width:15%">Prioridade</th>
+                                <th>Metodo</th>
+                                <th>Quando e usado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>1a</strong></td>
+                                <td>Predicao XGBoost</td>
+                                <td>Se o ponto possui modelo treinado com R&sup2; &gt; 0.5</td>
+                            </tr>
+                            <tr>
+                                <td><strong>2a</strong></td>
+                                <td>Media historica da hora</td>
+                                <td>Fallback se nao ha modelo ou predicao indisponivel</td>
+                            </tr>
+                            <tr>
+                                <td><strong>3a</strong></td>
+                                <td>Valor esperado (detector)</td>
+                                <td>Ultimo recurso — estimativa do detector de anomalias</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Prioridade Hidraulica -->
+                <div class="regra-secao">
+                    <h4><ion-icon name="water-outline" style="color:#2563eb;"></ion-icon> Prioridade Hidraulica</h4>
+                    <table class="regra-tabela">
+                        <thead>
+                            <tr>
+                                <th>Prioridade</th>
+                                <th>Tipo</th>
+                                <th>Motivo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>1a</strong></td>
+                                <td>Reservatorio</td>
+                                <td>Impacto direto no abastecimento — nivel critico afeta toda a rede</td>
+                            </tr>
+                            <tr>
+                                <td><strong>2a</strong></td>
+                                <td>Macromedidor</td>
+                                <td>Grande volume — erro afeta balanco hidrico regional</td>
+                            </tr>
+                            <tr>
+                                <td><strong>3a</strong></td>
+                                <td>Pitometrica</td>
+                                <td>Monitoramento de rede — referencia para calibracao</td>
+                            </tr>
+                            <tr>
+                                <td><strong>4a</strong></td>
+                                <td>Pressao</td>
+                                <td>Indicador indireto — complementa analise de vazao</td>
+                            </tr>
+                            <tr>
+                                <td><strong>5a</strong></td>
+                                <td>Hidrometro</td>
+                                <td>Ponto final da rede — impacto localizado</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Acoes de Tratamento -->
+                <div class="regra-secao">
+                    <h4><ion-icon name="checkmark-done-outline" style="color:#16a34a;"></ion-icon> Acoes de Tratamento
+                    </h4>
+                    <table class="regra-tabela">
+                        <thead>
+                            <tr>
+                                <th>Acao</th>
+                                <th>O que acontece</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="regra-badge verde">Aprovar</span></td>
+                                <td>Inativa 60 registros da hora + insere 60 novos com valor sugerido. Registra usuario
+                                    e observacao.</td>
+                            </tr>
+                            <tr>
+                                <td><span class="regra-badge azul">Ajustar</span></td>
+                                <td>Mesmo processo, mas com valor informado manualmente pelo operador.</td>
+                            </tr>
+                            <tr>
+                                <td><span class="regra-badge cinza">Ignorar</span></td>
+                                <td>Mantem dados originais. Justificativa obrigatoria para auditoria.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p style="font-size:11px;color:#94a3b8;margin-top:8px;">
+                        <ion-icon name="information-circle-outline" style="vertical-align:middle;"></ion-icon>
+                        Todas as acoes registram: usuario, data/hora, observacao detalhada. Registros tratados recebem
+                        ID_TIPO_REGISTRO = 2 (manual/IA).
+                    </p>
+                </div>
+            </div>
+
+            <!-- ========== ABA GLOSSARIO ========== -->
+            <div id="abaGlossario" style="display:none;">
+
+                <div class="regra-secao">
+                    <h4><ion-icon name="library-outline" style="color:#6366f1;"></ion-icon> Dicionario de Termos
+                        Tecnicos</h4>
+                    <p style="font-size:12px;color:#64748b;margin-bottom:12px;">
+                        Explicacao dos termos estatisticos e de inteligencia artificial utilizados nesta tela.
+                    </p>
+                </div>
+
+                <div class="glossario-item">
+                    <div class="glossario-termo">Z-Score</div>
+                    <div class="glossario-def">
+                        <p>Mede quantos <strong>desvios padrao</strong> um valor esta distante da media. Exemplo: se a
+                            vazao media as 14h e 50 L/s com desvio padrao 5, um valor de 65 L/s tem Z-score = 3.0 (esta
+                            3 desvios acima da media).</p>
+                        <div class="glossario-formula">Z = (valor_real - media) / desvio_padrao</div>
+                        <p><strong>De onde vem:</strong> calculado sobre o historico de 12+ semanas da mesma hora do
+                            mesmo ponto. Quanto maior o Z-score, mais anomalo e o valor.</p>
+                        <p><strong>Limiar dinamico:</strong> <code>4.0 - sensibilidade &times; 2.5</code>. Com
+                            sensibilidade padrao (0.5), o limiar fica em 2.75.</p>
+                    </div>
+                </div>
+
+                <div class="glossario-item">
+                    <div class="glossario-termo">Threshold (Limiar)</div>
+                    <div class="glossario-def">
+                        <p>Valor de corte que separa "normal" de "anomalo". Se uma metrica ultrapassa o threshold, o
+                            sistema classifica como anomalia. Cada metodo tem seu proprio threshold:</p>
+                        <ul style="margin:6px 0;padding-left:20px;font-size:12px;color:#475569;">
+                            <li><strong>Z-score:</strong> limiar dinamico (tipicamente 2.75)</li>
+                            <li><strong>Autoencoder:</strong> percentil 95 do erro de reconstrucao no treino</li>
+                            <li><strong>XGBoost:</strong> 2x o MAE historico do modelo</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="glossario-item">
+                    <div class="glossario-termo">Desvio Padrao</div>
+                    <div class="glossario-def">
+                        <p>Medida de <strong>dispersao</strong> dos dados em relacao a media. Desvio padrao baixo =
+                            dados concentrados; alto = dados espalhados. E a base do calculo do Z-score.</p>
+                    </div>
+                </div>
+
+                <div class="glossario-item">
+                    <div class="glossario-termo">XGBoost</div>
+                    <div class="glossario-def">
+                        <p>Algoritmo de <strong>machine learning</strong> baseado em arvores de decisao. Aprende padroes
+                            historicos de cada ponto (hora do dia, dia da semana, correlacoes com vizinhos) para prever
+                            o valor esperado. Se o valor real diverge muito da predicao, e detectada anomalia.</p>
+                        <p><strong>Versao atual:</strong> v6.1 com features de shift temporal, delta e encoding ciclico.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="glossario-item">
+                    <div class="glossario-termo">Autoencoder</div>
+                    <div class="glossario-def">
+                        <p>Rede neural que aprende a <strong>comprimir e reconstruir</strong> dados normais. Quando
+                            recebe um dado anomalo, nao consegue reconstrui-lo bem, gerando erro de reconstrucao alto.
+                            Esse erro e comparado com o threshold treinado.</p>
+                    </div>
+                </div>
+
+                <div class="glossario-item">
+                    <div class="glossario-termo">R&sup2; (R-quadrado)</div>
+                    <div class="glossario-def">
+                        <p>Metrica de qualidade do modelo, varia de 0 a 1. Indica quanto da variacao dos dados o modelo
+                            consegue explicar. R&sup2; = 0.85 significa que o modelo explica 85% da variabilidade. Acima
+                            de 0.7 e considerado bom para dados de telemetria.</p>
+                    </div>
+                </div>
+
+                <div class="glossario-item">
+                    <div class="glossario-termo">MAE (Erro Medio Absoluto)</div>
+                    <div class="glossario-def">
+                        <p>Media das diferencas absolutas entre predicao e valor real. Exemplo: MAE = 3.5 L/s significa
+                            que o modelo erra em media 3.5 L/s. Usado como referencia para definir o threshold de
+                            anomalia do XGBoost (2x MAE).</p>
+                    </div>
+                </div>
+
+                <div class="glossario-item">
+                    <div class="glossario-termo">MAPE (Erro Percentual Medio)</div>
+                    <div class="glossario-def">
+                        <p>Mesma ideia do MAE, mas em <strong>percentual</strong>. MAPE = 15% significa que o modelo
+                            erra em media 15% do valor real. Util para comparar performance entre pontos com escalas
+                            diferentes.</p>
+                    </div>
+                </div>
+
+                <div class="glossario-item">
+                    <div class="glossario-termo">Score Topologico</div>
+                    <div class="glossario-def">
+                        <p>Analisa os <strong>vizinhos no grafo hidraulico</strong> (flowchart). Se apenas este ponto
+                            esta anomalo mas vizinhos a montante e jusante estao normais, e provavel falha do sensor
+                            (score alto). Se vizinhos tambem divergem, pode ser evento real na rede (score baixo).</p>
+                    </div>
+                </div>
+
+                <div class="glossario-item">
+                    <div class="glossario-termo">Fallback Estatistico</div>
+                    <div class="glossario-def">
+                        <p>Quando o ponto <strong>nao possui modelo ML treinado</strong>, o sistema usa media historica
+                            e interpolacao como metodo alternativo de predicao. Indicado pelo badge sem o icone <span
+                                class="modelo-badge" style="font-size:10px;"><ion-icon
+                                    name="checkmark-circle"></ion-icon> ML</span>.</p>
+                    </div>
+                </div>
+
+                <div class="glossario-item">
+                    <div class="glossario-termo">Batch (Lote)</div>
+                    <div class="glossario-def">
+                        <p>Processamento automatico que analisa <strong>todos os pontos ativos</strong> de uma vez para
+                            uma data especifica. Percorre cada ponto, chama o detector de anomalias + predicao,
+                            classifica e gera pendencias. Tempo tipico: 2-5 minutos para ~53 pontos.</p>
+                    </div>
+                </div>
+
+                <div class="glossario-item">
+                    <div class="glossario-termo">MERGE / UPSERT</div>
+                    <div class="glossario-def">
+                        <p>Operacao de banco de dados que <strong>insere ou atualiza</strong>. Se ja existe pendencia
+                            para o mesmo ponto+data+hora+tipo, atualiza os valores; se nao existe, insere nova. Garante
+                            idempotencia — rodar o batch 2x nao duplica dados.</p>
+                    </div>
+                </div>
+
+                <div class="glossario-item">
+                    <div class="glossario-termo">Idempotente</div>
+                    <div class="glossario-def">
+                        <p>Operacao que pode ser executada <strong>multiplas vezes</strong> sem alterar o resultado alem
+                            da primeira execucao. O batch e idempotente: rodar 3x para a mesma data gera o mesmo
+                            resultado que rodar 1x.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /modal-body -->
+    </div><!-- /modal-container -->
+</div>
 
 <!-- Select2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -2291,6 +2970,27 @@ try {
             });
     }
 
+    /** Abre modal de regras */
+    function abrirRegras() {
+        document.getElementById('modalRegras').classList.add('active');
+    }
+
+    /** Fecha modal de regras */
+    function fecharRegras() {
+        document.getElementById('modalRegras').classList.remove('active');
+    }
+
+    /** Trocar aba Regras/Glossario */
+    function trocarAbaRegra(aba, btn) {
+        document.getElementById('abaRegras').style.display = aba === 'regras' ? '' : 'none';
+        document.getElementById('abaGlossario').style.display = aba === 'glossario' ? '' : 'none';
+        document.querySelectorAll('.regra-tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') fecharRegras();
+    });
     /**
      * Redireciona para a tela de validacao (operacoes.php) com o ponto e data pre-selecionados.
      * Abre em nova aba para nao perder o contexto do tratamento em lote.
