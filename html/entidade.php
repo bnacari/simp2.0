@@ -57,8 +57,8 @@ try {
 
 try {
     // ============================================
-    // Query LEVE: Carrega apenas TIPO + VALOR (sem itens)
-    // Itens são carregados via AJAX (lazy load) ao expandir cada valor
+    // Query ULTRA LEVE: Carrega apenas TIPOS (sem valores)
+    // Valores são carregados via AJAX ao expandir cada tipo
     // ============================================
     $sql = "
         SELECT 
@@ -67,15 +67,10 @@ try {
             ET.CD_ENTIDADE_TIPO_ID AS TIPO_ID,
             ET.DESCARTE AS TIPO_DESCARTE,
             ET.DT_EXC_ENTIDADE_TIPO AS TIPO_DT_EXC,
-            EV.CD_CHAVE AS VALOR_CD,
-            EV.DS_NOME AS VALOR_NOME,
-            EV.CD_ENTIDADE_VALOR_ID AS VALOR_ID,
-            EV.ID_FLUXO,
-            (SELECT COUNT(*) FROM SIMP.dbo.ENTIDADE_VALOR_ITEM 
-             WHERE CD_ENTIDADE_VALOR = EV.CD_CHAVE) AS TOTAL_ITENS
+            (SELECT COUNT(*) FROM SIMP.dbo.ENTIDADE_VALOR 
+             WHERE CD_ENTIDADE_TIPO = ET.CD_CHAVE) AS TOTAL_VALORES
         FROM SIMP.dbo.ENTIDADE_TIPO ET
-        LEFT JOIN SIMP.dbo.ENTIDADE_VALOR EV ON EV.CD_ENTIDADE_TIPO = ET.CD_CHAVE
-        ORDER BY ET.DS_NOME, EV.DS_NOME
+        ORDER BY ET.DS_NOME
     ";
 
     $queryEntidades = $pdoSIMP->query($sql);
@@ -84,59 +79,23 @@ try {
         throw new Exception("Erro ao executar query de entidades");
     }
 
-    $entidadesTemp = [];
+    $entidades = [];
     while ($row = $queryEntidades->fetch(PDO::FETCH_ASSOC)) {
-        $tipoId = $row['TIPO_CD'];
-        $valorId = $row['VALOR_CD'];
-
-        if (!isset($entidadesTemp[$tipoId])) {
-            $entidadesTemp[$tipoId] = [
-                'cd' => $tipoId,
-                'nome' => $row['TIPO_NOME'],
-                'id' => $row['TIPO_ID'],
-                'descarte' => !empty($row['TIPO_DESCARTE']),
-                'dtExc' => $row['TIPO_DT_EXC'],
-                'valores' => []
-            ];
-        }
-
-        if ($valorId && !isset($entidadesTemp[$tipoId]['valores'][$valorId])) {
-            $entidadesTemp[$tipoId]['valores'][$valorId] = [
-                'cd' => $valorId,
-                'nome' => $row['VALOR_NOME'],
-                'id' => $row['VALOR_ID'],
-                'fluxo' => $row['ID_FLUXO'],
-                'totalItens' => (int) $row['TOTAL_ITENS']
-            ];
-        }
+        $entidades[] = [
+            'cd' => $row['TIPO_CD'],
+            'nome' => $row['TIPO_NOME'],
+            'id' => $row['TIPO_ID'],
+            'descarte' => !empty($row['TIPO_DESCARTE']),
+            'dtExc' => $row['TIPO_DT_EXC'],
+            'totalValores' => (int) $row['TOTAL_VALORES']
+        ];
     }
-
-    // Converte para array indexado
-    $entidades = array_values($entidadesTemp);
-
-    // Ordenar alfabeticamente
-    usort($entidades, function ($a, $b) {
-        return strcasecmp($a['nome'], $b['nome']);
-    });
-
-    // Ordena valores dentro de cada tipo
-    foreach ($entidades as &$tipo) {
-        $tipo['valores'] = array_values($tipo['valores']);
-        usort($tipo['valores'], function ($a, $b) {
-            return strcasecmp($a['nome'], $b['nome']);
-        });
-    }
-    unset($tipo);
 
     // Contadores
     $totalTipos = 0;
     foreach ($entidades as $t) {
-        if (empty($t['dtExc']))
-            $totalTipos++; // Conta apenas os ativos
-        $totalValores += count($t['valores']);
-        foreach ($t['valores'] as $v) {
-            $totalItens += $v['totalItens'];
-        }
+        if (empty($t['dtExc'])) $totalTipos++;
+        $totalValores += $t['totalValores'];
     }
 
 } catch (Exception $e) {
@@ -291,7 +250,7 @@ try {
                         </div>
                     </div>
                     <div class="tipo-card-header-right">
-                        <span class="badge-count"><?= count($tipo['valores']) ?> Unidades Operacionais</span>
+                        <span class="badge-count"><?= $tipo['totalValores'] ?> Unidades Operacionais</span>
                         <?php if ($podeEditar): ?>
                             <div class="header-actions" onclick="event.stopPropagation();">
                                 <button class="btn-action add" onclick="abrirModalValor(null, '', '', <?= $tipo['cd'] ?>)"
@@ -323,93 +282,14 @@ try {
                 </div>
 
                 <!-- Tipo Body (Valores) -->
-                <div class="tipo-card-body">
-                    <?php if (empty($tipo['valores'])): ?>
-                        <div class="empty-state" style="padding: 32px;">
-                            <ion-icon name="albums-outline"></ion-icon>
-                            <h3>Nenhum valor cadastrado</h3>
-                            <p>Adicione unidades operacionais a este tipo</p>
-                        </div>
-                    <?php else: ?>
-                        <?php foreach ($tipo['valores'] as $valor): ?>
-                            <div class="valor-card" id="valor-<?= $valor['cd'] ?>"
-                                data-valor-nome="<?= htmlspecialchars(strtolower($valor['nome'])) ?>"
-                                data-valor-id="<?= htmlspecialchars(strtolower($valor['id'] ?? '')) ?>"
-                                data-favorito="<?= in_array($valor['cd'], $favoritos) ? '1' : '0' ?>">
-                                <!-- Valor Header -->
-                                <?php
-                                // Mapeamento de fluxo
-                                $fluxosTexto = [
-                                    1 => 'Entrada',
-                                    2 => 'Saída',
-                                    3 => 'Municipal',
-                                    4 => 'Não se Aplica'
-                                ];
-                                $fluxoTexto = $fluxosTexto[$valor['fluxo']] ?? '-';
-                                ?>
-                                <div class="valor-card-header" onclick="toggleValor(<?= $valor['cd'] ?>)">
-                                    <div class="valor-card-header-left">
-                                        <div class="valor-icon">
-                                            <ion-icon name="albums-outline"></ion-icon>
-                                        </div>
-                                        <div class="valor-info">
-                                            <h4><?= htmlspecialchars($valor['nome']) ?></h4>
-                                            <div class="valor-meta">
-                                                <span class="valor-id">ID: <?= htmlspecialchars($valor['id'] ?? '-') ?></span>
-                                                <span class="fluxo-badge fluxo-<?= $valor['fluxo'] ?? 0 ?>"><?= $fluxoTexto ?></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="valor-card-header-right">
-                                        <span class="valor-badge-count" id="badge-count-<?= $valor['cd'] ?>"><?= $valor['totalItens'] ?>
-                                            Ponto(s) de Medição</span>
-                                        <div class="header-actions" onclick="event.stopPropagation();">
-                                            <button class="btn-action favorito <?= in_array($valor['cd'], $favoritos) ? 'ativo' : '' ?>"
-                                                onclick="toggleFavorito(<?= $valor['cd'] ?>, this)"
-                                                title="<?= in_array($valor['cd'], $favoritos) ? 'Remover dos favoritos' : 'Adicionar aos favoritos' ?>">
-                                                <ion-icon
-                                                    name="<?= in_array($valor['cd'], $favoritos) ? 'star' : 'star-outline' ?>"></ion-icon>
-                                            </button>
-                                            <button class="btn-action chart"
-                                                onclick="abrirGraficoValor(<?= $tipo['cd'] ?>, <?= $valor['cd'] ?>, '<?= $valor['id'] ?? '' ?>')"
-                                                title="Ver Gráfico">
-                                                <ion-icon name="stats-chart-outline"></ion-icon>
-                                            </button>
-                                            <?php if ($podeEditar): ?>
-                                                <button class="btn-action add"
-                                                    onclick="abrirModalItem(null, null, '', '', <?= $valor['cd'] ?>)"
-                                                    title="Vincular Ponto">
-                                                    <ion-icon name="add-outline"></ion-icon>
-                                                </button>
-                                                <button class="btn-action edit"
-                                                    onclick="abrirModalValor(<?= $valor['cd'] ?>, <?= htmlspecialchars(json_encode($valor['nome']), ENT_QUOTES) ?>, <?= htmlspecialchars(json_encode($valor['id'] ?? ''), ENT_QUOTES) ?>, <?= $tipo['cd'] ?>, '<?= $valor['fluxo'] ?? '' ?>')"
-                                                    title="Editar">
-                                                    <ion-icon name="pencil-outline"></ion-icon>
-                                                </button>
-                                                <button class="btn-action delete" onclick="excluirValor(<?= $valor['cd'] ?>)"
-                                                    title="Excluir">
-                                                    <ion-icon name="trash-outline"></ion-icon>
-                                                </button>
-                                            <?php endif; ?>
-                                        </div>
-                                        <div class="valor-expand-icon">
-                                            <ion-icon name="chevron-down-outline"></ion-icon>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Valor Body (Itens) - Carregado via AJAX (lazy load) -->
-                                <div class="valor-card-body" id="valor-body-<?= $valor['cd'] ?>" data-loaded="0"
-                                    data-total="<?= $valor['totalItens'] ?>">
-                                    <div class="lazy-load-placeholder" style="padding: 24px; text-align: center; color: #94a3b8;">
-                                        <ion-icon name="hourglass-outline"
-                                            style="font-size: 24px; animation: spin 1s linear infinite;"></ion-icon>
-                                        <p style="margin-top: 8px; font-size: 12px;">Carregando pontos de medição...</p>
-                                    </div>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                <!-- Tipo Body (Valores) - Carregado via AJAX (lazy load) -->
+                <div class="tipo-card-body" id="tipo-body-<?= $tipo['cd'] ?>" data-loaded="0"
+                    data-total="<?= $tipo['totalValores'] ?>">
+                    <div class="lazy-load-placeholder" style="padding: 24px; text-align: center; color: #94a3b8;">
+                        <ion-icon name="hourglass-outline"
+                            style="font-size: 24px; animation: spin 1s linear infinite;"></ion-icon>
+                        <p style="margin-top: 8px; font-size: 12px;">Carregando unidades operacionais...</p>
+                    </div>
                 </div>
             </div>
         <?php endforeach; ?>
@@ -827,6 +707,12 @@ try {
     // Flag de NR_ORDEM
     const _temNrOrdem = <?= $temNrOrdem ? 'true' : 'false' ?>;
 
+    // Cache de valores carregados por tipo (evita re-fetch)
+    const _valoresCache = {};
+
+    // Mapeamento de fluxo para texto e classe CSS
+    const _fluxosTexto = { 1: 'Entrada', 2: 'Saída', 3: 'Municipal', 4: 'Não se Aplica' };
+
     function saveExpandedState() {
         const expandedTipos = [];
         const expandedValores = [];
@@ -847,30 +733,87 @@ try {
         }));
     }
 
+    /**
+     * Restaura o estado expandido dos acordeões salvos no localStorage.
+     * Carrega valores em fila (máx 2 simultâneos) para não sobrecarregar.
+     */
     function restoreExpandedState() {
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                const state = JSON.parse(saved);
+            if (!saved) return;
 
-                if (state.tipos) {
-                    state.tipos.forEach(id => {
-                        const card = document.getElementById('tipo-' + id);
-                        if (card) card.classList.add('expanded');
+            const state = JSON.parse(saved);
+
+            // Expandir tipos (apenas visual, sem carregar valores ainda)
+            if (state.tipos) {
+                state.tipos.forEach(id => {
+                    const card = document.getElementById('tipo-' + id);
+                    if (card) card.classList.add('expanded');
+                });
+            }
+
+            // Fila de carregamento: tipos primeiro, depois valores
+            const filaTipos = (state.tipos || []).slice();
+            const filaValores = (state.valores || []).slice();
+            let ativo = 0;
+            const MAX_CONCORRENTE = 2;
+
+            function processarFila() {
+                // Prioridade: tipos primeiro
+                while (ativo < MAX_CONCORRENTE && filaTipos.length > 0) {
+                    const id = filaTipos.shift();
+                    ativo++;
+                    carregarValoresTipo(id, false, function () {
+                        ativo--;
+                        // Após carregar valores do tipo, expandir os valores salvos que pertencem a ele
+                        filaValores.forEach(vid => {
+                            const card = document.getElementById('valor-' + vid);
+                            if (card) card.classList.add('expanded');
+                        });
+                        processarFila();
                     });
                 }
 
-                if (state.valores) {
-                    state.valores.forEach(id => {
-                        const card = document.getElementById('valor-' + id);
-                        if (card) {
-                            card.classList.add('expanded');
-                            // Lazy load: carregar itens dos valores que estavam expandidos
-                            carregarItensValor(id);
+                // Depois carregar itens dos valores expandidos
+                while (ativo < MAX_CONCORRENTE && filaValores.length > 0) {
+                    const id = filaValores.shift();
+                    const card = document.getElementById('valor-' + id);
+                    if (card && card.classList.contains('expanded')) {
+                        const body = document.getElementById('valor-body-' + id);
+                        if (body && body.dataset.loaded !== '1') {
+                            ativo++;
+                            // Usar callback manual para controlar a fila
+                            const bodyEl = body;
+                            const origSuccess = null;
+                            $.ajax({
+                                url: 'bd/entidade/getItensValor.php',
+                                type: 'GET',
+                                data: { cdValor: id },
+                                dataType: 'json',
+                                success: function (response) {
+                                    if (response.success) {
+                                        _itensCache[id] = response.data;
+                                        renderizarItensValor(id, response.data, response.temNrOrdem);
+                                        bodyEl.dataset.loaded = '1';
+                                        const badge = document.getElementById('badge-count-' + id);
+                                        if (badge) badge.textContent = response.total + ' Ponto(s) de Medição';
+                                        initDragAndDrop();
+                                    }
+                                    ativo--;
+                                    processarFila();
+                                },
+                                error: function () {
+                                    ativo--;
+                                    processarFila();
+                                }
+                            });
                         }
-                    });
+                    }
                 }
             }
+
+            processarFila();
+
         } catch (e) {
             console.error('Erro ao restaurar estado:', e);
         }
@@ -931,12 +874,24 @@ try {
         restoreFiltrosState();
     });
 
-    // ============================================
-    // Toggle Acordeão
-    // ============================================
+
+    /**
+     * Toggle de expansão do tipo.
+     * Ao expandir, carrega os valores via AJAX (lazy load).
+     * @param {int} id - CD_CHAVE do ENTIDADE_TIPO
+     */
     function toggleTipo(id) {
         const card = document.getElementById('tipo-' + id);
         card.classList.toggle('expanded');
+
+        // Lazy load: carregar valores ao expandir
+        if (card.classList.contains('expanded')) {
+            const body = document.getElementById('tipo-body-' + id);
+            if (body && body.dataset.loaded !== '1') {
+                carregarValoresTipo(id);
+            }
+        }
+
         saveExpandedState();
         verificarEstadoAcordeoes();
     }
@@ -998,16 +953,24 @@ try {
             }
         });
 
+        // Expandir/recolher valores (que já foram carregados no DOM)
         valorCards.forEach(card => {
             if (devemExpandir) {
                 card.classList.add('expanded');
-                // Lazy load ao expandir
                 const cdValor = card.id.replace('valor-', '');
                 carregarItensValor(cdValor);
             } else {
                 card.classList.remove('expanded');
             }
         });
+
+        // Se expandindo, carregar valores dos tipos que ainda não foram carregados
+        if (devemExpandir) {
+            tipoCards.forEach(card => {
+                const cdTipo = card.id.replace('tipo-', '');
+                carregarValoresTipo(cdTipo);
+            });
+        }
 
         // Atualiza o botão (se expandiu, mostrar "Recolher"; se recolheu, mostrar "Expandir")
         atualizarBotaoToggle(devemExpandir);
@@ -1522,12 +1485,14 @@ try {
     function fecharModal(modalId) {
         document.getElementById(modalId).classList.remove('active');
 
-        // Se houve inclusão de itens, recarrega uma única vez ao fechar
+        // Se houve inclusão de itens, recarrega apenas os itens do valor afetado
         if (modalId === 'modalItem' && _itemAdicionado) {
             _itemAdicionado = false;
-            saveExpandedState();
-            saveFiltrosState();
-            location.reload();
+            const cdValorAfetado = document.getElementById('inputItemValor').value;
+            if (cdValorAfetado) {
+                delete _itensCache[cdValorAfetado];
+                carregarItensValor(cdValorAfetado, true);
+            }
         }
     }
 
@@ -1932,6 +1897,9 @@ try {
             success: function (response) {
                 if (response.success) {
                     showToast(response.message, 'sucesso');
+                    fecharModal('modalTipo');
+                    // Recarrega a página pois tipos são renderizados server-side
+                    // TODO: migrar tipos para AJAX em fase futura
                     saveExpandedState();
                     saveFiltrosState();
                     setTimeout(() => location.reload(), 200);
@@ -2003,9 +1971,13 @@ try {
             success: function (response) {
                 if (response.success) {
                     showToast(response.message, 'sucesso');
-                    saveExpandedState();
-                    saveFiltrosState();
-                    setTimeout(() => location.reload(), 200);
+                    fecharModal('modalValor');
+                    // Recarrega apenas os valores do tipo afetado (sem reload da página)
+                    const cdTipoAfetado = document.getElementById('inputValorTipo').value;
+                    if (cdTipoAfetado) {
+                        delete _valoresCache[cdTipoAfetado];
+                        carregarValoresTipo(cdTipoAfetado, true);
+                    }
                 } else {
                     showToast(response.message || 'Erro ao salvar', 'erro');
                 }
@@ -2063,11 +2035,13 @@ try {
                     showToast(response.message, 'sucesso');
 
                     if (cd) {
-                        // EDIÇÃO: fecha modal e recarrega preservando filtros
-                        saveExpandedState();
-                        saveFiltrosState();
+                        // EDIÇÃO: fecha modal e recarrega apenas os itens do valor afetado
                         fecharModal('modalItem');
-                        location.reload();
+                        const cdValorAfetado = document.getElementById('inputItemValor').value;
+                        if (cdValorAfetado) {
+                            delete _itensCache[cdValorAfetado];
+                            carregarItensValor(cdValorAfetado, true);
+                        }
                     } else {
                         // INCLUSÃO: marca flag e limpa apenas o campo de ponto
                         // para permitir adicionar outro item sem recarregar
@@ -2123,7 +2097,13 @@ try {
                     showToast(response.message, 'sucesso');
                     saveExpandedState();
                     saveFiltrosState();
-                    setTimeout(() => location.reload(), 200);
+                    // Recarrega valores do tipo pai sem reload da página
+                    const tipoCard = document.getElementById('valor-' + cd)?.closest('.tipo-card');
+                    const cdTipoAfetado = tipoCard ? tipoCard.id.replace('tipo-', '') : null;
+                    if (cdTipoAfetado) {
+                        delete _valoresCache[cdTipoAfetado];
+                        carregarValoresTipo(cdTipoAfetado, true);
+                    }
                 } else {
                     showToast(response.message || 'Erro ao excluir', 'erro');
                 }
@@ -2166,10 +2146,14 @@ try {
             dataType: 'json',
             success: function (response) {
                 if (response.success) {
-                    showToast(response.message, 'sucesso');
-                    saveExpandedState();
-                    saveFiltrosState();
-                    setTimeout(() => location.reload(), 200);
+                    if (response.success) {
+                        showToast(response.message, 'sucesso');
+                        // Recarrega apenas os itens do valor afetado
+                        if (cdValor) {
+                            delete _itensCache[cdValor];
+                            carregarItensValor(cdValor, true);
+                        }
+                    }
                 } else {
                     showToast(response.message || 'Erro ao excluir', 'erro');
                 }
@@ -2179,6 +2163,192 @@ try {
                 showToast('Erro ao comunicar com o servidor', 'erro');
             }
         });
+    }
+
+    // ============================================
+    // Lazy Load de Valores (Unidades Operacionais)
+    // ============================================
+
+    /**
+     * Carrega os valores de um tipo via AJAX.
+     * Usa cache para não recarregar se já foi carregado.
+     * @param {int} cdTipo - CD_CHAVE do ENTIDADE_TIPO
+     * @param {boolean} forceReload - Forçar recarga ignorando cache
+     * @param {function} callback - Função chamada após o carregamento (opcional)
+     */
+    function carregarValoresTipo(cdTipo, forceReload = false, callback = null) {
+        const body = document.getElementById('tipo-body-' + cdTipo);
+        if (!body) return;
+
+        // Se já carregou e não é forceReload, executa callback e sai
+        if (body.dataset.loaded === '1' && !forceReload) {
+            if (callback) callback();
+            return;
+        }
+
+        // Se já está no cache e não é forceReload, renderiza do cache
+        if (_valoresCache[cdTipo] && !forceReload) {
+            renderizarValoresTipo(cdTipo, _valoresCache[cdTipo]);
+            body.dataset.loaded = '1';
+            if (callback) callback();
+            return;
+        }
+
+        // Mostrar loading
+        body.innerHTML = `
+            <div class="lazy-load-placeholder" style="padding: 24px; text-align: center; color: #94a3b8;">
+                <ion-icon name="hourglass-outline" style="font-size: 24px; animation: spin 1s linear infinite;"></ion-icon>
+                <p style="margin-top: 8px; font-size: 12px;">Carregando unidades operacionais...</p>
+            </div>`;
+
+        $.ajax({
+            url: 'bd/entidade/getValoresTipo.php',
+            type: 'GET',
+            data: { cdTipo: cdTipo },
+            dataType: 'json',
+            success: function (response) {
+                if (response.success) {
+                    _valoresCache[cdTipo] = response.data;
+                    renderizarValoresTipo(cdTipo, response.data);
+                    body.dataset.loaded = '1';
+
+                    // Atualizar badge de contagem no header do tipo
+                    const tipoCard = document.getElementById('tipo-' + cdTipo);
+                    if (tipoCard) {
+                        const badge = tipoCard.querySelector('.badge-count');
+                        if (badge) {
+                            badge.textContent = response.total + ' Unidades Operacionais';
+                        }
+                    }
+
+                    // Re-aplicar filtros se houver busca ativa
+                    const filtroBusca = document.getElementById('filtroBusca');
+                    if (filtroBusca && filtroBusca.value.trim()) {
+                        aplicarFiltros();
+                    }
+
+                    if (callback) callback();
+                } else {
+                    body.innerHTML = `
+                        <div class="empty-state" style="padding: 24px;">
+                            <ion-icon name="alert-circle-outline" style="color: #ef4444;"></ion-icon>
+                            <h3>Erro ao carregar</h3>
+                            <p>${response.message || 'Tente novamente'}</p>
+                        </div>`;
+                }
+            },
+            error: function () {
+                body.innerHTML = `
+                    <div class="empty-state" style="padding: 24px;">
+                        <ion-icon name="wifi-outline" style="color: #ef4444;"></ion-icon>
+                        <h3>Erro de comunicação</h3>
+                        <p>Não foi possível carregar as unidades operacionais</p>
+                    </div>`;
+            }
+        });
+    }
+
+    /**
+     * Renderiza os valores (unidades operacionais) dentro do tipo-card-body.
+     * Gera o mesmo HTML que antes era gerado pelo PHP no foreach de valores.
+     * @param {int} cdTipo - CD_CHAVE do ENTIDADE_TIPO
+     * @param {Array} valores - Array de objetos retornados pelo endpoint
+     */
+    function renderizarValoresTipo(cdTipo, valores) {
+        const body = document.getElementById('tipo-body-' + cdTipo);
+        if (!body) return;
+
+        if (!valores || valores.length === 0) {
+            body.innerHTML = `
+                <div class="empty-state" style="padding: 32px;">
+                    <ion-icon name="albums-outline"></ion-icon>
+                    <h3>Nenhum valor cadastrado</h3>
+                    <p>Adicione unidades operacionais a este tipo</p>
+                </div>`;
+            return;
+        }
+
+        let html = '';
+
+        valores.forEach(function (valor) {
+            const fluxoTexto = _fluxosTexto[valor.fluxo] || '-';
+            const isFavorito = valor.favorito === 1;
+            const favClasse = isFavorito ? 'ativo' : '';
+            const favIcon = isFavorito ? 'star' : 'star-outline';
+            const favTitle = isFavorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
+            const nomeEscapado = valor.nome.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const idEscapado = (valor.id || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            // Escapa para uso seguro dentro de atributo HTML onclick="..."
+            const nomeJson = JSON.stringify(valor.nome).replace(/"/g, '&quot;');
+            const idJson = JSON.stringify(valor.id || '').replace(/"/g, '&quot;');
+
+            html += `
+                <div class="valor-card" id="valor-${valor.cd}"
+                     data-valor-nome="${valor.nome.toLowerCase().replace(/"/g, '&quot;')}"
+                     data-valor-id="${(valor.id || '').toLowerCase().replace(/"/g, '&quot;')}"
+                     data-favorito="${valor.favorito}">
+                    <!-- Valor Header -->
+                    <div class="valor-card-header" onclick="toggleValor(${valor.cd})">
+                        <div class="valor-card-header-left">
+                            <div class="valor-icon">
+                                <ion-icon name="albums-outline"></ion-icon>
+                            </div>
+                            <div class="valor-info">
+                                <h4>${valor.nome}</h4>
+                                <div class="valor-meta">
+                                    <span class="valor-id">ID: ${valor.id || '-'}</span>
+                                    <span class="fluxo-badge fluxo-${valor.fluxo}">${fluxoTexto}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="valor-card-header-right">
+                            <span class="valor-badge-count" id="badge-count-${valor.cd}">${valor.totalItens} Ponto(s) de Medição</span>
+                            <div class="header-actions" onclick="event.stopPropagation();">
+                                <button class="btn-action favorito ${favClasse}"
+                                        onclick="toggleFavorito(${valor.cd}, this)"
+                                        title="${favTitle}">
+                                    <ion-icon name="${favIcon}"></ion-icon>
+                                </button>
+                                <button class="btn-action chart"
+                                        onclick="abrirGraficoValor(${cdTipo}, ${valor.cd}, '${idEscapado}')"
+                                        title="Gráficos">
+                                    <ion-icon name="bar-chart-outline"></ion-icon>
+                                </button>`;
+
+            // Botões de edição (se tem permissão)
+            if (_podeEditar) {
+                html += `
+                                <button class="btn-action edit"
+                                        onclick="abrirModalValor(${valor.cd}, ${nomeJson}, ${idJson}, ${cdTipo}, '${valor.fluxo || ''}')"
+                                        title="Editar">
+                                    <ion-icon name="pencil-outline"></ion-icon>
+                                </button>
+                                <button class="btn-action delete" onclick="excluirValor(${valor.cd})"
+                                        title="Excluir">
+                                    <ion-icon name="trash-outline"></ion-icon>
+                                </button>`;
+            }
+
+            html += `
+                            </div>
+                            <div class="valor-expand-icon">
+                                <ion-icon name="chevron-down-outline"></ion-icon>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Valor Body (Itens) - Carregado via AJAX (lazy load) -->
+                    <div class="valor-card-body" id="valor-body-${valor.cd}" data-loaded="0"
+                         data-total="${valor.totalItens}">
+                        <div class="lazy-load-placeholder" style="padding: 24px; text-align: center; color: #94a3b8;">
+                            <ion-icon name="hourglass-outline" style="font-size: 24px; animation: spin 1s linear infinite;"></ion-icon>
+                            <p style="margin-top: 8px; font-size: 12px;">Carregando pontos de medição...</p>
+                        </div>
+                    </div>
+                </div>`;
+        });
+
+        body.innerHTML = html;
     }
 
     // ============================================
