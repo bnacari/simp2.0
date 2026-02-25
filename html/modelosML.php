@@ -2723,9 +2723,30 @@ try {
 
     /**
      * Renderiza a timeline de versoes no modal.
+     * Layout padrão SIMP com badges de modelo e contadores de treinamento.
+     *
      * @param {Array} versoes - Lista de versoes retornadas pelo backend
      */
     function renderizarTimeline(versoes) {
+        // Atualizar subheader com contadores
+        const resumoDiv = document.getElementById('timelineResumo');
+        if (resumoDiv) resumoDiv.style.display = 'flex';
+
+        const subtituloEl = document.getElementById('timelineSubtitulo');
+        if (subtituloEl) subtituloEl.textContent = versoes.length + ' vers\u00e3o(\u00f5es) registrada(s)';
+
+        // Pegar info de treinamento da versão mais recente (campo global)
+        const treinadosEl = document.getElementById('timelineTreinados');
+        if (treinadosEl && versoes.length > 0) {
+            const v0 = versoes[0];
+            const treinados = parseInt(v0.QTD_PONTOS_TREINADOS) || 0;
+            const comPonto = parseInt(v0.QTD_NOS_COM_PONTO) || 0;
+            if (comPonto > 0) {
+                treinadosEl.innerHTML = '<ion-icon name="hardware-chip-outline" style="font-size:14px;vertical-align:middle;margin-right:4px;color:#2563eb;"></ion-icon>' +
+                    treinados + ' de ' + comPonto + ' pontos com modelo treinado';
+            }
+        }
+
         let html = '';
 
         versoes.forEach((v, idx) => {
@@ -2735,64 +2756,98 @@ try {
             if (dtCadastro) {
                 try {
                     const d = new Date(dtCadastro);
-                    dataFormatada = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                } catch (e) { }
+                    dataFormatada = d.toLocaleDateString('pt-BR') + ' ' +
+                        d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                } catch (e) { /* fallback: dtCadastro puro */ }
             }
 
             // Diff (se houver)
             const diff = v.diff || null;
             let diffHtml = '';
+            let descricao = v.DS_DESCRICAO || '';
+
+            // Se tiver diff com detalhes, montar descrição legível
             if (diff) {
+                // Descrição legível do que mudou
+                if (diff.tipo_mudanca) {
+                    const tipos = {
+                        'nodo_criado': 'N\u00f3 adicionado',
+                        'nodo_atualizado': 'N\u00f3 atualizado',
+                        'nodo_removido': 'N\u00f3 removido',
+                        'conexao_criada': 'Conex\u00e3o criada',
+                        'conexao_removida': 'Conex\u00e3o removida'
+                    };
+                    descricao = tipos[diff.tipo_mudanca] || descricao;
+                }
+
+                // ID do nó/conexão afetado
+                if (diff.cd_nodo) {
+                    descricao += ': ' + diff.cd_nodo;
+                }
+                if (diff.cd_conexao) {
+                    descricao += ': ' + diff.cd_conexao;
+                }
+
+                // Deltas
                 const deltaNos = (diff.nos_depois || 0) - (diff.nos_antes || 0);
                 const deltaCx = (diff.conexoes_depois || 0) - (diff.conexoes_antes || 0);
+
                 if (deltaNos !== 0) {
-                    diffHtml += `<span class="timeline-stat">
-                        <ion-icon name="${deltaNos > 0 ? 'add-circle-outline' : 'remove-circle-outline'}" style="color:${deltaNos > 0 ? '#22c55e' : '#ef4444'};"></ion-icon>
-                        ${Math.abs(deltaNos)} n\u00f3(s) ${deltaNos > 0 ? 'adicionado(s)' : 'removido(s)'}
-                    </span>`;
+                    diffHtml += '<span class="timeline-stat" style="color:' +
+                        (deltaNos > 0 ? '#22c55e' : '#ef4444') + ';">' +
+                        '<ion-icon name="' + (deltaNos > 0 ? 'add-circle-outline' : 'remove-circle-outline') +
+                        '"></ion-icon> ' + Math.abs(deltaNos) + ' n\u00f3(s)</span>';
                 }
                 if (deltaCx !== 0) {
-                    diffHtml += `<span class="timeline-stat">
-                        <ion-icon name="${deltaCx > 0 ? 'add-circle-outline' : 'remove-circle-outline'}" style="color:${deltaCx > 0 ? '#22c55e' : '#ef4444'};"></ion-icon>
-                        ${Math.abs(deltaCx)} conex\u00e3o(\u00f5es) ${deltaCx > 0 ? 'adicionada(s)' : 'removida(s)'}
-                    </span>`;
+                    diffHtml += '<span class="timeline-stat" style="color:' +
+                        (deltaCx > 0 ? '#22c55e' : '#ef4444') + ';">' +
+                        '<ion-icon name="' + (deltaCx > 0 ? 'add-circle-outline' : 'remove-circle-outline') +
+                        '"></ion-icon> ' + Math.abs(deltaCx) + ' conex\u00e3o(\u00f5es)</span>';
                 }
             }
 
-            // Badge de modelos vinculados
-            const modelosBadge = v.QTD_MODELOS_ATIVOS > 0
-                ? `<span class="timeline-badge modelos">${v.QTD_MODELOS_ATIVOS} modelo(s)</span>`
+            // Badge de modelos vinculados a esta versão
+            const modelosAtivos = parseInt(v.QTD_MODELOS_ATIVOS) || 0;
+            const modelosBadge = modelosAtivos > 0
+                ? '<span class="timeline-badge modelos"><ion-icon name="hardware-chip-outline" style="font-size:10px;vertical-align:middle;margin-right:2px;"></ion-icon> ' +
+                  modelosAtivos + ' modelo(s) treinado(s) nesta vers\u00e3o</span>'
                 : '';
 
-            html += `
-                <div class="timeline-item">
-                    <div class="timeline-dot"></div>
-                    <div class="timeline-body">
-                        <div class="timeline-header">
-                            <span class="timeline-hash">${escapeHtml(v.hash_curto || '')}</span>
-                            <span class="timeline-data">${escapeHtml(dataFormatada)}</span>
-                            ${modelosBadge}
-                            ${idx === 0 ? '<span class="timeline-badge" style="background:#dcfce7;color:#166534;">ATUAL</span>' : ''}
-                        </div>
-                        <div class="timeline-desc">${escapeHtml(v.DS_DESCRICAO || 'Sem descri\u00e7\u00e3o')}</div>
-                        <div class="timeline-stats">
-                            <span class="timeline-stat">
-                                <ion-icon name="git-network-outline"></ion-icon>
-                                ${v.QTD_NOS_ATIVOS || 0} n\u00f3s
-                            </span>
-                            <span class="timeline-stat">
-                                <ion-icon name="arrow-forward-outline"></ion-icon>
-                                ${v.QTD_CONEXOES_ATIVAS || 0} conex\u00f5es
-                            </span>
-                            <span class="timeline-stat">
-                                <ion-icon name="speedometer-outline"></ion-icon>
-                                ${v.QTD_NOS_COM_PONTO || 0} com ponto
-                            </span>
-                            ${diffHtml}
-                        </div>
-                    </div>
-                </div>
-            `;
+            // Badge "ATUAL" apenas na primeira versão
+            const badgeAtual = idx === 0
+                ? '<span class="timeline-badge" style="background:#dcfce7;color:#166534;">ATUAL</span>'
+                : '';
+
+            html += '<div class="timeline-item">' +
+                '<div class="timeline-dot"></div>' +
+                '<div class="timeline-body">' +
+                    // Linha 1: Hash + Data + Badges
+                    '<div class="timeline-header">' +
+                        '<span class="timeline-hash">' + escapeHtml(v.hash_curto || '') + '</span>' +
+                        '<span class="timeline-data">' + escapeHtml(dataFormatada) + '</span>' +
+                        badgeAtual +
+                        modelosBadge +
+                    '</div>' +
+                    // Linha 2: Descrição legível
+                    '<div class="timeline-desc">' + escapeHtml(descricao || 'Sem descri\u00e7\u00e3o') + '</div>' +
+                    // Linha 3: Contadores
+                    '<div class="timeline-stats">' +
+                        '<span class="timeline-stat">' +
+                            '<ion-icon name="git-network-outline"></ion-icon> ' +
+                            (v.QTD_NOS_ATIVOS || 0) + ' n\u00f3s' +
+                        '</span>' +
+                        '<span class="timeline-stat">' +
+                            '<ion-icon name="arrow-forward-outline"></ion-icon> ' +
+                            (v.QTD_CONEXOES_ATIVAS || 0) + ' conex\u00f5es' +
+                        '</span>' +
+                        '<span class="timeline-stat">' +
+                            '<ion-icon name="speedometer-outline"></ion-icon> ' +
+                            (v.QTD_NOS_COM_PONTO || 0) + ' com ponto' +
+                        '</span>' +
+                        diffHtml +
+                    '</div>' +
+                '</div>' +
+            '</div>';
         });
 
         document.getElementById('timelineLista').innerHTML = html;
@@ -3114,29 +3169,26 @@ try {
      Modal: Timeline de Versoes da Topologia (Fase A1)
      ============================================ -->
 <div class="diag-modal-overlay" id="modalTimeline">
-    <div class="diag-modal" style="max-width:700px;">
+    <div class="diag-modal" style="max-width:720px;">
         <div class="diag-modal-header">
-            <div class="diag-modal-title">
-                <ion-icon name="git-branch-outline" style="font-size:20px;color:#3b82f6;"></ion-icon>
-                <div>
-                    <h3 style="margin:0;font-size:16px;font-weight:700;color:#0f172a;">Hist&oacute;rico de
-                        Vers&otilde;es da Topologia</h3>
-                    <p style="margin:2px 0 0;font-size:12px;color:#64748b;" id="timelineSubtitulo">Carregando...</p>
-                </div>
-            </div>
-            <button class="diag-modal-close" onclick="fecharModalTimeline()">
-                <ion-icon name="close-outline"></ion-icon>
-            </button>
+            <h3><ion-icon name="git-branch-outline"></ion-icon> Hist&oacute;rico de Vers&otilde;es da Topologia</h3>
+            <button class="diag-close" onclick="fecharModalTimeline()"><ion-icon name="close-outline"></ion-icon></button>
+        </div>
+        <div class="diag-ponto-info" id="timelineResumo" style="display:none;">
+            <span class="codigo" id="timelineSubtitulo" style="font-family:Arial,sans-serif;font-size:12px;">0 vers&otilde;es</span>
+            <span class="nome" id="timelineTreinados" style="font-size:12px;color:#64748b;"></span>
         </div>
         <div class="diag-modal-body" style="padding:20px;">
             <div id="timelineLoading" style="text-align:center;padding:40px;color:#64748b;">
-                <ion-icon name="sync-outline"
-                    style="font-size:32px;animation:spin 1s linear infinite;display:block;margin:0 auto 12px;"></ion-icon>
+                <ion-icon name="sync-outline" style="font-size:32px;animation:spin 1s linear infinite;display:block;margin:0 auto 12px;color:#3b82f6;"></ion-icon>
                 <p>Carregando hist&oacute;rico...</p>
             </div>
             <div id="timelineConteudo" style="display:none;">
                 <div class="timeline-lista" id="timelineLista"></div>
             </div>
+        </div>
+        <div class="diag-modal-footer">
+            <button type="button" class="diag-btn-fechar" onclick="fecharModalTimeline()">Fechar</button>
         </div>
     </div>
 </div>

@@ -25,8 +25,8 @@ include_once 'bd/conexao.php';
 
 // Permissao (mesma de Operacoes)
 recarregarPermissoesUsuario();
-exigePermissaoTela('Tratamento em Lote', ACESSO_LEITURA);
-$podeEditar = podeEditarTela('Tratamento em Lote');
+exigePermissaoTela('Registro de Vazão', ACESSO_LEITURA);
+$podeEditar = podeEditarTela('Registro de Vazão');
 
 include_once 'includes/menu.inc.php';
 

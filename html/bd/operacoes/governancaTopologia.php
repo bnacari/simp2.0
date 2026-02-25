@@ -540,10 +540,14 @@ function obterHistoricoVersoes($pdo, $cdSistema = null, $limite = 20)
                 VT.DT_CADASTRO,
                 -- Modelos vinculados a esta versao
                 (SELECT COUNT(*) 
-                 FROM SIMP.dbo.MODELO_REGISTRO MR 
-                 WHERE MR.CD_VERSAO_TOPOLOGIA = VT.CD_CHAVE 
-                   AND MR.OP_VALIDO = 1
-                ) AS QTD_MODELOS_ATIVOS
+                    FROM SIMP.dbo.MODELO_REGISTRO MR 
+                    WHERE MR.CD_VERSAO_TOPOLOGIA = VT.CD_CHAVE 
+                    AND MR.OP_VALIDO = 1
+                    ) AS QTD_MODELOS_ATIVOS,
+                    (SELECT COUNT(DISTINCT MR2.CD_PONTO_MEDICAO) 
+                    FROM SIMP.dbo.MODELO_REGISTRO MR2 
+                    WHERE MR2.OP_VALIDO = 1
+                    ) AS QTD_PONTOS_COM_MODELO
             FROM SIMP.dbo.VERSAO_TOPOLOGIA VT
             WHERE 1=1
         ";
