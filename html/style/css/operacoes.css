@@ -2008,8 +2008,8 @@ input[type="date"].form-control {
     font-weight: 500;
 }
 
-.controle-cor.interpolacao {
-    background: #8b5cf6;
+.controle-cor.pchip {
+    background: #f59e0b;
 }
 
 .controle-cor.tendencia-rede {

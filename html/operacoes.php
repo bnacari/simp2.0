@@ -471,15 +471,14 @@ $letrasTipoMedidor = [
                         <input type="checkbox" id="chkValoresSugeridos" checked
                             onchange="toggleLinhaGrafico('sugeridos')">
                         <span class="controle-cor sugeridos"></span>
-                        <span class="controle-label">Histórico + Tendência</span>
+                        <span class="controle-label">Hist. + Tendência</span>
                     </label>
 
                     <!-- Controles Estimativas de Rede (ocultos por padrão, mostrados via JS quando há dados) -->
-                    <label class="grafico-controle-item" id="controleInterpolacao" style="display:none;">
-                        <input type="checkbox" id="chkInterpolacao" checked
-                            onchange="toggleLinhaGrafico('interpolacao')">
-                        <span class="controle-cor interpolacao"></span>
-                        <span class="controle-label">Interpolação</span>
+                    <label class="grafico-controle-item" id="controlePchip" style="display:none;">
+                        <input type="checkbox" id="chkPchip" checked onchange="toggleLinhaGrafico('pchip')">
+                        <span class="controle-cor pchip"></span>
+                        <span class="controle-label">PCHIP</span>
                     </label>
                     <label class="grafico-controle-item" id="controleTendenciaRede" style="display:none;">
                         <input type="checkbox" id="chkTendenciaRede" checked
@@ -498,10 +497,11 @@ $letrasTipoMedidor = [
                         <span class="controle-cor mini-quad"></span>
                         <span class="controle-label">Mín. Quadrados</span>
                     </label>
-                    <label class="grafico-controle-item" id="controleTensorFlow" style="display:none;">
-                        <input type="checkbox" id="chkTensorFlow" checked onchange="toggleLinhaGrafico('tensorflow')">
+                    <label class="grafico-controle-item" id="controleXgboostRede" style="display:none;">
+                        <input type="checkbox" id="chkXgboostRede" checked
+                            onchange="toggleLinhaGrafico('xgboost_rede')">
                         <span class="controle-cor tensorflow"></span>
-                        <span class="controle-label">TensorFlow</span>
+                        <span class="controle-label">XGBoost</span>
                         <!-- Ícone indicador de modelo treinado (visível somente se não for fallback) -->
                         <ion-icon name="checkmark-circle" id="iconTensorFlowTreinado"
                             style="display:none;color:#22c55e;font-size:14px;margin-left:2px;"
@@ -3238,7 +3238,7 @@ $letrasTipoMedidor = [
                 const valoresHistoriador = []; // Array para dados do Historiador CCO
                 let temDadosHistoriador = false;
                 // Arrays para estimativas de rede (interpolação, balanço, proporção)
-                let valoresInterpolacao = new Array(24).fill(null);
+                let valoresPchip = new Array(24).fill(null);
                 let valoresTendenciaRede = new Array(24).fill(null);
                 let valoresProporcao = new Array(24).fill(null);
                 let valoresMiniQuad = new Array(24).fill(null);
@@ -3341,8 +3341,8 @@ $letrasTipoMedidor = [
                     // Valores de estimativas de rede
                     if (dadosEstimativasRede && dadosEstimativasRede.estimativas) {
                         const est = dadosEstimativasRede.estimativas;
-                        if (est.interpolacao && est.interpolacao[h] !== null) {
-                            valoresInterpolacao[h] = est.interpolacao[h];
+                        if (est.pchip && est.pchip[h] !== null) {
+                            valoresPchip[h] = est.pchip[h];
                         }
                         if (est.tendencia_rede && est.tendencia_rede[h] !== null) {
                             valoresTendenciaRede[h] = est.tendencia_rede[h];
@@ -3516,11 +3516,11 @@ $letrasTipoMedidor = [
                                 order: 0
                             }] : []),
                             // Dataset: Interpolação Linear (roxo, losango)
-                            ...(valoresInterpolacao.some(v => v !== null) && graficoControlesEstado.interpolacao !== false ? [{
-                                label: 'Interpolação',
-                                data: valoresInterpolacao,
-                                borderColor: '#8b5cf6',
-                                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            ...(valoresPchip.some(v => v !== null) && graficoControlesEstado.pchip !== false ? [{
+                                label: 'PCHIP',
+                                data: valoresPchip,
+                                borderColor: '#f59e0b',
+                                backgroundColor: 'rgba(245, 158, 11, 0.1)',
                                 borderWidth: 2,
                                 borderDash: [6, 3],
                                 // pointStyle: 'rectRot',
@@ -3581,7 +3581,7 @@ $letrasTipoMedidor = [
 
                             // Dataset: TensorFlow xgboost (vermelho, losango)
                             ...(valoresTensorFlow.some(v => v !== null) && graficoControlesEstado.tensorflow !== false ? [{
-                                label: 'TensorFlow',
+                                label: 'XGBoost Rede',
                                 data: valoresTensorFlow,
                                 borderColor: '#ef4444',
                                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
@@ -3721,12 +3721,12 @@ $letrasTipoMedidor = [
                 }
 
                 // Mostrar/ocultar controles de estimativas de rede
-                const temInterpolacao = valoresInterpolacao.some(v => v !== null);
+                const temInterpolacao = valoresPchip.some(v => v !== null);
                 const temTendenciaRede = valoresTendenciaRede.some(v => v !== null);
                 const temProporcao = valoresProporcao.some(v => v !== null);
                 const temMiniQuad = valoresMiniQuad.some(v => v !== null);
 
-                const ctrlInterp = document.getElementById('controleInterpolacao');
+                const ctrlInterp = document.getElementById('controlePchip');
                 const ctrlTendRede = document.getElementById('controleTendenciaRede');
                 const ctrlProp = document.getElementById('controleProporcao');
                 const ctrlMiniQ = document.getElementById('controleMiniQuad');
@@ -3737,7 +3737,7 @@ $letrasTipoMedidor = [
                 if (ctrlMiniQ) ctrlMiniQ.style.display = temMiniQuad ? '' : 'none';
 
                 const temTensorFlow = valoresTensorFlow.some(v => v !== null);
-                const ctrlTF = document.getElementById('controleTensorFlow');
+                const ctrlTF = document.getElementById('controleXgboostRede');
                 if (ctrlTF) ctrlTF.style.display = temTensorFlow ? '' : 'none';
 
                 // Atualizar botão toggle global das estimativas
@@ -3756,7 +3756,7 @@ $letrasTipoMedidor = [
                 if (chkExcluidos) chkExcluidos.checked = true;
                 if (chkMediaDiaria) chkMediaDiaria.checked = true;
 
-                const chkInterpolacao = document.getElementById('chkInterpolacao');
+                const chkInterpolacao = document.getElementById('chkPchip');
                 const chkTendenciaRede = document.getElementById('chkTendenciaRede');
                 const chkProporcao = document.getElementById('chkProporcao');
                 const chkMiniQuad = document.getElementById('chkMiniQuad');
@@ -3766,7 +3766,7 @@ $letrasTipoMedidor = [
                 if (chkProporcao) chkProporcao.checked = true;
                 if (chkMiniQuad) chkMiniQuad.checked = true;
 
-                const chkTensorFlow = document.getElementById('chkTensorFlow');
+                const chkTensorFlow = document.getElementById('chkXgboostRede');
                 if (chkTensorFlow) chkTensorFlow.checked = true;
 
                 // Resetar estado dos controles
@@ -3776,7 +3776,7 @@ $letrasTipoMedidor = [
                     sugeridos: true,
                     excluidos: true,
                     mediadiaria: true,
-                    interpolacao: true,
+                    pchip: true,
                     tendencia_rede: true,
                     proporcao: true,
                     minimos_quadrados: true,
@@ -3820,20 +3820,20 @@ $letrasTipoMedidor = [
                     if (datasetIndex > -1) {
                         validacaoGrafico.data.datasets[datasetIndex].hidden = !graficoControlesEstado.historiador;
                     }
-                } else if (tipo === 'interpolacao' || tipo === 'tendencia_rede' || tipo === 'proporcao' || tipo === 'minimos_quadrados' || tipo === 'tensorflow') {
+                } else if (tipo === 'pchip' || tipo === 'tendencia_rede' || tipo === 'proporcao' || tipo === 'minimos_quadrados' || tipo === 'xgboost_rede') {
                     const labelMapRede = {
-                        'interpolacao': 'Interpolação',
+                        'pchip': 'PCHIP',
                         'tendencia_rede': 'Tendência Rede',
                         'proporcao': 'Proporção Hist.',
                         'minimos_quadrados': 'Mín. Quadrados',
-                        'tensorflow': 'TensorFlow'
+                        'xgboost_rede': 'XGBoost Rede'
                     };
                     const checkboxMapRede = {
-                        'interpolacao': 'chkInterpolacao',
+                        'pchip': 'chkPchip',
                         'tendencia_rede': 'chkTendenciaRede',
                         'proporcao': 'chkProporcao',
                         'minimos_quadrados': 'chkMiniQuad',
-                        'tensorflow': 'chkTensorFlow'
+                        'xgboost_rede': 'chkXgboostRede'
                     };
                     const datasetIdxRede = validacaoGrafico.data.datasets.findIndex(
                         ds => ds.label === labelMapRede[tipo]
@@ -4178,7 +4178,7 @@ $letrasTipoMedidor = [
                             dadosTensorFlow = data;
 
                             // Mostrar controle do checkbox TensorFlow no gráfico
-                            const ctrlTF = document.getElementById('controleTensorFlow');
+                            const ctrlTF = document.getElementById('controleXgboostRede');
                             if (ctrlTF) ctrlTF.style.display = '';
 
                             // Exibir ícone de modelo treinado apenas se NÃO for fallback estatístico
@@ -4259,16 +4259,16 @@ $letrasTipoMedidor = [
                     }
                 }
 
-                // 2) Interpolação Linear
-                if (dadosEstimativasRede && dadosEstimativasRede.estimativas && dadosEstimativasRede.estimativas.interpolacao) {
-                    const temInterp = horasSelecionadas.some(h => dadosEstimativasRede.estimativas.interpolacao[h] !== null);
-                    if (temInterp) {
+                // 2) PCHIP (Interpolacao Monotonica)
+                if (dadosEstimativasRede && dadosEstimativasRede.estimativas && dadosEstimativasRede.estimativas.pchip) {
+                    const temPchip = horasSelecionadas.some(h => dadosEstimativasRede.estimativas.pchip[h] !== null);
+                    if (temPchip) {
                         metodosDisponiveis.push({
-                            id: 'interpolacao',
-                            nome: 'Interpolação Linear',
-                            icone: 'trending-up-outline',
-                            cor: '#8b5cf6',
-                            desc: 'Estima valores entre pontos conhecidos usando interpolação/extrapolação linear'
+                            id: 'pchip',
+                            nome: 'PCHIP',
+                            icone: 'analytics-outline',
+                            cor: '#f59e0b',
+                            desc: 'Interpolacao monotonica (Hermite) usando horas validas como ancoras'
                         });
                     }
                 }
@@ -4317,7 +4317,7 @@ $letrasTipoMedidor = [
 
                 // 6) TensorFlow (XGBoost) - Predição via microserviço
                 metodosDisponiveis.push({
-                    id: 'tensorflow',
+                    id: 'xgboost_rede',
                     nome: 'TensorFlow (XGBoost)',
                     icone: 'hardware-chip-outline',
                     cor: '#ef4444',
@@ -4437,11 +4437,11 @@ $letrasTipoMedidor = [
                 if (metodoId === 'historico') {
                     // Método original: Histórico + Tendência (IA)
                     exibirValoresSugeridos(horasSelecionadas);
-                } else if (metodoId === 'tensorflow') {
+                } else if (metodoId === 'xgboost_rede') {
                     // Método TensorFlow: chamada ao microserviço
                     buscarPredicaoTensorFlow(horasSelecionadas);
                 } else {
-                    // Métodos de rede: interpolacao, tendencia_rede, proporcao, minimos_quadrados
+                    // Metodos de rede: pchip, tendencia_rede, proporcao, minimos_quadrados
                     exibirValoresSugeridosRede(horasSelecionadas, metodoId);
                 }
             }
@@ -4646,7 +4646,7 @@ $letrasTipoMedidor = [
                 dadosTensorFlow = data;
 
                 // Mostrar controle no gráfico
-                const ctrlTF = document.getElementById('controleTensorFlow');
+                const ctrlTF = document.getElementById('controleXgboostRede');
                 if (ctrlTF) ctrlTF.style.display = '';
 
                 // Re-renderizar gráfico com linha TensorFlow
@@ -7195,9 +7195,9 @@ $letrasTipoMedidor = [
                 // Inverter estado global
                 estimativasRedeVisiveis = !estimativasRedeVisiveis;
 
-                const labelsEstimativas = ['Valores Sugeridos', 'Interpolação', 'Tendência Rede', 'Proporção Hist.', 'Mín. Quadrados', 'TensorFlow'];
-                const checkboxIds = ['chkValoresSugeridos', 'chkInterpolacao', 'chkTendenciaRede', 'chkProporcao', 'chkMiniQuad', 'chkTensorFlow'];
-                const estadoKeys = ['sugeridos', 'interpolacao', 'tendencia_rede', 'proporcao', 'minimos_quadrados', 'tensorflow'];
+                const labelsEstimativas = ['Valores Sugeridos', 'PCHIP', 'Hist. + Tendência', 'Tendência Rede', 'Proporção Hist.', 'Mín. Quadrados', 'XGBoost Rede'];
+                const checkboxIds = ['chkValoresSugeridos', 'chkPchip', 'chkHistTendencia', 'chkTendenciaRede', 'chkProporcao', 'chkMiniQuad', 'chkXgboostRede'];
+                const estadoKeys = ['sugeridos', 'pchip', 'historico_tendencia', 'tendencia_rede', 'proporcao', 'minimos_quadrados', 'xgboost_rede'];
 
                 labelsEstimativas.forEach((label, i) => {
                     // Atualizar dataset no gráfico
@@ -7247,7 +7247,7 @@ $letrasTipoMedidor = [
              * Chamar após renderizar o gráfico e configurar controles de estimativa
              */
             function atualizarVisibilidadeBtnEstimativas() {
-                const temAlguma = ['controleValoresSugeridos', 'controleInterpolacao', 'controleTendenciaRede', 'controleProporcao', 'controleMiniQuad', 'controleTensorFlow'].some(id => {
+                const temAlguma = ['controleValoresSugeridos', 'controlePchip', 'controleHistTendencia', 'controleTendenciaRede', 'controleProporcao', 'controleMiniQuad', 'controleXgboostRede'].some(id => {
                     const el = document.getElementById(id);
                     return el && el.style.display !== 'none';
                 });

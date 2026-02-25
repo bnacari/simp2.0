@@ -199,7 +199,7 @@ try {
                     <option value="8">Hidrometro</option>
                 </select>
             </div>
-           
+
             <!-- Confianca minima -->
             <div class="form-group">
                 <label>Confianca Minima</label>
@@ -788,7 +788,7 @@ try {
                         <ion-icon name="arrow-forward-outline" style="color:#94a3b8;"></ion-icon>
                         <span
                             style="background:#dbeafe;color:#1e40af;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;">
-                            <ion-icon name="git-compare-outline" style="vertical-align:middle;"></ion-icon> 4 Metodos
+                            <ion-icon name="calculator-outline" style="vertical-align:middle;"></ion-icon> 6 Metodos
                             Calculados
                         </span>
                         <ion-icon name="arrow-forward-outline" style="color:#94a3b8;"></ion-icon>
@@ -868,66 +868,108 @@ try {
                         </div>
                     </div>
 
-                    <!-- METODO 3: Media Movel Ponderada -->
+                    <!-- METODO 3: Historico + Tendencia -->
                     <div class="regra-metodo-card" style="margin-bottom:12px;">
                         <div class="regra-metodo-header" onclick="this.parentElement.classList.toggle('aberto')"
                             style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;">
-                            <ion-icon name="trending-up-outline" style="font-size:20px;color:#22c55e;"></ion-icon>
+                            <ion-icon name="analytics-outline" style="font-size:20px;color:#16a34a;"></ion-icon>
                             <div style="flex:1;">
-                                <strong style="font-size:13px;color:#166534;">Media Movel Ponderada &mdash; Historico
-                                    Semanal</strong>
-                                <div style="font-size:11px;color:#16a34a;">Execucao: PHP puro | Dependencia: 7+ dias de
-                                    historico</div>
+                                <strong style="font-size:13px;color:#166534;">Historico + Tendencia &mdash; Media
+                                    Semanal Ajustada</strong>
+                                <div style="font-size:11px;color:#16a34a;">Execucao: PHP puro | Dependencia: 4+ semanas
+                                    de historico</div>
                             </div>
                             <ion-icon name="chevron-down-outline"
                                 style="color:#16a34a;transition:transform 0.2s;"></ion-icon>
                         </div>
                         <div class="regra-metodo-body"
                             style="display:none;padding:12px;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 8px 8px;font-size:12px;color:#334155;">
-                            <p><strong>O que faz:</strong> Calcula a media ponderada dos ultimos 7 dias para a mesma
-                                hora e dia da semana. Dias mais recentes recebem peso maior (peso decrescente: 7/28,
-                                6/28, 5/28...).</p>
-                            <p style="margin:8px 0;"><strong>Quando e melhor:</strong> Pontos com padrao semanal
-                                estavel. Ex: reservatorios com demanda previsivel por dia da semana.</p>
-                            <p style="margin:8px 0;"><strong>Limitacao:</strong> Nao capta mudancas bruscas recentes. Se
-                                houve uma alteracao operacional nos ultimos dias, a media historica pode nao refletir.
+                            <p><strong>O que faz:</strong> Calcula a media das ultimas 4-8 semanas (mesmo dia da semana)
+                                e ajusta pelo fator de tendencia dos ultimos 3 dias. Formula:
+                                <code>valor = media_historica &times; fator_tendencia</code>.
                             </p>
-                            <div style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px;">
-                                <strong>Score de Aderencia:</strong> Mesmo calculo padrao (R&sup2;, MAE_norm, RMSE_norm)
-                                comparando media historica vs valor real nas horas validas do dia.
-                            </div>
+                            <p style="margin:8px 0;"><strong>Quando e melhor:</strong> Pontos com padrao semanal estavel
+                                e sem mudancas operacionais bruscas.</p>
+                            <p style="margin:8px 0;"><strong>Limitacao:</strong> Nao capta alteracoes operacionais
+                                recentes que fogem do padrao semanal.</p>
                         </div>
                     </div>
 
-                    <!-- METODO 4: Prophet -->
+                    <!-- METODO 4: Tendencia da Rede -->
                     <div class="regra-metodo-card" style="margin-bottom:12px;">
                         <div class="regra-metodo-header" onclick="this.parentElement.classList.toggle('aberto')"
-                            style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px;background:#fdf4ff;border:1px solid #d8b4fe;border-radius:8px;">
-                            <ion-icon name="pulse-outline" style="font-size:20px;color:#a855f7;"></ion-icon>
+                            style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px;background:#f0fdfa;border:1px solid #5eead4;border-radius:8px;">
+                            <ion-icon name="git-network-outline" style="font-size:20px;color:#14b8a6;"></ion-icon>
                             <div style="flex:1;">
-                                <strong style="font-size:13px;color:#6b21a8;">Prophet &mdash; Decomposicao
-                                    Sazonal</strong>
-                                <div style="font-size:11px;color:#9333ea;">Execucao: TensorFlow container | Dependencia:
-                                    endpoint /api/prophet</div>
+                                <strong style="font-size:13px;color:#115e59;">Tendencia da Rede &mdash; Fator de
+                                    Variacao dos Vizinhos</strong>
+                                <div style="font-size:11px;color:#14b8a6;">Execucao: PHP puro | Dependencia: 2+ pontos
+                                    na rede</div>
                             </div>
                             <ion-icon name="chevron-down-outline"
-                                style="color:#9333ea;transition:transform 0.2s;"></ion-icon>
+                                style="color:#14b8a6;transition:transform 0.2s;"></ion-icon>
                         </div>
                         <div class="regra-metodo-body"
                             style="display:none;padding:12px;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 8px 8px;font-size:12px;color:#334155;">
-                            <p><strong>O que faz:</strong> Decompoe a serie temporal em tendencia + sazonalidade
-                                (diaria/semanal) usando o algoritmo Prophet do Meta. Projeta valores respeitando padroes
-                                sazonais complexos.</p>
-                            <p style="margin:8px 0;"><strong>Quando e melhor:</strong> Pontos com sazonalidade forte e
-                                previsivel (ex: estacoes que variam significativamente entre dia/noite ou dias da
-                                semana).</p>
-                            <p style="margin:8px 0;"><strong>Limitacao:</strong> Endpoint /api/prophet pode nao estar
-                                disponivel. Se falhar, retorna null e e ignorado silenciosamente. Mais lento que os
-                                outros metodos.</p>
-                            <div style="background:#f8fafc;padding:8px;border-radius:6px;margin-top:8px;">
-                                <strong>Score de Aderencia:</strong> Mesmo calculo padrao. Tende a ter bom score em
-                                pontos com padroes sazonais regulares.
+                            <p><strong>O que faz:</strong> Analisa como os outros pontos da rede estao variando hoje vs
+                                historico. Se a rede esta 8% acima do normal, aplica +8% no historico do ponto atual.
+                            </p>
+                            <p style="margin:8px 0;"><strong>Quando e melhor:</strong> Detecta contexto operacional (ex:
+                                rede operando acima do normal por demanda).</p>
+                            <p style="margin:8px 0;"><strong>Limitacao:</strong> Requer pelo menos 2 pontos na mesma
+                                rede com dados validos.</p>
+                        </div>
+                    </div>
+
+                    <!-- METODO 5: Proporcao Historica -->
+                    <div class="regra-metodo-card" style="margin-bottom:12px;">
+                        <div class="regra-metodo-header" onclick="this.parentElement.classList.toggle('aberto')"
+                            style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px;background:#fdf4ff;border:1px solid #e879f9;border-radius:8px;">
+                            <ion-icon name="pie-chart-outline" style="font-size:20px;color:#d946ef;"></ion-icon>
+                            <div style="flex:1;">
+                                <strong style="font-size:13px;color:#86198f;">Proporcao Historica &mdash; Balanco
+                                    Hidraulico</strong>
+                                <div style="font-size:11px;color:#d946ef;">Execucao: PHP puro | Dependencia: 2+ pontos +
+                                    historico</div>
                             </div>
+                            <ion-icon name="chevron-down-outline"
+                                style="color:#d946ef;transition:transform 0.2s;"></ion-icon>
+                        </div>
+                        <div class="regra-metodo-body"
+                            style="display:none;padding:12px;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 8px 8px;font-size:12px;color:#334155;">
+                            <p><strong>O que faz:</strong> Calcula a proporcao media que o ponto representa na rede nas
+                                ultimas 4 semanas e aplica ao total da rede hoje.</p>
+                            <p style="margin:8px 0;"><strong>Quando e melhor:</strong> Pontos com participacao estavel
+                                na rede. Unico metodo que usa balanco hidraulico.</p>
+                            <p style="margin:8px 0;"><strong>Limitacao:</strong> Se a rede mudou (novos pontos,
+                                manobras), a proporcao historica pode nao refletir a realidade.</p>
+                        </div>
+                    </div>
+
+                    <!-- METODO 6: Minimos Quadrados -->
+                    <div class="regra-metodo-card" style="margin-bottom:12px;">
+                        <div class="regra-metodo-header" onclick="this.parentElement.classList.toggle('aberto')"
+                            style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;">
+                            <ion-icon name="trending-up-outline" style="font-size:20px;color:#f97316;"></ion-icon>
+                            <div style="flex:1;">
+                                <strong style="font-size:13px;color:#9a3412;">Minimos Quadrados &mdash; Regressao Linear
+                                    Temporal</strong>
+                                <div style="font-size:11px;color:#f97316;">Execucao: PHP puro | Dependencia: 3+ semanas
+                                    de historico</div>
+                            </div>
+                            <ion-icon name="chevron-down-outline"
+                                style="color:#f97316;transition:transform 0.2s;"></ion-icon>
+                        </div>
+                        <div class="regra-metodo-body"
+                            style="display:none;padding:12px;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 8px 8px;font-size:12px;color:#334155;">
+                            <p><strong>O que faz:</strong> Ajusta uma reta de tendencia sobre os dados das ultimas 6-8
+                                semanas (mesmo dia) e projeta o valor de hoje. Formula:
+                                <code>y = a + b &times; x</code>.
+                            </p>
+                            <p style="margin:8px 0;"><strong>Quando e melhor:</strong> Captura tendencias graduais como
+                                desgaste de medidor, demanda sazonal crescente ou deriva de calibracao.</p>
+                            <p style="margin:8px 0;"><strong>Limitacao:</strong> Assume tendencia linear. Nao detecta
+                                mudancas bruscas ou sazonalidade complexa.</p>
                         </div>
                     </div>
 
@@ -2898,9 +2940,11 @@ try {
             <select id="selectMetodoGrupo" class="select-metodo-grupo">
                 <option value="AUTO">AUTO (melhor score)</option>
                 <option value="XGBOOST">XGBoost Rede</option>
-                <option value="PCHIP">PCHIP (Interpolacao)</option>
-                <option value="MEDIA">Media Movel Ponderada</option>
-                <option value="PROPHET">Prophet (Sazonal)</option>
+                <option value="PCHIP">PCHIP</option>
+                <option value="HISTORICO">Hist. + Tendencia</option>
+                <option value="TENDENCIA_REDE">Tendencia Rede</option>
+                <option value="PROPORCAO">Proporcao Hist.</option>
+                <option value="MINIMOS_QUADRADOS">Min. Quadrados</option>
             </select>
         </div>
     `;

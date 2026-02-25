@@ -6,12 +6,14 @@
  * retornando valores estimados hora a hora e score de aderencia
  * para que o operador escolha o melhor metodo.
  *
- * Metodos:
- *   1. XGBoost Rede    — predicao via vizinhanca topologica (TensorFlow container)
- *   2. PCHIP           — interpolacao monotonica usando horas validas como ancoras
- *   3. Media Movel Pond — media ponderada dos ultimos 7 dias (mesma hora/dia semana)
- *   4. Prophet          — decomposicao sazonal (TensorFlow container, fallback)
- *
+ * Metodos (6 unificados com operacoes.php):
+ *   1. XGBoost Rede        — predicao via vizinhanca topologica (TensorFlow container)
+ *   2. PCHIP               — interpolacao monotonica usando horas validas como ancoras
+ *   3. Historico+Tendencia  — media historica do mesmo dia da semana ajustada pelo fator de tendencia
+ *   4. Tendencia da Rede    — fator de variacao dos outros pontos da rede vs historico
+ *   5. Proporcao Historica  — proporcao do ponto na rede aplicada ao total atual
+ *   6. Minimos Quadrados    — regressao linear sobre semanas historicas para projetar tendencia
+ * 
  * Score de aderencia (0-10):
  *   score = (0.40 * R2 + 0.30 * (1 - MAE_norm) + 0.30 * (1 - RMSE_norm)) * 10
  *   Calculado comparando estimativa com horas NAO-anomalas do mesmo dia.
@@ -217,35 +219,67 @@ function calcularMetodosCorrecao(
         ];
     }
 
-    // --- 2c. Media Movel Ponderada (PHP puro) ---
-    $mediaMovel = calcularMediaMovelPonderada($pdo, $cdPonto, $dtReferencia, $tipoMedidor);
-    if ($mediaMovel !== null) {
-        $score = calcularScoreAderencia($mediaMovel, $horasValidas);
+    // --- 2c. Historico + Tendencia (media historica × fator tendencia) ---
+    $historicoTend = calcularHistoricoTendencia($pdo, $cdPonto, $dtReferencia, $tipoMedidor);
+    if ($historicoTend !== null) {
+        $score = calcularScoreAderencia($historicoTend, $horasValidas);
         $metodos[] = [
-            'id' => 'media_movel',
-            'nome' => 'Media Movel Ponderada',
-            'icone' => 'trending-up-outline',
-            'cor' => '#22c55e',
-            'valores' => $mediaMovel,
+            'id' => 'historico_tendencia',
+            'nome' => 'Hist. + Tendencia',
+            'icone' => 'analytics-outline',
+            'cor' => '#16a34a',
+            'valores' => $historicoTend,
             'score_aderencia' => $score['score'],
             'metricas' => $score['metricas'],
-            'descricao' => 'Media ponderada dos ultimos 7 dias, mesma hora e dia da semana'
+            'descricao' => 'Media historica do mesmo dia da semana ajustada pelo fator de tendencia'
         ];
     }
 
-    // --- 2d. Prophet (via TensorFlow container) ---
-    $prophet = calcularProphet($tfUrl, $cdPonto, $dtReferencia, $tipoMedidor);
-    if ($prophet !== null) {
-        $score = calcularScoreAderencia($prophet, $horasValidas);
+    // --- 2d. Tendencia da Rede (fator de variacao dos vizinhos) ---
+    $tendRede = calcularTendenciaRedeMC($pdo, $cdPonto, $dtReferencia, $tipoMedidor);
+    if ($tendRede !== null) {
+        $score = calcularScoreAderencia($tendRede, $horasValidas);
         $metodos[] = [
-            'id' => 'prophet',
-            'nome' => 'Prophet',
-            'icone' => 'pulse-outline',
-            'cor' => '#a855f7',
-            'valores' => $prophet,
+            'id' => 'tendencia_rede',
+            'nome' => 'Tendencia Rede',
+            'icone' => 'git-network-outline',
+            'cor' => '#14b8a6',
+            'valores' => $tendRede,
             'score_aderencia' => $score['score'],
             'metricas' => $score['metricas'],
-            'descricao' => 'Decomposicao sazonal (Meta Prophet) para series com padrao temporal forte'
+            'descricao' => 'Analisa variacao dos outros pontos da rede e aplica o fator no ponto atual'
+        ];
+    }
+
+    // --- 2e. Proporcao Historica (participacao do ponto na rede) ---
+    $proporcao = calcularProporcaoHistoricaMC($pdo, $cdPonto, $dtReferencia, $tipoMedidor);
+    if ($proporcao !== null) {
+        $score = calcularScoreAderencia($proporcao, $horasValidas);
+        $metodos[] = [
+            'id' => 'proporcao',
+            'nome' => 'Proporcao Hist.',
+            'icone' => 'pie-chart-outline',
+            'cor' => '#d946ef',
+            'valores' => $proporcao,
+            'score_aderencia' => $score['score'],
+            'metricas' => $score['metricas'],
+            'descricao' => 'Proporcao historica do ponto na rede aplicada ao total da rede hoje'
+        ];
+    }
+
+    // --- 2f. Minimos Quadrados (regressao linear temporal) ---
+    $minQuad = calcularMinimosQuadradosMC($pdo, $cdPonto, $dtReferencia, $tipoMedidor);
+    if ($minQuad !== null) {
+        $score = calcularScoreAderencia($minQuad, $horasValidas);
+        $metodos[] = [
+            'id' => 'minimos_quadrados',
+            'nome' => 'Min. Quadrados',
+            'icone' => 'trending-up-outline',
+            'cor' => '#f97316',
+            'valores' => $minQuad,
+            'score_aderencia' => $score['score'],
+            'metricas' => $score['metricas'],
+            'descricao' => 'Regressao linear sobre semanas historicas para projetar tendencia'
         ];
     }
 
@@ -480,136 +514,478 @@ function interpolarPCHIP(float $xp, array $x, array $y, array $derivadas): float
 
 
 // ============================================================
-// METODO 3: MEDIA MOVEL PONDERADA
+// METODO 3: HISTORICO + TENDENCIA
 // ============================================================
 
 /**
- * Calcula media movel ponderada dos ultimos 7 dias para cada hora.
- * Peso maior para dias mais recentes e mesmo dia da semana.
+ * Calcula media historica do mesmo dia da semana (ultimas 4-8 semanas)
+ * ajustada pelo fator de tendencia recente.
  *
- * @param PDO    $pdo          Conexao PDO
- * @param int    $cdPonto      Codigo do ponto
- * @param string $data         Data YYYY-MM-DD
- * @param int    $tipoMedidor  Tipo do medidor
- * @return array|null          Mapa hora => valor ou null se dados insuficientes
+ * Fator de tendencia = media dos ultimos 3 dias / media historica geral.
+ * Valor estimado = media_historica_hora × fator_tendencia.
+ *
+ * @param PDO    $pdo           Conexao com banco
+ * @param int    $cdPonto       Codigo do ponto
+ * @param string $dtReferencia  Data YYYY-MM-DD
+ * @param int    $tipoMedidor   Tipo do medidor
+ * @return array|null           Mapa hora => valor ou null
  */
-function calcularMediaMovelPonderada(PDO $pdo, int $cdPonto, string $data, int $tipoMedidor): ?array
+function calcularHistoricoTendencia(PDO $pdo, int $cdPonto, string $dtReferencia, int $tipoMedidor): ?array
 {
-    // Buscar dados dos ultimos 7 dias (hora a hora)
-    $campo = campoValorPorTipo($tipoMedidor);
+    $colunasPorTipo = [
+        1 => 'VL_VAZAO_EFETIVA',
+        2 => 'VL_VAZAO_EFETIVA',
+        4 => 'VL_PRESSAO',
+        6 => 'VL_RESERVATORIO',
+        8 => 'VL_VAZAO_EFETIVA'
+    ];
+    $coluna = $colunasPorTipo[$tipoMedidor] ?? 'VL_VAZAO_EFETIVA';
 
-    $sql = "
-        SELECT
-            DATEPART(HOUR, R.DT_LEITURA) AS NR_HORA,
-            CAST(R.DT_LEITURA AS DATE) AS DT_DIA,
-            DATEPART(WEEKDAY, R.DT_LEITURA) AS NR_DIA_SEMANA,
-            AVG(R.$campo) AS VL_MEDIA_HORA
-        FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO R
-        WHERE R.CD_PONTO_MEDICAO = :cd_ponto
-          AND CAST(R.DT_LEITURA AS DATE) BETWEEN DATEADD(DAY, -7, :data) AND DATEADD(DAY, -1, :data2)
-          AND R.ID_SITUACAO = 1
-          AND R.$campo IS NOT NULL
-        GROUP BY
-            DATEPART(HOUR, R.DT_LEITURA),
-            CAST(R.DT_LEITURA AS DATE),
-            DATEPART(WEEKDAY, R.DT_LEITURA)
-        ORDER BY DT_DIA, NR_HORA
-    ";
-
-    try {
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            ':cd_ponto' => $cdPonto,
-            ':data' => $data,
-            ':data2' => $data
-        ]);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        return null;
+    // Buscar ultimas 8 semanas, mesmo dia da semana
+    $datasHistoricas = [];
+    for ($s = 1; $s <= 8; $s++) {
+        $datasHistoricas[] = date('Y-m-d', strtotime($dtReferencia . " -{$s} weeks"));
     }
 
-    if (empty($rows)) {
-        return null;
-    }
+    // Coletar medias por hora das semanas historicas
+    $somaPorHora = array_fill(0, 24, 0.0);
+    $contPorHora = array_fill(0, 24, 0);
 
-    // Dia da semana da data de referencia
-    $diaSemanaRef = intval(date('w', strtotime($data))) + 1; // 1=Dom ... 7=Sab (SQL Server)
-
-    // Organizar por hora
-    $dadosPorHora = [];
-    foreach ($rows as $row) {
-        $hora = intval($row['NR_HORA']);
-        $dia = $row['DT_DIA'];
-        $diaSemana = intval($row['NR_DIA_SEMANA']);
-        $valor = floatval($row['VL_MEDIA_HORA']);
-
-        // Calcular peso:
-        // - Dias mais recentes pesam mais (7 = mais recente, 1 = mais antigo)
-        $diasAtras = intval((strtotime($data) - strtotime($dia)) / 86400);
-        $pesoRecencia = max(1, 8 - $diasAtras);
-
-        // - Mesmo dia da semana pesa 2x mais
-        $pesoDiaSemana = ($diaSemana === $diaSemanaRef) ? 2.0 : 1.0;
-
-        $pesoFinal = $pesoRecencia * $pesoDiaSemana;
-
-        if (!isset($dadosPorHora[$hora])) {
-            $dadosPorHora[$hora] = ['soma_pv' => 0.0, 'soma_p' => 0.0];
-        }
-        $dadosPorHora[$hora]['soma_pv'] += $valor * $pesoFinal;
-        $dadosPorHora[$hora]['soma_p'] += $pesoFinal;
-    }
-
-    // Calcular media ponderada por hora
-    $valores = [];
-    foreach ($dadosPorHora as $hora => $d) {
-        if ($d['soma_p'] > 0) {
-            $valores[$hora] = round($d['soma_pv'] / $d['soma_p'], 4);
+    foreach ($datasHistoricas as $dataHist) {
+        $dados = buscarValoresHorarios($pdo, $cdPonto, $dataHist, $tipoMedidor);
+        for ($h = 0; $h < 24; $h++) {
+            if (isset($dados[$h]) && $dados[$h] !== null && $dados[$h] > 0) {
+                $somaPorHora[$h] += $dados[$h];
+                $contPorHora[$h]++;
+            }
         }
     }
 
-    // Precisa de pelo menos 12 horas com dados
-    return count($valores) >= 12 ? $valores : null;
+    // Calcular media historica por hora (minimo 4 semanas com dados)
+    $mediaHistorica = array_fill(0, 24, null);
+    $temDados = false;
+    for ($h = 0; $h < 24; $h++) {
+        if ($contPorHora[$h] >= 4) {
+            $mediaHistorica[$h] = $somaPorHora[$h] / $contPorHora[$h];
+            $temDados = true;
+        }
+    }
+
+    if (!$temDados)
+        return null;
+
+    // Calcular fator de tendencia dos ultimos 3 dias
+    $somaRecente = 0;
+    $contRecente = 0;
+    $somaHistGeral = 0;
+    $contHistGeral = 0;
+
+    for ($d = 1; $d <= 3; $d++) {
+        $dataRecente = date('Y-m-d', strtotime($dtReferencia . " -{$d} days"));
+        $dadosRecentes = buscarValoresHorarios($pdo, $cdPonto, $dataRecente, $tipoMedidor);
+        for ($h = 0; $h < 24; $h++) {
+            if (isset($dadosRecentes[$h]) && $dadosRecentes[$h] !== null && $dadosRecentes[$h] > 0) {
+                $somaRecente += $dadosRecentes[$h];
+                $contRecente++;
+            }
+            if ($mediaHistorica[$h] !== null) {
+                $somaHistGeral += $mediaHistorica[$h];
+                $contHistGeral++;
+            }
+        }
+    }
+
+    // Fator de tendencia (1.0 = sem tendencia)
+    $fatorTendencia = 1.0;
+    if ($contRecente > 0 && $contHistGeral > 0) {
+        $mediaRecente = $somaRecente / $contRecente;
+        $mediaHistGeral = $somaHistGeral / $contHistGeral;
+        if ($mediaHistGeral > 0) {
+            $fator = $mediaRecente / $mediaHistGeral;
+            // Limitar fator entre 0.5 e 2.0
+            $fatorTendencia = max(0.5, min(2.0, $fator));
+        }
+    }
+
+    // Aplicar fator de tendencia na media historica
+    $resultado = [];
+    for ($h = 0; $h < 24; $h++) {
+        if ($mediaHistorica[$h] !== null) {
+            $resultado[$h] = round($mediaHistorica[$h] * $fatorTendencia, 4);
+        } else {
+            $resultado[$h] = null;
+        }
+    }
+
+    return $resultado;
+}
+
+// ============================================================
+// METODO 4: TENDENCIA DA REDE
+// ============================================================
+
+/**
+ * Analisa variacao dos outros pontos da rede vs historico e aplica o fator.
+ * Reutiliza a logica de getEstimativasRede.php adaptada para metodoCorrecao.
+ *
+ * @param PDO    $pdo           Conexao
+ * @param int    $cdPonto       Codigo do ponto
+ * @param string $dtReferencia  Data
+ * @param int    $tipoMedidor   Tipo do medidor
+ * @return array|null           Mapa hora => valor ou null
+ */
+function calcularTendenciaRedeMC(PDO $pdo, int $cdPonto, string $dtReferencia, int $tipoMedidor): ?array
+{
+    $colunasPorTipo = [
+        1 => 'VL_VAZAO_EFETIVA',
+        2 => 'VL_VAZAO_EFETIVA',
+        4 => 'VL_PRESSAO',
+        6 => 'VL_RESERVATORIO',
+        8 => 'VL_VAZAO_EFETIVA'
+    ];
+    $coluna = $colunasPorTipo[$tipoMedidor] ?? 'VL_VAZAO_EFETIVA';
+
+    // Buscar pontos da mesma rede (ENTIDADE_VALOR_ID)
+    $pontosRede = buscarPontosRedeMC($pdo, $cdPonto, $dtReferencia);
+    if (count($pontosRede) <= 1)
+        return null;
+
+    // Obter dados de hoje de todos os pontos
+    $dadosTodosPontos = [];
+    foreach ($pontosRede as $cdP => $info) {
+        $colunaP = $colunasPorTipo[$info['tipo_medidor']] ?? 'VL_VAZAO_EFETIVA';
+        $dadosTodosPontos[$cdP] = buscarValoresHorarios($pdo, $cdP, $dtReferencia, $info['tipo_medidor']);
+    }
+
+    // Historico: ultimas 4 semanas, mesmo dia da semana
+    $datasHist = [];
+    for ($s = 1; $s <= 4; $s++) {
+        $datasHist[] = date('Y-m-d', strtotime($dtReferencia . " -{$s} weeks"));
+    }
+
+    // Calcular media historica de cada ponto por hora
+    $mediaHistorica = [];
+    foreach ($pontosRede as $cdP => $info) {
+        $mediaHistorica[$cdP] = array_fill(0, 24, null);
+        $colunaP = $colunasPorTipo[$info['tipo_medidor']] ?? 'VL_VAZAO_EFETIVA';
+        $soma = array_fill(0, 24, 0.0);
+        $cont = array_fill(0, 24, 0);
+
+        foreach ($datasHist as $dataHist) {
+            $dadosH = buscarValoresHorarios($pdo, $cdP, $dataHist, $info['tipo_medidor']);
+            for ($h = 0; $h < 24; $h++) {
+                if (isset($dadosH[$h]) && $dadosH[$h] !== null && $dadosH[$h] > 0) {
+                    $soma[$h] += $dadosH[$h];
+                    $cont[$h]++;
+                }
+            }
+        }
+        for ($h = 0; $h < 24; $h++) {
+            if ($cont[$h] >= 2) {
+                $mediaHistorica[$cdP][$h] = $soma[$h] / $cont[$h];
+            }
+        }
+    }
+
+    // Para cada hora: calcular fator de variacao da rede e aplicar
+    $resultado = array_fill(0, 24, null);
+    for ($h = 0; $h < 24; $h++) {
+        $mediaAtualHist = $mediaHistorica[$cdPonto][$h] ?? null;
+        if ($mediaAtualHist === null || $mediaAtualHist <= 0)
+            continue;
+
+        $fatores = [];
+        foreach ($pontosRede as $cdP => $info) {
+            if ($cdP === $cdPonto)
+                continue;
+            $valorHoje = $dadosTodosPontos[$cdP][$h] ?? null;
+            $mediaHist = $mediaHistorica[$cdP][$h] ?? null;
+            if ($valorHoje === null || $valorHoje <= 0 || $mediaHist === null || $mediaHist <= 0)
+                continue;
+            $fator = $valorHoje / $mediaHist;
+            if ($fator >= 0.3 && $fator <= 3.0)
+                $fatores[] = $fator;
+        }
+
+        if (empty($fatores))
+            continue;
+
+        // Mediana para robustez
+        sort($fatores);
+        $n = count($fatores);
+        $fatorMedio = ($n % 2 === 0)
+            ? ($fatores[$n / 2 - 1] + $fatores[$n / 2]) / 2
+            : $fatores[floor($n / 2)];
+
+        $valorEstimado = $mediaAtualHist * $fatorMedio;
+        if ($valorEstimado > 0)
+            $resultado[$h] = round($valorEstimado, 4);
+    }
+
+    // Verificar se tem pelo menos 12 horas com estimativa
+    $horasEstimadas = count(array_filter($resultado, fn($v) => $v !== null));
+    return $horasEstimadas >= 6 ? $resultado : null;
+}
+
+// ============================================================
+// METODO 5: PROPORCAO HISTORICA
+// ============================================================
+
+/**
+ * Calcula proporcao historica do ponto na rede e aplica ao total atual.
+ *
+ * @param PDO    $pdo           Conexao
+ * @param int    $cdPonto       Codigo do ponto
+ * @param string $dtReferencia  Data
+ * @param int    $tipoMedidor   Tipo do medidor
+ * @return array|null           Mapa hora => valor ou null
+ */
+function calcularProporcaoHistoricaMC(PDO $pdo, int $cdPonto, string $dtReferencia, int $tipoMedidor): ?array
+{
+    $colunasPorTipo = [
+        1 => 'VL_VAZAO_EFETIVA',
+        2 => 'VL_VAZAO_EFETIVA',
+        4 => 'VL_PRESSAO',
+        6 => 'VL_RESERVATORIO',
+        8 => 'VL_VAZAO_EFETIVA'
+    ];
+
+    $pontosRede = buscarPontosRedeMC($pdo, $cdPonto, $dtReferencia);
+    if (count($pontosRede) <= 1)
+        return null;
+
+    // Historico: ultimas 4 semanas
+    $datasHist = [];
+    for ($s = 1; $s <= 4; $s++) {
+        $datasHist[] = date('Y-m-d', strtotime($dtReferencia . " -{$s} weeks"));
+    }
+
+    // Calcular proporcao media por hora: valor_ponto / total_rede
+    $proporcoesPorHora = array_fill(0, 24, []);
+
+    foreach ($datasHist as $dataHist) {
+        // Buscar dados de todos os pontos nessa data
+        $dadosDia = [];
+        foreach ($pontosRede as $cdP => $info) {
+            $dadosDia[$cdP] = buscarValoresHorarios($pdo, $cdP, $dataHist, $info['tipo_medidor']);
+        }
+
+        for ($h = 0; $h < 24; $h++) {
+            $totalRede = 0;
+            $valorPonto = null;
+            foreach ($pontosRede as $cdP => $info) {
+                $v = $dadosDia[$cdP][$h] ?? null;
+                if ($v !== null && $v > 0) {
+                    $totalRede += $v;
+                    if ($cdP === $cdPonto)
+                        $valorPonto = $v;
+                }
+            }
+            if ($totalRede > 0 && $valorPonto !== null && $valorPonto > 0) {
+                $proporcoesPorHora[$h][] = $valorPonto / $totalRede;
+            }
+        }
+    }
+
+    // Dados de hoje: total da rede
+    $dadosHoje = [];
+    foreach ($pontosRede as $cdP => $info) {
+        $dadosHoje[$cdP] = buscarValoresHorarios($pdo, $cdP, $dtReferencia, $info['tipo_medidor']);
+    }
+
+    $resultado = array_fill(0, 24, null);
+    for ($h = 0; $h < 24; $h++) {
+        if (count($proporcoesPorHora[$h]) < 2)
+            continue;
+
+        // Media das proporcoes historicas
+        $propMedia = array_sum($proporcoesPorHora[$h]) / count($proporcoesPorHora[$h]);
+
+        // Total da rede hoje (excluindo o ponto atual)
+        $totalHoje = 0;
+        foreach ($pontosRede as $cdP => $info) {
+            if ($cdP === $cdPonto)
+                continue;
+            $v = $dadosHoje[$cdP][$h] ?? null;
+            if ($v !== null && $v > 0)
+                $totalHoje += $v;
+        }
+
+        if ($totalHoje > 0 && $propMedia > 0 && $propMedia < 1) {
+            // Estimar: se ponto = prop% do total, entao:
+            // total_com_ponto = total_sem_ponto / (1 - prop)
+            // valor_ponto = total_com_ponto × prop
+            $totalComPonto = $totalHoje / (1 - $propMedia);
+            $valorEstimado = $totalComPonto * $propMedia;
+            if ($valorEstimado > 0)
+                $resultado[$h] = round($valorEstimado, 4);
+        }
+    }
+
+    $horasEstimadas = count(array_filter($resultado, fn($v) => $v !== null));
+    return $horasEstimadas >= 6 ? $resultado : null;
 }
 
 
 // ============================================================
-// METODO 4: PROPHET (via TensorFlow)
+// METODO 6: MINIMOS QUADRADOS (regressao linear temporal)
 // ============================================================
 
 /**
- * Chama /api/prophet no container TensorFlow para obter
- * predicoes sazonais hora a hora.
+ * Regressao linear sobre 6-8 semanas historicas (mesmo dia da semana)
+ * para projetar tendencia. Captura drift lento (desgaste, demanda sazonal).
  *
- * @param string $tfUrl        URL do container
- * @param int    $cdPonto      Codigo do ponto
- * @param string $data         Data YYYY-MM-DD
- * @param int    $tipoMedidor  Tipo do medidor
- * @return array|null          Mapa hora => valor ou null se falhar
+ * @param PDO    $pdo           Conexao
+ * @param int    $cdPonto       Codigo do ponto
+ * @param string $dtReferencia  Data
+ * @param int    $tipoMedidor   Tipo do medidor
+ * @return array|null           Mapa hora => valor ou null
  */
-function calcularProphet(string $tfUrl, int $cdPonto, string $data, int $tipoMedidor): ?array
+function calcularMinimosQuadradosMC(PDO $pdo, int $cdPonto, string $dtReferencia, int $tipoMedidor): ?array
 {
-    $resp = chamarTensorFlow($tfUrl . '/api/prophet', [
-        'cd_ponto' => $cdPonto,
-        'data' => $data,
-        'tipo_medidor' => $tipoMedidor,
-        'horas' => range(0, 23)
-    ]);
+    $NUM_SEMANAS = 8;
+    $MIN_SEMANAS = 3;
 
-    // Se endpoint nao existe ou falhar, retorna null (metodo opcional)
-    if (!($resp['success'] ?? false) || empty($resp['predicoes'])) {
-        return null;
+    // Datas historicas (mesmo dia da semana)
+    $datasHistoricas = [];
+    for ($s = 1; $s <= $NUM_SEMANAS; $s++) {
+        $datasHistoricas[] = date('Y-m-d', strtotime($dtReferencia . " -{$s} weeks"));
     }
+    $xHoje = count($datasHistoricas);
 
-    $valores = [];
-    foreach ($resp['predicoes'] as $pred) {
-        $h = intval($pred['hora'] ?? -1);
-        if ($h >= 0 && $h <= 23) {
-            $valores[$h] = round(floatval($pred['valor_predito'] ?? 0), 4);
+    // Coletar dados por hora
+    $dadosPorHora = array_fill(0, 24, []);
+    foreach ($datasHistoricas as $x => $dataHist) {
+        $dados = buscarValoresHorarios($pdo, $cdPonto, $dataHist, $tipoMedidor);
+        for ($h = 0; $h < 24; $h++) {
+            if (isset($dados[$h]) && $dados[$h] !== null && $dados[$h] > 0) {
+                $dadosPorHora[$h][] = ['x' => $x, 'y' => $dados[$h]];
+            }
         }
     }
 
-    return count($valores) >= 12 ? $valores : null;
+    $resultado = array_fill(0, 24, null);
+    for ($h = 0; $h < 24; $h++) {
+        $pontos = $dadosPorHora[$h];
+        $n = count($pontos);
+        if ($n < $MIN_SEMANAS)
+            continue;
+
+        $somaX = 0;
+        $somaY = 0;
+        foreach ($pontos as $p) {
+            $somaX += $p['x'];
+            $somaY += $p['y'];
+        }
+        $mediaX = $somaX / $n;
+        $mediaY = $somaY / $n;
+
+        $num = 0;
+        $den = 0;
+        foreach ($pontos as $p) {
+            $dx = $p['x'] - $mediaX;
+            $num += $dx * ($p['y'] - $mediaY);
+            $den += $dx * $dx;
+        }
+
+        if (abs($den) < 0.0001) {
+            $resultado[$h] = round($mediaY, 4);
+            continue;
+        }
+
+        $b = $num / $den;
+        $a = $mediaY - $b * $mediaX;
+        $valorProjetado = $a + $b * $xHoje;
+
+        // Validacoes de sanidade
+        if ($valorProjetado <= 0) {
+            $minHist = min(array_column($pontos, 'y'));
+            $valorProjetado = $minHist * 0.8;
+            if ($valorProjetado <= 0)
+                continue;
+        }
+
+        // Limitar desvio a 50% da media
+        $desvioPerc = abs($valorProjetado - $mediaY) / $mediaY;
+        if ($desvioPerc > 0.5) {
+            $valorProjetado = $mediaY * (1 + 0.5 * ($valorProjetado > $mediaY ? 1 : -1));
+        }
+
+        $resultado[$h] = round($valorProjetado, 4);
+    }
+
+    $horasEstimadas = count(array_filter($resultado, fn($v) => $v !== null));
+    return $horasEstimadas >= 6 ? $resultado : null;
+}
+
+// ============================================================
+// AUXILIAR: Buscar pontos da mesma rede (para metodoCorrecao)
+// ============================================================
+
+/**
+ * Busca todos os pontos que pertencem a mesma rede (ENTIDADE_VALOR_ID)
+ * do ponto informado. Retorna mapa cd_ponto => info.
+ *
+ * @param PDO    $pdo      Conexao
+ * @param int    $cdPonto  Codigo do ponto
+ * @param string $data     Data de referencia
+ * @return array           Mapa cd_ponto => ['tipo_medidor' => int, ...]
+ */
+function buscarPontosRedeMC(PDO $pdo, int $cdPonto, string $data): array
+{
+    // Buscar ENTIDADE_VALOR_ID do ponto
+    $sql = "SELECT DISTINCT EV.CD_ENTIDADE_VALOR_ID
+            FROM SIMP.dbo.ENTIDADE_VALOR_ITEM EVI
+            INNER JOIN SIMP.dbo.ENTIDADE_VALOR EV ON EV.CD_CHAVE = EVI.CD_ENTIDADE_VALOR
+            WHERE EVI.CD_PONTO_MEDICAO = :cdPonto
+              AND (EVI.DT_INICIO IS NULL OR EVI.DT_INICIO <= :data1)
+              AND (EVI.DT_FIM IS NULL OR EVI.DT_FIM >= :data2)";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([':cdPonto' => $cdPonto, ':data1' => $data, ':data2' => $data]);
+    $entIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    if (empty($entIds)) {
+        // Retornar pelo menos o proprio ponto
+        $sqlPonto = "SELECT ID_TIPO_MEDIDOR FROM SIMP.dbo.PONTO_MEDICAO WHERE CD_PONTO_MEDICAO = :cd";
+        $stmtP = $pdo->prepare($sqlPonto);
+        $stmtP->execute([':cd' => $cdPonto]);
+        $rowP = $stmtP->fetch(PDO::FETCH_ASSOC);
+        return [$cdPonto => ['tipo_medidor' => (int) ($rowP['ID_TIPO_MEDIDOR'] ?? 1)]];
+    }
+
+    // Montar placeholders nomeados para o IN (:ent0, :ent1, :ent2...)
+    $params = [];
+    $placeholders = [];
+    foreach ($entIds as $idx => $entId) {
+        $key = ':ent' . $idx;
+        $placeholders[] = $key;
+        $params[$key] = $entId;
+    }
+    $inClause = implode(',', $placeholders);
+
+    // Adicionar parametros de data
+    $params[':dataIni'] = $data;
+    $params[':dataFim'] = $data;
+
+    $sql2 = "SELECT DISTINCT EVI.CD_PONTO_MEDICAO, PM.ID_TIPO_MEDIDOR
+             FROM SIMP.dbo.ENTIDADE_VALOR_ITEM EVI
+             INNER JOIN SIMP.dbo.ENTIDADE_VALOR EV ON EV.CD_CHAVE = EVI.CD_ENTIDADE_VALOR
+             INNER JOIN SIMP.dbo.PONTO_MEDICAO PM ON PM.CD_PONTO_MEDICAO = EVI.CD_PONTO_MEDICAO
+             WHERE EV.CD_ENTIDADE_VALOR_ID IN ($inClause)
+               AND (EVI.DT_INICIO IS NULL OR EVI.DT_INICIO <= :dataIni)
+               AND (EVI.DT_FIM IS NULL OR EVI.DT_FIM >= :dataFim)
+               AND (PM.DT_DESATIVACAO IS NULL OR PM.DT_DESATIVACAO > GETDATE())";
+    $stmt2 = $pdo->prepare($sql2);
+    $stmt2->execute($params);
+
+    $resultado = [];
+    while ($row = $stmt2->fetch(PDO::FETCH_ASSOC)) {
+        $resultado[(int) $row['CD_PONTO_MEDICAO']] = [
+            'tipo_medidor' => (int) $row['ID_TIPO_MEDIDOR']
+        ];
+    }
+
+    return $resultado;
 }
 
 

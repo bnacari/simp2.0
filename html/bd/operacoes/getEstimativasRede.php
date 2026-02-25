@@ -5,7 +5,7 @@
  * Busca pontos de medição relacionados (mesma ENTIDADE_VALOR / rede operacional)
  * e calcula estimativas de valores usando 4 métodos:
  * 
- * 1. INTERPOLAÇÃO LINEAR: usa horas adjacentes válidas do próprio ponto
+ * 1. PCHIP: interpolação monotônica (Fritsch-Carlson) usando horas válidas como âncoras
  * 2. TENDÊNCIA DA REDE: analisa variação dos outros pontos vs histórico e aplica o fator
  * 3. PROPORÇÃO HISTÓRICA: usa a proporção média histórica do ponto na rede
  * 4. MÍNIMOS QUADRADOS: regressão linear sobre semanas históricas para projetar tendência
@@ -35,7 +35,7 @@ try {
     // ========================================
     // VALIDAÇÃO DE PARÂMETROS
     // ========================================
-    $cdPonto = isset($_GET['cdPonto']) ? (int)$_GET['cdPonto'] : 0;
+    $cdPonto = isset($_GET['cdPonto']) ? (int) $_GET['cdPonto'] : 0;
     $data = isset($_GET['data']) ? trim($_GET['data']) : '';
 
     if ($cdPonto <= 0) {
@@ -59,7 +59,7 @@ try {
                  FROM SIMP.dbo.PONTO_MEDICAO PM
                  LEFT JOIN SIMP.dbo.LOCALIDADE L ON PM.CD_LOCALIDADE = L.CD_CHAVE
                  WHERE PM.CD_PONTO_MEDICAO = :cdPonto";
-    
+
     $stmtPonto = $pdoSIMP->prepare($sqlPonto);
     $stmtPonto->execute([':cdPonto' => $cdPonto]);
     $pontoAtual = $stmtPonto->fetch(PDO::FETCH_ASSOC);
@@ -68,7 +68,7 @@ try {
         throw new Exception('Ponto de medição não encontrado');
     }
 
-    $tipoMedidor = (int)$pontoAtual['ID_TIPO_MEDIDOR'];
+    $tipoMedidor = (int) $pontoAtual['ID_TIPO_MEDIDOR'];
 
     // Mapeamento de colunas por tipo de medidor
     $colunasPorTipo = [
@@ -109,14 +109,21 @@ try {
     // Se o ponto não pertence a nenhuma entidade, retornar apenas interpolação
     if (empty($entidadesDoPonto)) {
         $dadosPontoAtual = obterDadosHorariosPonto($pdoSIMP, $cdPonto, $data, $coluna, $tipoMedidor);
-        $interpolacao = calcularInterpolacaoLinear($dadosPontoAtual);
+        // Detectar horas sem dados (equivalente a "anomalas" para PCHIP)
+        $horasNulas = [];
+        for ($hh = 0; $hh < 24; $hh++) {
+            if (!isset($dadosPontoAtual[$hh]) || $dadosPontoAtual[$hh] === null) {
+                $horasNulas[] = $hh;
+            }
+        }
+        $pchip = calcularPCHIP_Rede($dadosPontoAtual, $horasNulas);
 
         echo json_encode([
             'success' => true,
             'tem_rede' => false,
             'pontos_rede' => [],
             'estimativas' => [
-                'interpolacao' => $interpolacao,
+                'pchip' => $pchip,
                 'tendencia_rede' => array_fill(0, 24, null),
                 'proporcao' => array_fill(0, 24, null),
                 'minimos_quadrados' => calcularMinimosQuadrados($pdoSIMP, $cdPonto, $data, $coluna, $tipoMedidor)
@@ -124,7 +131,7 @@ try {
             'metadados' => [
                 'ponto_atual' => $cdPonto,
                 'entidades' => [],
-                'mensagem' => 'Ponto não vinculado a nenhuma unidade operacional. Apenas interpolação disponível.'
+                'mensagem' => 'Ponto nao vinculado a nenhuma unidade operacional. Apenas PCHIP disponivel.'
             ]
         ]);
         exit;
@@ -161,7 +168,7 @@ try {
         // Para cada ENTIDADE_VALOR, buscar seus pontos
         foreach ($todosValores as $ev) {
             $cdEntidadeValor = $ev['CD_CHAVE'];
-            $fluxoId = (int)($ev['ID_FLUXO'] ?? 1);
+            $fluxoId = (int) ($ev['ID_FLUXO'] ?? 1);
             $fluxoNome = [1 => 'Entrada', 2 => 'Saída', 3 => 'Municipal', 4 => 'N/A'][$fluxoId] ?? 'Entrada';
 
             $entidadesInfo[] = [
@@ -197,7 +204,7 @@ try {
             $pontos = $stmtPontosRede->fetchAll(PDO::FETCH_ASSOC);
 
             foreach ($pontos as $p) {
-                $cdP = (int)$p['CD_PONTO_MEDICAO'];
+                $cdP = (int) $p['CD_PONTO_MEDICAO'];
 
                 // Se o ponto já foi adicionado por outra entidade, pular
                 if (isset($pontosRede[$cdP])) {
@@ -208,9 +215,9 @@ try {
                 $letrasTipo = [1 => 'M', 2 => 'E', 4 => 'P', 6 => 'R', 8 => 'H'];
                 $letra = $letrasTipo[$p['ID_TIPO_MEDIDOR']] ?? 'X';
                 $codigoFormatado = ($p['CD_LOCALIDADE_CODIGO'] ?? '0') . '-' .
-                                   str_pad($cdP, 6, '0', STR_PAD_LEFT) . '-' .
-                                   $letra . '-' .
-                                   ($p['CD_UNIDADE'] ?? '0');
+                    str_pad($cdP, 6, '0', STR_PAD_LEFT) . '-' .
+                    $letra . '-' .
+                    ($p['CD_UNIDADE'] ?? '0');
 
                 // Determinar operação EFETIVA do ponto para balanço hídrico:
                 // Combina ID_FLUXO do ENTIDADE_VALOR pai com ID_OPERACAO do item.
@@ -223,8 +230,8 @@ try {
                 //   - Fluxo=Municipal(3)    → igual a Saída
                 //
                 // Resultado: operacao_efetiva = 1 (entrada/+) ou 2 (saída/-)
-                $itemOp = (int)($p['ID_OPERACAO'] ?? 1);
-                
+                $itemOp = (int) ($p['ID_OPERACAO'] ?? 1);
+
                 if ($fluxoId == 2 || $fluxoId == 3) {
                     // Fluxo é Saída ou Municipal → inverte a lógica:
                     // op=1 no grupo saída = SÁIDA do sistema (efetiva=2)
@@ -241,7 +248,7 @@ try {
                     'cd_ponto' => $cdP,
                     'nome' => $p['DS_NOME'],
                     'codigo' => $codigoFormatado,
-                    'tipo_medidor' => (int)$p['ID_TIPO_MEDIDOR'],
+                    'tipo_medidor' => (int) $p['ID_TIPO_MEDIDOR'],
                     'operacao' => $operacaoEfetiva,
                     'fluxo' => $fluxoNome,
                     'fluxo_id' => $fluxoId,
@@ -257,14 +264,20 @@ try {
     // Se só existe o próprio ponto na rede, não há como fazer balanço/proporção
     if (count($pontosRede) <= 1) {
         $dadosPontoAtual = obterDadosHorariosPonto($pdoSIMP, $cdPonto, $data, $coluna, $tipoMedidor);
-        $interpolacao = calcularInterpolacaoLinear($dadosPontoAtual);
+        $horasNulas = [];
+        for ($hh = 0; $hh < 24; $hh++) {
+            if (!isset($dadosPontoAtual[$hh]) || $dadosPontoAtual[$hh] === null) {
+                $horasNulas[] = $hh;
+            }
+        }
+        $pchip = calcularPCHIP_Rede($dadosPontoAtual, $horasNulas);
 
         echo json_encode([
             'success' => true,
             'tem_rede' => false,
             'pontos_rede' => array_values($pontosRede),
             'estimativas' => [
-                'interpolacao' => $interpolacao,
+                'pchip' => $pchip,
                 'tendencia_rede' => array_fill(0, 24, null),
                 'proporcao' => array_fill(0, 24, null),
                 'minimos_quadrados' => calcularMinimosQuadrados($pdoSIMP, $cdPonto, $data, $coluna, $tipoMedidor)
@@ -273,7 +286,7 @@ try {
                 'ponto_atual' => $cdPonto,
                 'entidades' => $entidadesInfo,
                 'total_pontos_rede' => count($pontosRede),
-                'mensagem' => 'Ponto é o único na rede. Apenas interpolação disponível.'
+                'mensagem' => 'Ponto e o unico na rede. Apenas PCHIP disponivel.'
             ]
         ]);
         exit;
@@ -290,10 +303,18 @@ try {
     }
 
     // ========================================
-    // 5. MÉTODO 1: INTERPOLAÇÃO LINEAR (dados do próprio ponto)
+    // 5. METODO 1: PCHIP (interpolacao monotonica do proprio ponto)
+    // Usa horas com dados como ancoras e interpola as horas sem dados
+    // via curvas de Hermite (Fritsch-Carlson) — sem overshoots
     // ========================================
     $dadosPontoAtual = $dadosTodosPontos[$cdPonto] ?? [];
-    $interpolacao = calcularInterpolacaoLinear($dadosPontoAtual);
+    $horasNulas = [];
+    for ($hh = 0; $hh < 24; $hh++) {
+        if (!isset($dadosPontoAtual[$hh]) || $dadosPontoAtual[$hh] === null) {
+            $horasNulas[] = $hh;
+        }
+    }
+    $pchip = calcularPCHIP_Rede($dadosPontoAtual, $horasNulas);
 
     // ========================================
     // 6. MÉTODO 2: TENDÊNCIA DA REDE (fator de variação dos outros pontos)
@@ -302,9 +323,9 @@ try {
     // ========================================
     $tendenciaRede = calcularTendenciaRede(
         $pdoSIMP,
-        $cdPonto, 
+        $cdPonto,
         $data,
-        $pontosRede, 
+        $pontosRede,
         $dadosTodosPontos,
         $coluna
     );
@@ -373,8 +394,10 @@ try {
     $qtdEntrada = 0;
     $qtdSaida = 0;
     foreach ($pontosRede as $p) {
-        if ($p['operacao'] == 2) $qtdSaida++;
-        else $qtdEntrada++;
+        if ($p['operacao'] == 2)
+            $qtdSaida++;
+        else
+            $qtdEntrada++;
     }
 
     // ========================================
@@ -385,7 +408,7 @@ try {
         'tem_rede' => true,
         'pontos_rede' => $pontosRedeResumo,
         'estimativas' => [
-            'interpolacao' => $interpolacao,
+            'pchip' => $pchip,
             'tendencia_rede' => $tendenciaRede,
             'proporcao' => $proporcao,
             'minimos_quadrados' => $minimosQuadrados
@@ -426,7 +449,8 @@ try {
  * @param int    $tipoMedidor Tipo do medidor
  * @return array Array[0..23] com valor médio ou null
  */
-function obterDadosHorariosPonto($pdo, $cdPonto, $data, $coluna, $tipoMedidor) {
+function obterDadosHorariosPonto($pdo, $cdPonto, $data, $coluna, $tipoMedidor)
+{
     // Inicializar 24 horas como null
     $resultado = array_fill(0, 24, null);
 
@@ -458,8 +482,8 @@ function obterDadosHorariosPonto($pdo, $cdPonto, $data, $coluna, $tipoMedidor) {
         $stmt->execute([':cdPonto' => $cdPonto, ':data' => $data]);
 
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $hora = (int)$row['HORA'];
-            $valor = $row['VALOR'] !== null ? round((float)$row['VALOR'], 2) : null;
+            $hora = (int) $row['HORA'];
+            $valor = $row['VALOR'] !== null ? round((float) $row['VALOR'], 2) : null;
             if ($valor !== null && $valor != 0) {
                 $resultado[$hora] = $valor;
             }
@@ -471,35 +495,216 @@ function obterDadosHorariosPonto($pdo, $cdPonto, $data, $coluna, $tipoMedidor) {
     return $resultado;
 }
 
-
 /**
- * MÉTODO 1: Interpolação Linear + Extrapolação
+ * METODO 1: PCHIP — Interpolacao Monotonica (Fritsch-Carlson)
  * 
- * Para cada hora sem dados:
- * A) Se há dados válidos ANTES e DEPOIS (gap ≤ 6h): interpola linearmente
- *    V(t) = V_antes + (V_depois - V_antes) × (t - t_antes) / (t_depois - t_antes)
+ * Modo LOO (Leave-One-Out): para cada hora, remove ela das ancoras
+ * e interpola usando as restantes. Gera estimativa independente
+ * para TODAS as horas, util como linha de comparacao no grafico.
  * 
- * B) Se há dados apenas ANTES (bordas finais): extrapola flat (repete último valor)
- *    com decaimento suave para até 6 horas à frente
- * 
- * C) Se há dados apenas DEPOIS (bordas iniciais): extrapola flat (repete primeiro valor)
- *    com decaimento suave para até 6 horas atrás
+ * Se horasAnomalas informadas, essas horas sao excluidas das ancoras
+ * e interpoladas diretamente (sem LOO).
  *
- * @param array $dados Array[0..23] com valores ou null
- * @return array Array[0..23] com valores estimados ou null
+ * Requer pelo menos 3 ancoras. Fallback para interpolacao linear simples.
+ *
+ * @param array $dados         Array[0..23] com valores ou null
+ * @param array $horasAnomalas Horas a excluir das ancoras (opcional)
+ * @return array               Array[0..23] com valores estimados ou null
  */
-function calcularInterpolacaoLinear($dados) {
+function calcularPCHIP_Rede($dados, $horasAnomalas = [])
+{
     $resultado = array_fill(0, 24, null);
-    $MAX_GAP_INTERPOLAR = 6;  // Máximo de horas para interpolação entre dois pontos
-    $MAX_GAP_EXTRAPOLAR = 6;  // Máximo de horas para extrapolação nas bordas
 
+    // Todas as horas validas (nao-anomalas e com dados)
+    $horasValidas = [];
     for ($h = 0; $h < 24; $h++) {
-        // Se já tem dados, não precisa estimar
-        if ($dados[$h] !== null) {
-            continue;
+        if (!in_array($h, $horasAnomalas) && isset($dados[$h]) && $dados[$h] !== null) {
+            $horasValidas[$h] = floatval($dados[$h]);
+        }
+    }
+
+    // Precisa de pelo menos 4 ancoras para LOO (3 restantes apos remover 1)
+    if (count($horasValidas) < 4) {
+        // Fallback: interpolacao linear simples se tiver pelo menos 2
+        if (count($horasValidas) >= 2) {
+            return calcularInterpolacaoLinearFallback($dados);
+        }
+        return $resultado;
+    }
+
+    // -------------------------------------------------------
+    // MODO LOO: para cada hora, remover das ancoras e interpolar
+    // Gera estimativa independente (nao passa pela ancora)
+    // -------------------------------------------------------
+    for ($h = 0; $h < 24; $h++) {
+        // Montar ancoras SEM a hora atual
+        $ancorasX = [];
+        $ancorasY = [];
+
+        foreach ($horasValidas as $hv => $val) {
+            if ($hv === $h)
+                continue; // LOO: excluir hora atual
+            $ancorasX[] = $hv;
+            $ancorasY[] = $val;
         }
 
-        // Encontrar hora válida ANTERIOR mais próxima
+        // Precisa de pelo menos 3 ancoras restantes para PCHIP
+        if (count($ancorasX) < 3)
+            continue;
+
+        // Calcular derivadas e interpolar
+        $derivadas = calcularDerivadasMonotonicasRede($ancorasX, $ancorasY);
+        $valor = interpolarPCHIP_Rede($h, $ancorasX, $ancorasY, $derivadas);
+
+        if ($valor >= 0) {
+            $resultado[$h] = round($valor, 2);
+        }
+    }
+
+    // -------------------------------------------------------
+    // Horas anomalas (sem dados): interpolar usando TODAS as ancoras
+    // -------------------------------------------------------
+    if (!empty($horasAnomalas)) {
+        $allX = array_keys($horasValidas);
+        $allY = array_values($horasValidas);
+        if (count($allX) >= 3) {
+            $derivadasFull = calcularDerivadasMonotonicasRede($allX, $allY);
+            foreach ($horasAnomalas as $ha) {
+                $valor = interpolarPCHIP_Rede($ha, $allX, $allY, $derivadasFull);
+                if ($valor >= 0) {
+                    $resultado[$ha] = round($valor, 2);
+                }
+            }
+        }
+    }
+
+    return $resultado;
+}
+
+/**
+ * Calcula derivadas monotonicas pelo metodo Fritsch-Carlson.
+ * Garante que a interpolacao nao gera overshoots.
+ *
+ * @param array $x Horas (ancoras X)
+ * @param array $y Valores (ancoras Y)
+ * @return array   Derivadas em cada ancora
+ */
+function calcularDerivadasMonotonicasRede($x, $y)
+{
+    $n = count($x);
+    $d = array_fill(0, $n, 0.0);
+
+    // Calcular inclinacoes entre pontos adjacentes (deltas)
+    $delta = [];
+    for ($i = 0; $i < $n - 1; $i++) {
+        $hk = $x[$i + 1] - $x[$i];
+        if ($hk > 0) {
+            $delta[$i] = ($y[$i + 1] - $y[$i]) / $hk;
+        } else {
+            $delta[$i] = 0;
+        }
+    }
+
+    // Derivadas iniciais (media harmonica dos deltas adjacentes)
+    $d[0] = $delta[0];
+    $d[$n - 1] = $delta[$n - 2];
+
+    for ($i = 1; $i < $n - 1; $i++) {
+        if ($delta[$i - 1] * $delta[$i] <= 0) {
+            // Mudanca de sinal: derivada zero (ponto de inflexao)
+            $d[$i] = 0;
+        } else {
+            // Media harmonica ponderada
+            $d[$i] = ($delta[$i - 1] + $delta[$i]) / 2.0;
+        }
+    }
+
+    // Correcao Fritsch-Carlson: garantir monotonicidade
+    for ($i = 0; $i < $n - 1; $i++) {
+        if (abs($delta[$i]) < 1e-10) {
+            $d[$i] = 0;
+            $d[$i + 1] = 0;
+            continue;
+        }
+        $alfa = $d[$i] / $delta[$i];
+        $beta = $d[$i + 1] / $delta[$i];
+
+        // Verificacao: alfa^2 + beta^2 deve ser <= 9 para monotonicidade
+        $radiusSquared = $alfa * $alfa + $beta * $beta;
+        if ($radiusSquared > 9.0) {
+            $tau = 3.0 / sqrt($radiusSquared);
+            $d[$i] = $tau * $alfa * $delta[$i];
+            $d[$i + 1] = $tau * $beta * $delta[$i];
+        }
+    }
+
+    return $d;
+}
+
+/**
+ * Interpola um ponto via PCHIP (Hermite cubico).
+ *
+ * @param float $xp        Hora a interpolar
+ * @param array $x         Ancoras X (horas)
+ * @param array $y         Ancoras Y (valores)
+ * @param array $derivadas Derivadas monotonicas
+ * @return float           Valor interpolado
+ */
+function interpolarPCHIP_Rede($xp, $x, $y, $derivadas)
+{
+    $n = count($x);
+
+    // Clamping: fora do intervalo, usar valor da borda
+    if ($xp <= $x[0])
+        return $y[0];
+    if ($xp >= $x[$n - 1])
+        return $y[$n - 1];
+
+    // Encontrar intervalo [x[i], x[i+1]] que contem xp
+    $i = 0;
+    for ($k = 0; $k < $n - 1; $k++) {
+        if ($xp >= $x[$k] && $xp <= $x[$k + 1]) {
+            $i = $k;
+            break;
+        }
+    }
+
+    // Interpolacao Hermite cubica
+    $h = $x[$i + 1] - $x[$i];
+    if ($h <= 0)
+        return $y[$i];
+
+    $t = ($xp - $x[$i]) / $h;
+    $t2 = $t * $t;
+    $t3 = $t2 * $t;
+
+    // Funcoes base de Hermite
+    $h00 = 2 * $t3 - 3 * $t2 + 1;
+    $h10 = $t3 - 2 * $t2 + $t;
+    $h01 = -2 * $t3 + 3 * $t2;
+    $h11 = $t3 - $t2;
+
+    return $h00 * $y[$i] + $h10 * $h * $derivadas[$i]
+        + $h01 * $y[$i + 1] + $h11 * $h * $derivadas[$i + 1];
+}
+
+/**
+ * Fallback: interpolacao linear simples quando ha menos de 3 ancoras.
+ * Mantida para compatibilidade quando PCHIP nao pode ser aplicado.
+ *
+ * @param array $dados Array[0..23] com valores ou null
+ * @return array       Array[0..23] com estimativas ou null
+ */
+function calcularInterpolacaoLinearFallback($dados)
+{
+    $resultado = array_fill(0, 24, null);
+    $MAX_GAP = 6;
+
+    for ($h = 0; $h < 24; $h++) {
+        if ($dados[$h] !== null)
+            continue;
+
+        // Encontrar hora valida anterior
         $hAntes = null;
         $vAntes = null;
         for ($a = $h - 1; $a >= 0; $a--) {
@@ -509,8 +714,7 @@ function calcularInterpolacaoLinear($dados) {
                 break;
             }
         }
-
-        // Encontrar hora válida POSTERIOR mais próxima
+        // Encontrar hora valida posterior
         $hDepois = null;
         $vDepois = null;
         for ($d = $h + 1; $d < 24; $d++) {
@@ -521,49 +725,17 @@ function calcularInterpolacaoLinear($dados) {
             }
         }
 
-        // CASO A: Tem dados nos dois lados → Interpolação Linear
-        if ($hAntes !== null && $hDepois !== null) {
-            $gapTotal = $hDepois - $hAntes;
-            if ($gapTotal <= $MAX_GAP_INTERPOLAR) {
-                $fator = ($h - $hAntes) / ($hDepois - $hAntes);
-                $valorInterpolado = $vAntes + ($vDepois - $vAntes) * $fator;
-                if ($valorInterpolado >= 0) {
-                    $resultado[$h] = round($valorInterpolado, 2);
-                }
-            }
-            continue;
-        }
-
-        // CASO B: Tem dados apenas ANTES → Extrapolação (repete com decaimento suave)
-        // Útil para horas futuras sem dados ainda (ex: 09h-23h quando só tem até 08h)
-        if ($hAntes !== null && $hDepois === null) {
-            $distancia = $h - $hAntes;
-            if ($distancia <= $MAX_GAP_EXTRAPOLAR) {
-                // Decaimento suave: reduz 2% por hora de distância
-                $fatorDecaimento = 1 - ($distancia * 0.02);
-                $valorExtrapolado = $vAntes * $fatorDecaimento;
-                if ($valorExtrapolado >= 0) {
-                    $resultado[$h] = round($valorExtrapolado, 2);
-                }
-            }
-            continue;
-        }
-
-        // CASO C: Tem dados apenas DEPOIS → Extrapolação reversa
-        // Útil para primeiras horas sem dados (ex: 00h-02h quando dados começam às 03h)
-        if ($hAntes === null && $hDepois !== null) {
-            $distancia = $hDepois - $h;
-            if ($distancia <= $MAX_GAP_EXTRAPOLAR) {
-                // Decaimento suave reverso
-                $fatorDecaimento = 1 - ($distancia * 0.02);
-                $valorExtrapolado = $vDepois * $fatorDecaimento;
-                if ($valorExtrapolado >= 0) {
-                    $resultado[$h] = round($valorExtrapolado, 2);
-                }
-            }
+        if ($hAntes !== null && $hDepois !== null && ($hDepois - $hAntes) <= $MAX_GAP) {
+            $fator = ($h - $hAntes) / ($hDepois - $hAntes);
+            $v = $vAntes + ($vDepois - $vAntes) * $fator;
+            if ($v >= 0)
+                $resultado[$h] = round($v, 2);
+        } elseif ($hAntes !== null && ($h - $hAntes) <= $MAX_GAP) {
+            $resultado[$h] = round($vAntes * (1 - ($h - $hAntes) * 0.02), 2);
+        } elseif ($hDepois !== null && ($hDepois - $h) <= $MAX_GAP) {
+            $resultado[$h] = round($vDepois * (1 - ($hDepois - $h) * 0.02), 2);
         }
     }
-
     return $resultado;
 }
 
@@ -593,13 +765,17 @@ function calcularInterpolacaoLinear($dados) {
  * @param string $coluna           Coluna de valor do ponto atual
  * @return array Array[0..23] com estimativa ou null
  */
-function calcularTendenciaRede($pdo, $cdPontoAtual, $data, $pontosRede, $dadosTodosPontos, $coluna) {
+function calcularTendenciaRede($pdo, $cdPontoAtual, $data, $pontosRede, $dadosTodosPontos, $coluna)
+{
     $resultado = array_fill(0, 24, null);
-    
+
     // Mapeamento de colunas por tipo de medidor
     $colunasPorTipo = [
-        1 => 'VL_VAZAO_EFETIVA', 2 => 'VL_VAZAO_EFETIVA',
-        4 => 'VL_PRESSAO', 6 => 'VL_RESERVATORIO', 8 => 'VL_VAZAO_EFETIVA'
+        1 => 'VL_VAZAO_EFETIVA',
+        2 => 'VL_VAZAO_EFETIVA',
+        4 => 'VL_PRESSAO',
+        6 => 'VL_RESERVATORIO',
+        8 => 'VL_VAZAO_EFETIVA'
     ];
 
     // Datas históricas: últimas 4 semanas, mesmo dia da semana
@@ -607,17 +783,17 @@ function calcularTendenciaRede($pdo, $cdPontoAtual, $data, $pontosRede, $dadosTo
     for ($s = 1; $s <= 4; $s++) {
         $datasHistoricas[] = date('Y-m-d', strtotime($data . " -{$s} weeks"));
     }
-    
+
     // -------------------------------------------------------
     // PASSO 1: Calcular média histórica por hora de CADA ponto da rede
     // -------------------------------------------------------
     // mediaHistorica[cdPonto][hora] = média das 4 semanas
     $mediaHistorica = [];
-    
+
     foreach ($pontosRede as $cdP => $info) {
         $colP = $colunasPorTipo[$info['tipo_medidor']] ?? 'VL_VAZAO_EFETIVA';
         $historicoPorHora = array_fill(0, 24, []); // [hora] => [valores das semanas]
-        
+
         foreach ($datasHistoricas as $dataHist) {
             $dadosHist = obterDadosHorariosPonto($pdo, $cdP, $dataHist, $colP, $info['tipo_medidor']);
             for ($h = 0; $h < 24; $h++) {
@@ -626,7 +802,7 @@ function calcularTendenciaRede($pdo, $cdPontoAtual, $data, $pontosRede, $dadosTo
                 }
             }
         }
-        
+
         // Média histórica por hora
         $mediaHistorica[$cdP] = array_fill(0, 24, null);
         for ($h = 0; $h < 24; $h++) {
@@ -635,7 +811,7 @@ function calcularTendenciaRede($pdo, $cdPontoAtual, $data, $pontosRede, $dadosTo
             }
         }
     }
-    
+
     // Verificar se o ponto atual tem histórico suficiente
     $pontoAtualTemHistorico = false;
     for ($h = 0; $h < 24; $h++) {
@@ -647,7 +823,7 @@ function calcularTendenciaRede($pdo, $cdPontoAtual, $data, $pontosRede, $dadosTo
     if (!$pontoAtualTemHistorico) {
         return $resultado;
     }
-    
+
     // -------------------------------------------------------
     // PASSO 2: Para cada hora, calcular fator de variação dos OUTROS pontos
     // -------------------------------------------------------
@@ -657,38 +833,38 @@ function calcularTendenciaRede($pdo, $cdPontoAtual, $data, $pontosRede, $dadosTo
         if ($mediaAtualHist === null || $mediaAtualHist <= 0) {
             continue;
         }
-        
+
         // Calcular fator de variação de cada outro ponto:
         // fator = valor_hoje / media_historica
         $fatoresVariacao = [];
-        
+
         foreach ($pontosRede as $cdP => $info) {
             if ($cdP === $cdPontoAtual) {
                 continue;
             }
-            
+
             $valorHoje = $dadosTodosPontos[$cdP][$h] ?? null;
             $mediaHist = $mediaHistorica[$cdP][$h] ?? null;
-            
+
             // Precisa ter valor hoje E histórico para calcular fator
             if ($valorHoje === null || $valorHoje <= 0 || $mediaHist === null || $mediaHist <= 0) {
                 continue;
             }
-            
+
             $fator = $valorHoje / $mediaHist;
-            
+
             // Limitar fator entre 0.3 e 3.0 (variação máxima de -70% a +200%)
             // Evita distorção por pontos com problemas
             if ($fator >= 0.3 && $fator <= 3.0) {
                 $fatoresVariacao[] = $fator;
             }
         }
-        
+
         // Precisa de pelo menos 1 outro ponto com fator calculável
         if (empty($fatoresVariacao)) {
             continue;
         }
-        
+
         // Fator médio da rede (mediana para robustez contra outliers)
         sort($fatoresVariacao);
         $n = count($fatoresVariacao);
@@ -697,17 +873,17 @@ function calcularTendenciaRede($pdo, $cdPontoAtual, $data, $pontosRede, $dadosTo
         } else {
             $fatorMedio = $fatoresVariacao[floor($n / 2)];
         }
-        
+
         // -------------------------------------------------------
         // PASSO 3: Aplicar fator no histórico do ponto atual
         // -------------------------------------------------------
         $valorEstimado = $mediaAtualHist * $fatorMedio;
-        
+
         if ($valorEstimado > 0) {
             $resultado[$h] = round($valorEstimado, 2);
         }
     }
-    
+
     return $resultado;
 }
 
@@ -741,11 +917,12 @@ function calcularTendenciaRede($pdo, $cdPontoAtual, $data, $pontosRede, $dadosTo
  * @param int    $tipoMedidor  Tipo do medidor (1,2,4,6,8)
  * @return array Array[0..23] com valor projetado ou null
  */
-function calcularMinimosQuadrados($pdo, $cdPonto, $data, $coluna, $tipoMedidor) {
+function calcularMinimosQuadrados($pdo, $cdPonto, $data, $coluna, $tipoMedidor)
+{
     $resultado = array_fill(0, 24, null);
     $NUM_SEMANAS = 8; // Buscar até 8 semanas anteriores
     $MIN_SEMANAS = 3; // Mínimo de semanas com dados para regressão
-    
+
     // Montar lista de datas históricas (mesmo dia da semana)
     // Ordenadas da mais antiga (x=0) para mais recente (x=N-1)
     $datasHistoricas = [];
@@ -754,34 +931,34 @@ function calcularMinimosQuadrados($pdo, $cdPonto, $data, $coluna, $tipoMedidor) 
     }
     // x para "hoje" será count($datasHistoricas) = $NUM_SEMANAS
     $xHoje = count($datasHistoricas);
-    
+
     // Coletar dados históricos por hora
     // dadosPorHora[hora] = [ [x, valor], [x, valor], ... ]
     $dadosPorHora = [];
     for ($h = 0; $h < 24; $h++) {
         $dadosPorHora[$h] = [];
     }
-    
+
     foreach ($datasHistoricas as $x => $dataHist) {
         $dadosHist = obterDadosHorariosPonto($pdo, $cdPonto, $dataHist, $coluna, $tipoMedidor);
-        
+
         for ($h = 0; $h < 24; $h++) {
             if ($dadosHist[$h] !== null && $dadosHist[$h] > 0) {
                 $dadosPorHora[$h][] = ['x' => $x, 'y' => $dadosHist[$h]];
             }
         }
     }
-    
+
     // Para cada hora, aplicar regressão linear
     for ($h = 0; $h < 24; $h++) {
         $pontos = $dadosPorHora[$h];
         $n = count($pontos);
-        
+
         // Precisa de pelo menos MIN_SEMANAS pontos
         if ($n < $MIN_SEMANAS) {
             continue;
         }
-        
+
         // Calcular médias
         $somaX = 0;
         $somaY = 0;
@@ -791,7 +968,7 @@ function calcularMinimosQuadrados($pdo, $cdPonto, $data, $coluna, $tipoMedidor) 
         }
         $mediaX = $somaX / $n;
         $mediaY = $somaY / $n;
-        
+
         // Calcular coeficientes da regressão (mínimos quadrados)
         // b = Σ((xi - x̄)(yi - ȳ)) / Σ((xi - x̄)²)
         $numerador = 0;
@@ -802,39 +979,40 @@ function calcularMinimosQuadrados($pdo, $cdPonto, $data, $coluna, $tipoMedidor) 
             $numerador += $dx * $dy;
             $denominador += $dx * $dx;
         }
-        
+
         // Se denominador é zero, todos os x são iguais (impossível para regressão)
         if (abs($denominador) < 0.0001) {
             // Sem tendência detectável, usar média
             $resultado[$h] = round($mediaY, 2);
             continue;
         }
-        
+
         $b = $numerador / $denominador; // Inclinação (tendência por semana)
         $a = $mediaY - $b * $mediaX;    // Intercepto
-        
+
         // Projetar valor para hoje (x = xHoje)
         $valorProjetado = $a + $b * $xHoje;
-        
+
         // Validações de sanidade:
         // 1. Valor projetado deve ser positivo
         if ($valorProjetado <= 0) {
             // Tendência descendo muito, usar mínimo histórico
             $minHist = min(array_column($pontos, 'y'));
             $valorProjetado = $minHist * 0.8; // 80% do mínimo como piso
-            if ($valorProjetado <= 0) continue;
+            if ($valorProjetado <= 0)
+                continue;
         }
-        
+
         // 2. Não pode desviar mais que 50% da média (limitar projeções extremas)
         $desvioPerc = abs($valorProjetado - $mediaY) / $mediaY;
         if ($desvioPerc > 0.5) {
             // Limitar: no máximo 50% acima ou abaixo da média
             $valorProjetado = $mediaY * (1 + 0.5 * ($valorProjetado > $mediaY ? 1 : -1));
         }
-        
+
         $resultado[$h] = round($valorProjetado, 2);
     }
-    
+
     return $resultado;
 }
 
@@ -858,12 +1036,13 @@ function calcularMinimosQuadrados($pdo, $cdPonto, $data, $coluna, $tipoMedidor) 
  * @param string $coluna           Coluna de valor do ponto atual
  * @return array Array[0..23] com estimativa ou null
  */
-function calcularProporcaoHistorica($pdo, $cdPontoAtual, $data, $pontosRede, $dadosTodosPontos, $coluna) {
+function calcularProporcaoHistorica($pdo, $cdPontoAtual, $data, $pontosRede, $dadosTodosPontos, $coluna)
+{
     $resultado = array_fill(0, 24, null);
-    
+
     // Determinar dia da semana para buscar mesmo dia nas semanas anteriores
     $diaSemana = date('w', strtotime($data)); // 0=dom, 6=sáb
-    
+
     // Buscar proporção histórica do ponto nas últimas 8 semanas (mesmo dia da semana)
     // Selecionamos 8 para ter pelo menos 4 válidas
     $datasHistoricas = [];
@@ -871,7 +1050,7 @@ function calcularProporcaoHistorica($pdo, $cdPontoAtual, $data, $pontosRede, $da
         $dataHist = date('Y-m-d', strtotime($data . " -{$s} weeks"));
         $datasHistoricas[] = $dataHist;
     }
-    
+
     // Coletar códigos dos outros pontos da rede (mesmo tipo = vazão)
     $outrosPontosCodigos = [];
     foreach ($pontosRede as $cdP => $info) {
@@ -879,7 +1058,7 @@ function calcularProporcaoHistorica($pdo, $cdPontoAtual, $data, $pontosRede, $da
             $outrosPontosCodigos[] = $cdP;
         }
     }
-    
+
     if (empty($outrosPontosCodigos)) {
         return $resultado;
     }
@@ -889,16 +1068,16 @@ function calcularProporcaoHistorica($pdo, $cdPontoAtual, $data, $pontosRede, $da
     for ($h = 0; $h < 24; $h++) {
         $proporcoesPorHora[$h] = [];
     }
-    
+
     // Para cada semana histórica, calcular a proporção do ponto
     foreach ($datasHistoricas as $dataHist) {
         // Valor do ponto atual em cada hora
         $dadosPontoHist = obterDadosHorariosPonto($pdo, $cdPontoAtual, $dataHist, $coluna, $pontosRede[$cdPontoAtual]['tipo_medidor']);
-        
+
         // Valor total da rede (soma ponderada pela operação) em cada hora
         $totalRedePorHora = array_fill(0, 24, 0);
         $horasComDadosRede = array_fill(0, 24, 0);
-        
+
         foreach ($pontosRede as $cdP => $info) {
             $colunaP = [
                 1 => 'VL_VAZAO_EFETIVA',
@@ -907,9 +1086,9 @@ function calcularProporcaoHistorica($pdo, $cdPontoAtual, $data, $pontosRede, $da
                 6 => 'VL_RESERVATORIO',
                 8 => 'VL_VAZAO_EFETIVA'
             ][$info['tipo_medidor']] ?? 'VL_VAZAO_EFETIVA';
-            
+
             $dadosPHist = obterDadosHorariosPonto($pdo, $cdP, $dataHist, $colunaP, $info['tipo_medidor']);
-            
+
             for ($h = 0; $h < 24; $h++) {
                 if ($dadosPHist[$h] !== null) {
                     $totalRedePorHora[$h] += abs($dadosPHist[$h]);
@@ -917,7 +1096,7 @@ function calcularProporcaoHistorica($pdo, $cdPontoAtual, $data, $pontosRede, $da
                 }
             }
         }
-        
+
         // Calcular proporção para cada hora
         for ($h = 0; $h < 24; $h++) {
             if ($dadosPontoHist[$h] !== null && $totalRedePorHora[$h] > 0) {
@@ -929,21 +1108,21 @@ function calcularProporcaoHistorica($pdo, $cdPontoAtual, $data, $pontosRede, $da
             }
         }
     }
-    
+
     // Calcular total da rede HOJE (sem o ponto atual) para cada hora
     for ($h = 0; $h < 24; $h++) {
         // Precisa de pelo menos 2 semanas históricas para proporção confiável
         if (count($proporcoesPorHora[$h]) < 2) {
             continue;
         }
-        
+
         // Proporção média
         $propMedia = array_sum($proporcoesPorHora[$h]) / count($proporcoesPorHora[$h]);
-        
+
         // Total da rede hoje (exceto o ponto atual)
         $totalRedeHoje = 0;
         $pontosComDadosHoje = 0;
-        
+
         foreach ($pontosRede as $cdP => $info) {
             if ($cdP === $cdPontoAtual) {
                 continue;
@@ -954,12 +1133,12 @@ function calcularProporcaoHistorica($pdo, $cdPontoAtual, $data, $pontosRede, $da
                 $pontosComDadosHoje++;
             }
         }
-        
+
         // Só estimar se há dados dos outros pontos hoje
         if ($pontosComDadosHoje === 0 || $totalRedeHoje <= 0) {
             continue;
         }
-        
+
         // Fórmula: valor = total_outros / (1 - proporção) × proporção
         // Equivalente a: se ponto = 35% da rede, e outros = 65%, então:
         //   total_rede = total_outros / 0.65
@@ -967,12 +1146,12 @@ function calcularProporcaoHistorica($pdo, $cdPontoAtual, $data, $pontosRede, $da
         if ($propMedia < 1) {
             $totalRedeEstimado = $totalRedeHoje / (1 - $propMedia);
             $valorEstimado = $totalRedeEstimado * $propMedia;
-            
+
             if ($valorEstimado > 0) {
                 $resultado[$h] = round($valorEstimado, 2);
             }
         }
     }
-    
+
     return $resultado;
 }
