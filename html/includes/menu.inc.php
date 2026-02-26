@@ -229,6 +229,15 @@ if (isset($_SESSION['msg'])) {
         line-height: 1;
     }
 
+    .modern-header-title .system-version {
+        font-size: 9px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.3);
+        letter-spacing: 0.03em;
+        line-height: 1;
+        cursor: default;
+    }
+
     .ambiente-badge {
         font-size: 8px;
         font-weight: 700;
@@ -756,6 +765,10 @@ if (isset($_SESSION['msg'])) {
         .modern-header-title .system-fullname {
             display: none;
         }
+
+        .modern-header-title .system-version {
+            display: none;
+        }
     }
 
     @media (max-width: 768px) {
@@ -1224,6 +1237,7 @@ if (isset($_SESSION['msg'])) {
                     <?php endif; ?>
                 </span>
                 <span class="system-fullname">Sistema Integrado de Macromedição e Pitometria</span>
+                <span class="system-version" title="<?= $simpVersion['hash'] ? 'Build ' . $simpVersion['hash'] . ' - ' . $simpVersion['date'] : '' ?>"><?= $simpVersion['display'] ?></span>
             </div>
         </a>
 

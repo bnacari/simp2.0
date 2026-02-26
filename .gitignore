@@ -25,6 +25,7 @@ logs/
 *.swo
 *~
 .cache/
+html/.version_cache
 
 # ----- IDEs e editores -----
 .vscode/

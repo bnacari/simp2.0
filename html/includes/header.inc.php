@@ -7,6 +7,9 @@
 // Inclui funções de autenticação
 require_once __DIR__ . '/auth.php';
 
+// Inclui versão automática do sistema
+require_once __DIR__ . '/version.inc.php';
+
 // Verifica se o usuário está logado (redireciona se não estiver)
 verificaLogin();
 ?>
