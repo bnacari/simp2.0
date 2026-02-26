@@ -3077,6 +3077,103 @@ body>.select2-container--open .select2-dropdown {
     background: #fef2f2;
 }
 
+.train-progress-panel.queued {
+    border-color: #f59e0b;
+    background: #fffbeb;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+.train-queue-info {
+    margin-bottom: 12px;
+}
+
+.train-queue-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    color: #92400e;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.train-queue-badge ion-icon {
+    font-size: 18px;
+    color: #d97706;
+}
+
+/* Progresso do treino atual dentro do painel de fila */
+.train-queue-current {
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.train-queue-current-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 8px;
+}
+
+.train-queue-current-header ion-icon {
+    font-size: 14px;
+    color: #3b82f6;
+}
+
+.train-queue-current-bar {
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.train-queue-current-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #2563eb);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.train-queue-current-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+.train-queue-current-stats span {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.train-queue-current-stats ion-icon {
+    font-size: 12px;
+}
+
+.train-queue-current-tempo {
+    margin-left: auto;
+}
+
+.train-queue-current-msg {
+    font-size: 11px;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .train-progress-header {
     display: flex;
     align-items: center;

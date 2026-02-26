@@ -25,6 +25,9 @@ Endpoints:
 import os
 import json
 import logging
+import threading
+import uuid
+import subprocess
 from datetime import datetime
 
 from flask import Flask, request, jsonify
@@ -64,6 +67,407 @@ db = DatabaseManager()
 predictor = TimeSeriesPredictor(MODELS_DIR)
 anomaly_detector = AnomalyDetector(MODELS_DIR) if AnomalyDetector else None
 correlator = PointCorrelator()
+
+# ============================================
+# Sistema de Fila de Treinamento
+# ============================================
+
+QUEUE_FILE = os.path.join(MODELS_DIR, '_train_queue.json')
+PROGRESS_FILE = os.path.join(MODELS_DIR, '_train_all_progress.json')
+QUEUE_LOCK = threading.Lock()
+
+
+def _ler_fila():
+    """Lê a fila de treinamento do arquivo JSON."""
+    if not os.path.exists(QUEUE_FILE):
+        return []
+    try:
+        with open(QUEUE_FILE, 'r') as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def _salvar_fila(fila):
+    """Salva a fila de treinamento no arquivo JSON."""
+    with open(QUEUE_FILE, 'w') as f:
+        json.dump(fila, f, ensure_ascii=False)
+
+
+def _treino_em_execucao():
+    """Verifica se há um treinamento em execução."""
+    if not os.path.exists(PROGRESS_FILE):
+        return False
+    try:
+        with open(PROGRESS_FILE, 'r') as f:
+            prog = json.load(f)
+        return prog.get('status') == 'running'
+    except Exception:
+        return False
+
+
+def _verificar_e_enfileirar(tipo, params, usuario=None):
+    """
+    Thread-safe: verifica se há treino em execução.
+    Se sim, adiciona na fila e retorna (job_id, posicao).
+    Se não, retorna (None, None) → o chamador deve iniciar o treino.
+    """
+    with QUEUE_LOCK:
+        if _treino_em_execucao():
+            job_id = str(uuid.uuid4())[:8]
+            item = {
+                'job_id': job_id,
+                'tipo': tipo,
+                'params': params,
+                'usuario': usuario,
+                'criado_em': datetime.now().isoformat()
+            }
+            fila = _ler_fila()
+            fila.append(item)
+            _salvar_fila(fila)
+            posicao = len(fila)
+            logger.info(f"[Fila] Adicionado job {job_id} ({tipo}) na posição {posicao}")
+            return job_id, posicao
+        else:
+            return None, None
+
+
+def _processar_proxima_fila():
+    """
+    Verifica se há itens na fila e inicia o próximo treinamento.
+    Chamado após cada treinamento finalizar.
+    Escreve status 'running' dentro do lock para evitar race condition.
+    """
+    proximo = None
+    with QUEUE_LOCK:
+        if _treino_em_execucao():
+            return
+
+        fila = _ler_fila()
+        if not fila:
+            return
+
+        proximo = fila.pop(0)
+        _salvar_fila(fila)
+
+        # Marcar como 'running' DENTRO do lock para evitar que outro request
+        # inicie um treino paralelo no intervalo entre pop e start
+        reserva = {
+            'job_id': proximo['job_id'],
+            'status': 'running',
+            'tipo': proximo['tipo'],
+            'message': 'Iniciando treino da fila...',
+            'inicio': datetime.now().isoformat(),
+            'fim': None,
+            'sucesso': 0,
+            'falha': 0,
+            'total': 0,
+            'ponto_atual': None,
+            'resumo': '',
+            'fila': fila
+        }
+        with open(PROGRESS_FILE, 'w') as f:
+            json.dump(reserva, f, ensure_ascii=False)
+
+    logger.info(f"[Fila] Processando próximo: job {proximo['job_id']} ({proximo['tipo']})")
+
+    if proximo['tipo'] == 'train_all':
+        _iniciar_treino_todos_background(
+            semanas=proximo['params'].get('semanas', 24),
+            job_id=proximo['job_id'],
+            modo=proximo['params'].get('modo', 'fixo')
+        )
+    elif proximo['tipo'] == 'train_single':
+        _iniciar_treino_single_background(
+            cd_ponto=proximo['params']['cd_ponto'],
+            tag_principal=proximo['params']['tag_principal'],
+            semanas=proximo['params'].get('semanas', 24),
+            job_id=proximo['job_id']
+        )
+
+
+def _iniciar_treino_todos_background(semanas, job_id, modo='fixo'):
+    """Inicia o treino de todos os pontos em thread separada."""
+    script_path = os.environ.get('TREINAR_SCRIPT', '/app/treinar_modelos.py')
+    progress_file = PROGRESS_FILE
+
+    # Gravar status inicial
+    progress_data = {
+        'job_id': job_id,
+        'status': 'running',
+        'tipo': 'train_all',
+        'message': 'Iniciando treino de todos os pontos...',
+        'semanas': semanas,
+        'inicio': datetime.now().isoformat(),
+        'fim': None,
+        'sucesso': 0,
+        'falha': 0,
+        'total': 0,
+        'ponto_atual': None,
+        'resumo': '',
+        'fila': _ler_fila()
+    }
+    with open(progress_file, 'w') as f:
+        json.dump(progress_data, f, ensure_ascii=False)
+
+    def _executar():
+        try:
+            cmd = [
+                'python3', script_path,
+                '--semanas', str(semanas),
+                '--output', MODELS_DIR,
+                '--modo', modo
+            ]
+            logger.info(f"[Job {job_id}] Train-all iniciado: {' '.join(cmd)}")
+
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1
+            )
+
+            sucesso = 0
+            falha = 0
+            total = 0
+            ponto_atual = None
+
+            for linha in iter(process.stdout.readline, ''):
+                linha = linha.strip()
+                if not linha:
+                    continue
+
+                if 'Treinando ponto' in linha or 'Processando' in linha:
+                    ponto_atual = linha
+                if 'SUCESSO' in linha.upper() or 'salvo' in linha.lower():
+                    sucesso += 1
+                elif 'FALHA' in linha.upper() or 'ERRO' in linha.upper():
+                    falha += 1
+                if 'Total:' in linha:
+                    try:
+                        total = int(''.join(filter(str.isdigit, linha.split('Total:')[1].split()[0])))
+                    except Exception:
+                        pass
+
+                try:
+                    prog = {
+                        'job_id': job_id,
+                        'status': 'running',
+                        'tipo': 'train_all',
+                        'message': ponto_atual or linha,
+                        'semanas': semanas,
+                        'inicio': progress_data['inicio'],
+                        'fim': None,
+                        'sucesso': sucesso,
+                        'falha': falha,
+                        'total': total if total > 0 else sucesso + falha,
+                        'ponto_atual': ponto_atual,
+                        'resumo': '',
+                        'fila': _ler_fila()
+                    }
+                    with open(progress_file, 'w') as f:
+                        json.dump(prog, f, ensure_ascii=False)
+                except Exception:
+                    pass
+
+            process.wait()
+            retcode = process.returncode
+            resumo = f'Sucesso: {sucesso} | Falha: {falha} | Total: {sucesso + falha}'
+
+            try:
+                predictor.models.clear()
+            except Exception:
+                pass
+
+            status_final = 'completed' if retcode == 0 else 'error'
+            prog_final = {
+                'job_id': job_id,
+                'status': status_final,
+                'tipo': 'train_all',
+                'message': f'Treino finalizado. {resumo}' if retcode == 0 else f'Treino encerrado com erros (código {retcode})',
+                'semanas': semanas,
+                'inicio': progress_data['inicio'],
+                'fim': datetime.now().isoformat(),
+                'sucesso': sucesso,
+                'falha': falha,
+                'total': sucesso + falha,
+                'ponto_atual': None,
+                'resumo': resumo,
+                'fila': _ler_fila()
+            }
+            with open(progress_file, 'w') as f:
+                json.dump(prog_final, f, ensure_ascii=False)
+
+            logger.info(f"[Job {job_id}] Train-all finalizado: {resumo}")
+
+        except Exception as e:
+            logger.error(f"[Job {job_id}] Erro no treino background: {e}", exc_info=True)
+            try:
+                prog_erro = {
+                    'job_id': job_id,
+                    'status': 'error',
+                    'tipo': 'train_all',
+                    'message': str(e),
+                    'semanas': semanas,
+                    'inicio': progress_data['inicio'],
+                    'fim': datetime.now().isoformat(),
+                    'sucesso': 0,
+                    'falha': 0,
+                    'total': 0,
+                    'ponto_atual': None,
+                    'resumo': f'Erro: {str(e)}',
+                    'fila': _ler_fila()
+                }
+                with open(progress_file, 'w') as f:
+                    json.dump(prog_erro, f, ensure_ascii=False)
+            except Exception:
+                pass
+        finally:
+            # Processar próximo da fila
+            _processar_proxima_fila()
+
+    thread = threading.Thread(target=_executar, daemon=True)
+    thread.start()
+
+
+def _iniciar_treino_single_background(cd_ponto, tag_principal, semanas, job_id):
+    """Inicia treino de ponto único em thread separada (quando enfileirado)."""
+    script_path = os.environ.get('TREINAR_SCRIPT', '/app/treinar_modelos.py')
+    progress_file = PROGRESS_FILE
+
+    # Gravar status inicial
+    progress_data = {
+        'job_id': job_id,
+        'status': 'running',
+        'tipo': 'train_single',
+        'message': f'Treinando ponto {cd_ponto} ({tag_principal})...',
+        'semanas': semanas,
+        'inicio': datetime.now().isoformat(),
+        'fim': None,
+        'sucesso': 0,
+        'falha': 0,
+        'total': 1,
+        'ponto_atual': f'Ponto {cd_ponto} ({tag_principal})',
+        'resumo': '',
+        'fila': _ler_fila()
+    }
+    with open(progress_file, 'w') as f:
+        json.dump(progress_data, f, ensure_ascii=False)
+
+    def _executar():
+        try:
+            cmd = [
+                'python3', script_path,
+                '--tag', tag_principal,
+                '--semanas', str(semanas),
+                '--output', MODELS_DIR
+            ]
+            logger.info(f"[Job {job_id}] Train-single iniciado: {' '.join(cmd)}")
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=600
+            )
+
+            if result.returncode == 0 and 'Sucesso: 0' not in result.stdout:
+                # Sucesso
+                try:
+                    if cd_ponto in predictor.models:
+                        del predictor.models[cd_ponto]
+                    predictor._load_model(cd_ponto)
+                except Exception:
+                    pass
+
+                metricas = predictor._load_metrics(cd_ponto)
+                r2 = metricas.get('r2', 0) if metricas else 0
+
+                prog_final = {
+                    'job_id': job_id,
+                    'status': 'completed',
+                    'tipo': 'train_single',
+                    'message': f'Modelo treinado com sucesso para ponto {cd_ponto} (R²={r2:.4f})',
+                    'semanas': semanas,
+                    'inicio': progress_data['inicio'],
+                    'fim': datetime.now().isoformat(),
+                    'sucesso': 1,
+                    'falha': 0,
+                    'total': 1,
+                    'ponto_atual': None,
+                    'resumo': f'Ponto {cd_ponto}: R²={r2:.4f}',
+                    'fila': _ler_fila()
+                }
+            else:
+                detalhe = result.stderr[-300:] if result.stderr else result.stdout[-300:]
+                prog_final = {
+                    'job_id': job_id,
+                    'status': 'error',
+                    'tipo': 'train_single',
+                    'message': f'Erro no treino do ponto {cd_ponto}',
+                    'semanas': semanas,
+                    'inicio': progress_data['inicio'],
+                    'fim': datetime.now().isoformat(),
+                    'sucesso': 0,
+                    'falha': 1,
+                    'total': 1,
+                    'ponto_atual': None,
+                    'resumo': detalhe,
+                    'fila': _ler_fila()
+                }
+
+            with open(progress_file, 'w') as f:
+                json.dump(prog_final, f, ensure_ascii=False)
+
+            logger.info(f"[Job {job_id}] Train-single finalizado: {prog_final['resumo']}")
+
+        except subprocess.TimeoutExpired:
+            prog_erro = {
+                'job_id': job_id,
+                'status': 'error',
+                'tipo': 'train_single',
+                'message': f'Timeout: treino do ponto {cd_ponto} excedeu 10 minutos',
+                'semanas': semanas,
+                'inicio': progress_data['inicio'],
+                'fim': datetime.now().isoformat(),
+                'sucesso': 0,
+                'falha': 1,
+                'total': 1,
+                'ponto_atual': None,
+                'resumo': 'Timeout',
+                'fila': _ler_fila()
+            }
+            with open(progress_file, 'w') as f:
+                json.dump(prog_erro, f, ensure_ascii=False)
+        except Exception as e:
+            logger.error(f"[Job {job_id}] Erro no treino single: {e}", exc_info=True)
+            try:
+                prog_erro = {
+                    'job_id': job_id,
+                    'status': 'error',
+                    'tipo': 'train_single',
+                    'message': str(e),
+                    'semanas': semanas,
+                    'inicio': progress_data['inicio'],
+                    'fim': datetime.now().isoformat(),
+                    'sucesso': 0,
+                    'falha': 1,
+                    'total': 1,
+                    'ponto_atual': None,
+                    'resumo': f'Erro: {str(e)}',
+                    'fila': _ler_fila()
+                }
+                with open(progress_file, 'w') as f:
+                    json.dump(prog_erro, f, ensure_ascii=False)
+            except Exception:
+                pass
+        finally:
+            # Processar próximo da fila
+            _processar_proxima_fila()
+
+    thread = threading.Thread(target=_executar, daemon=True)
+    thread.start()
 
 
 # ============================================
@@ -296,22 +700,21 @@ def correlate_points():
 def train():
     """
     Treinar modelo XGBoost via treinar_modelos.py (subprocess).
-    
-    Usa o script completo que conecta ao FINDESLAB, busca tags auxiliares
-    e treina com correlação de rede. Sem fallback simplificado.
+
+    Se já houver treino em execução, adiciona na fila e retorna posição.
+    Caso contrário, inicia o treino em background e retorna imediatamente.
     """
-    import subprocess
-    
     try:
         dados = request.get_json()
         cd_ponto = dados.get('cd_ponto')
         semanas = dados.get('semanas', 24)
         tipo_medidor = dados.get('tipo_medidor', 1)
         force = dados.get('force', False)
-        
+        usuario = dados.get('usuario', None)
+
         if not cd_ponto:
             return jsonify({'success': False, 'error': 'cd_ponto é obrigatório'}), 400
-        
+
         # Verificar se já existe modelo (e não é force)
         if not force and predictor.has_model(cd_ponto):
             return jsonify({
@@ -319,90 +722,51 @@ def train():
                 'message': 'Modelo já existe. Use force=true para retreinar.',
                 'model_info': predictor.get_model_info(cd_ponto)
             })
-        
-        # =============================================
+
         # Buscar TAG principal do ponto no banco
-        # =============================================
         tag_principal = _buscar_tag_ponto(cd_ponto, tipo_medidor)
-        
+
         if not tag_principal:
             return jsonify({
                 'success': False,
                 'error': f'Ponto {cd_ponto} não possui TAG configurada para o tipo de medidor {tipo_medidor}'
             }), 200
-        
-        # =============================================
-        # Executar treinar_modelos.py via subprocess
-        # =============================================
+
         script_path = os.environ.get('TREINAR_SCRIPT', '/app/treinar_modelos.py')
-        
         if not os.path.exists(script_path):
             return jsonify({
                 'success': False,
-                'error': f'Script de treino não encontrado: {script_path}. Verifique o volume no docker-compose.'
+                'error': f'Script de treino não encontrado: {script_path}.'
             }), 500
-        
-        cmd = [
-            'python3', script_path,
-            '--tag', tag_principal,
-            '--semanas', str(semanas),
-            '--output', MODELS_DIR
-        ]
-        
-        logger.info(f"Executando: {' '.join(cmd)}")
-        
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=600  # 10 minutos
-        )
-        
-        # Log do output
-        if result.stdout:
-            logger.info(f"STDOUT:\n{result.stdout[-1000:]}")
-        if result.stderr:
-            logger.error(f"STDERR:\n{result.stderr[-500:]}")
-        
-        # Verificar resultado
-        if result.returncode != 0:
+
+        # Thread-safe: verificar se há treino em execução → enfileirar ou iniciar
+        queued_job_id, posicao = _verificar_e_enfileirar('train_single', {
+            'cd_ponto': cd_ponto,
+            'tag_principal': tag_principal,
+            'semanas': semanas,
+            'tipo_medidor': tipo_medidor
+        }, usuario)
+
+        if queued_job_id:
             return jsonify({
-                'success': False,
-                'error': f'Erro no treino (código {result.returncode})',
-                'detalhes': result.stderr[-300:] if result.stderr else result.stdout[-300:]
-            }), 200
-        
-        # Verificar se teve sucesso no output
-        if 'Sucesso: 0' in result.stdout:
-            return jsonify({
-                'success': False,
-                'error': 'Treino executou mas nenhum modelo foi gerado com sucesso',
-                'detalhes': result.stdout[-500:]
-            }), 200
-        
-        # =============================================
-        # Recarregar modelo treinado e retornar métricas
-        # =============================================
-        # Forçar recarga do modelo
-        if cd_ponto in predictor.models:
-            del predictor.models[cd_ponto]
-        
-        predictor._load_model(cd_ponto)
-        metricas = predictor._load_metrics(cd_ponto)
-        
+                'success': True,
+                'queued': True,
+                'job_id': queued_job_id,
+                'posicao_fila': posicao,
+                'message': f'Treino adicionado na fila (posição {posicao}). Iniciará automaticamente.'
+            })
+
+        # Nenhum treino em execução → iniciar agora em background
+        job_id = str(uuid.uuid4())[:8]
+        _iniciar_treino_single_background(cd_ponto, tag_principal, semanas, job_id)
+
         return jsonify({
             'success': True,
-            'message': f'Modelo treinado com sucesso para ponto {cd_ponto} ({tag_principal})',
-            'metricas': metricas,
-            'epocas': metricas.get('n_arvores', 0),
-            'dados_treino': metricas.get('amostras_treino', 0)
+            'queued': False,
+            'job_id': job_id,
+            'message': f'Treino iniciado para ponto {cd_ponto} ({tag_principal})'
         })
-        
-    except subprocess.TimeoutExpired:
-        return jsonify({
-            'success': False,
-            'error': 'Timeout: treino excedeu 10 minutos'
-        }), 200
+
     except Exception as e:
         logger.error(f"Erro no treinamento: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -580,21 +944,17 @@ def _treinar_via_script(tag_principal: str, semanas: int) -> dict:
 def train_all():
     """
     Treinar TODOS os pontos em background (assíncrono).
-    Dispara o subprocess e retorna imediatamente com job_id.
+    Se já houver treino em execução, adiciona na fila e retorna posição.
     O progresso é gravado em /app/models/_train_all_progress.json
     e pode ser consultado via GET /api/train-all/status.
     """
-    import subprocess
-    import threading
-    import uuid
-
     try:
         dados = request.get_json()
         semanas = dados.get('semanas', 24)
         modo = dados.get('modo', 'fixo')
+        usuario = dados.get('usuario', None)
 
         script_path = os.environ.get('TREINAR_SCRIPT', '/app/treinar_modelos.py')
-        progress_file = os.path.join(MODELS_DIR, '_train_all_progress.json')
 
         if not os.path.exists(script_path):
             return jsonify({
@@ -602,169 +962,28 @@ def train_all():
                 'error': f'Script não encontrado: {script_path}'
             }), 500
 
-        # Verificar se já há um treino em andamento
-        if os.path.exists(progress_file):
-            try:
-                with open(progress_file, 'r') as f:
-                    prog = json.load(f)
-                if prog.get('status') == 'running':
-                    return jsonify({
-                        'success': False,
-                        'error': 'Já existe um treino em andamento.',
-                        'progress': prog
-                    })
-            except Exception:
-                pass
-
-        job_id = str(uuid.uuid4())[:8]
-
-        # Gravar status inicial
-        progress_data = {
-            'job_id': job_id,
-            'status': 'running',
-            'message': 'Iniciando treino de todos os pontos...',
+        # Thread-safe: verificar se há treino em execução → enfileirar ou iniciar
+        queued_job_id, posicao = _verificar_e_enfileirar('train_all', {
             'semanas': semanas,
-            'inicio': datetime.now().isoformat(),
-            'fim': None,
-            'sucesso': 0,
-            'falha': 0,
-            'total': 0,
-            'ponto_atual': None,
-            'resumo': ''
-        }
-        with open(progress_file, 'w') as f:
-            json.dump(progress_data, f, ensure_ascii=False)
+            'modo': modo
+        }, usuario)
 
-        def _executar_treino_background(semanas, job_id, progress_file, modo='fixo'):
-            """Função que roda em thread separada para executar o treino."""
-            try:
-                cmd = [
-                    'python3', script_path,
-                    '--semanas', str(semanas),
-                    '--output', MODELS_DIR,
-                    '--modo', modo
-                ]
-                logger.info(f"[Job {job_id}] Train-all iniciado: {' '.join(cmd)}")
+        if queued_job_id:
+            return jsonify({
+                'success': True,
+                'queued': True,
+                'job_id': queued_job_id,
+                'posicao_fila': posicao,
+                'message': f'Treino adicionado na fila (posição {posicao}). Iniciará automaticamente.'
+            })
 
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1
-                )
-
-                sucesso = 0
-                falha = 0
-                total = 0
-                ponto_atual = None
-                ultima_linha = ''
-
-                # Ler output linha a linha e atualizar progresso
-                for linha in iter(process.stdout.readline, ''):
-                    linha = linha.strip()
-                    if not linha:
-                        continue
-                    ultima_linha = linha
-
-                    # Detectar ponto sendo treinado
-                    if 'Treinando ponto' in linha or 'Processando' in linha:
-                        ponto_atual = linha
-                    # Detectar sucesso/falha individual
-                    if 'SUCESSO' in linha.upper() or 'salvo' in linha.lower():
-                        sucesso += 1
-                    elif 'FALHA' in linha.upper() or 'ERRO' in linha.upper():
-                        falha += 1
-                    # Detectar total
-                    if 'Total:' in linha:
-                        try:
-                            total = int(''.join(filter(str.isdigit, linha.split('Total:')[1].split()[0])))
-                        except Exception:
-                            pass
-
-                    # Atualizar arquivo de progresso
-                    try:
-                        prog = {
-                            'job_id': job_id,
-                            'status': 'running',
-                            'message': ponto_atual or linha,
-                            'semanas': semanas,
-                            'inicio': progress_data['inicio'],
-                            'fim': None,
-                            'sucesso': sucesso,
-                            'falha': falha,
-                            'total': total if total > 0 else sucesso + falha,
-                            'ponto_atual': ponto_atual,
-                            'resumo': ''
-                        }
-                        with open(progress_file, 'w') as f:
-                            json.dump(prog, f, ensure_ascii=False)
-                    except Exception:
-                        pass
-
-                process.wait()
-                retcode = process.returncode
-
-                # Extrair resumo
-                resumo = f'Sucesso: {sucesso} | Falha: {falha} | Total: {sucesso + falha}'
-
-                # Recarregar modelos
-                try:
-                    predictor.models.clear()
-                except Exception:
-                    pass
-
-                # Gravar status final
-                status_final = 'completed' if retcode == 0 else 'error'
-                prog_final = {
-                    'job_id': job_id,
-                    'status': status_final,
-                    'message': f'Treino finalizado. {resumo}' if retcode == 0 else f'Treino encerrado com erros (código {retcode})',
-                    'semanas': semanas,
-                    'inicio': progress_data['inicio'],
-                    'fim': datetime.now().isoformat(),
-                    'sucesso': sucesso,
-                    'falha': falha,
-                    'total': sucesso + falha,
-                    'ponto_atual': None,
-                    'resumo': resumo
-                }
-                with open(progress_file, 'w') as f:
-                    json.dump(prog_final, f, ensure_ascii=False)
-
-                logger.info(f"[Job {job_id}] Train-all finalizado: {resumo}")
-
-            except Exception as e:
-                logger.error(f"[Job {job_id}] Erro no treino background: {e}", exc_info=True)
-                try:
-                    prog_erro = {
-                        'job_id': job_id,
-                        'status': 'error',
-                        'message': str(e),
-                        'semanas': semanas,
-                        'inicio': progress_data['inicio'],
-                        'fim': datetime.now().isoformat(),
-                        'sucesso': 0,
-                        'falha': 0,
-                        'total': 0,
-                        'ponto_atual': None,
-                        'resumo': f'Erro: {str(e)}'
-                    }
-                    with open(progress_file, 'w') as f:
-                        json.dump(prog_erro, f, ensure_ascii=False)
-                except Exception:
-                    pass
-
-        # Disparar em thread separada (não bloqueia a resposta HTTP)
-        thread = threading.Thread(
-            target=_executar_treino_background,
-            args=(semanas, job_id, progress_file, modo),
-            daemon=True
-        )
-        thread.start()
+        # Nenhum treino em execução → iniciar agora
+        job_id = str(uuid.uuid4())[:8]
+        _iniciar_treino_todos_background(semanas, job_id, modo)
 
         return jsonify({
             'success': True,
+            'queued': False,
             'message': 'Treino iniciado em background.',
             'job_id': job_id
         })
@@ -777,21 +996,22 @@ def train_all():
 @app.route('/api/train-all/status', methods=['GET'])
 def train_all_status():
     """
-    Consultar progresso do treino em background.
-    Lê o arquivo _train_all_progress.json.
+    Consultar progresso do treino em background + informações da fila.
+    Lê o arquivo _train_all_progress.json e _train_queue.json.
     """
-    progress_file = os.path.join(MODELS_DIR, '_train_all_progress.json')
-
-    if not os.path.exists(progress_file):
+    if not os.path.exists(PROGRESS_FILE):
         return jsonify({
             'success': True,
             'status': 'idle',
-            'message': 'Nenhum treino em andamento ou realizado.'
+            'message': 'Nenhum treino em andamento ou realizado.',
+            'fila': _ler_fila()
         })
 
     try:
-        with open(progress_file, 'r') as f:
+        with open(PROGRESS_FILE, 'r') as f:
             progress = json.load(f)
+        # Sempre incluir estado atual da fila
+        progress['fila'] = _ler_fila()
         return jsonify({
             'success': True,
             **progress
@@ -801,6 +1021,33 @@ def train_all_status():
             'success': False,
             'error': f'Erro ao ler progresso: {str(e)}'
         })
+
+
+@app.route('/api/train-queue', methods=['GET'])
+def train_queue_status():
+    """
+    Consultar estado da fila de treinamento.
+    Retorna a fila atual e se há treino em execução.
+    """
+    fila = _ler_fila()
+    em_execucao = _treino_em_execucao()
+
+    # Ler info do treino atual
+    treino_atual = None
+    if em_execucao and os.path.exists(PROGRESS_FILE):
+        try:
+            with open(PROGRESS_FILE, 'r') as f:
+                treino_atual = json.load(f)
+        except Exception:
+            pass
+
+    return jsonify({
+        'success': True,
+        'em_execucao': em_execucao,
+        'treino_atual': treino_atual,
+        'fila': fila,
+        'total_na_fila': len(fila)
+    })
 
 # ============================================
 # Endpoints de Associações ([SIMP].[dbo].[AUX_RELACAO_PONTOS_MEDICAO])

@@ -181,19 +181,46 @@ try {
             </button>
         </div>
         <div class="train-progress-body">
-            <div class="train-progress-bar-wrapper">
-                <div class="train-progress-bar" id="trainProgressBar" style="width:0%"></div>
+            <!-- Fila: mostrado quando o treino está na fila -->
+            <div class="train-queue-info" id="trainQueueInfo" style="display:none;">
+                <div class="train-queue-badge">
+                    <ion-icon name="hourglass-outline"></ion-icon>
+                    <span id="trainQueueMsg">Aguardando na fila...</span>
+                </div>
+                <!-- Progresso do treino atual (de outro usuário) visível enquanto aguarda -->
+                <div class="train-queue-current" id="trainQueueCurrent" style="display:none;">
+                    <div class="train-queue-current-header">
+                        <ion-icon name="sync-outline" class="spin-icon"></ion-icon>
+                        <span id="trainQueueCurrentTitle">Treino em execução:</span>
+                    </div>
+                    <div class="train-queue-current-bar">
+                        <div class="train-queue-current-bar-fill" id="trainQueueCurrentBar" style="width:0%"></div>
+                    </div>
+                    <div class="train-queue-current-stats">
+                        <span><ion-icon name="checkmark-circle-outline"></ion-icon> <span id="trainQueueCurrentSucesso">0</span></span>
+                        <span><ion-icon name="close-circle-outline"></ion-icon> <span id="trainQueueCurrentFalha">0</span></span>
+                        <span><ion-icon name="layers-outline"></ion-icon> <span id="trainQueueCurrentTotal">0</span></span>
+                        <span class="train-queue-current-tempo" id="trainQueueCurrentTempo"></span>
+                    </div>
+                    <div class="train-queue-current-msg" id="trainQueueCurrentMsg"></div>
+                </div>
             </div>
-            <div class="train-progress-stats">
-                <span class="tps-item sucesso"><ion-icon name="checkmark-circle-outline"></ion-icon> <span
-                        id="trainSucesso">0</span> sucesso</span>
-                <span class="tps-item falha"><ion-icon name="close-circle-outline"></ion-icon> <span
-                        id="trainFalha">0</span> falha</span>
-                <span class="tps-item total"><ion-icon name="layers-outline"></ion-icon> <span id="trainTotal">0</span>
-                    total</span>
-                <span class="tps-item tempo" id="trainTempo"></span>
+            <!-- Progresso do MEU treino (escondido enquanto na fila) -->
+            <div id="trainOwnProgress">
+                <div class="train-progress-bar-wrapper">
+                    <div class="train-progress-bar" id="trainProgressBar" style="width:0%"></div>
+                </div>
+                <div class="train-progress-stats">
+                    <span class="tps-item sucesso"><ion-icon name="checkmark-circle-outline"></ion-icon> <span
+                            id="trainSucesso">0</span> sucesso</span>
+                    <span class="tps-item falha"><ion-icon name="close-circle-outline"></ion-icon> <span
+                            id="trainFalha">0</span> falha</span>
+                    <span class="tps-item total"><ion-icon name="layers-outline"></ion-icon> <span id="trainTotal">0</span>
+                        total</span>
+                    <span class="tps-item tempo" id="trainTempo"></span>
+                </div>
+                <div class="train-progress-msg" id="trainProgressMsg">Aguardando...</div>
             </div>
-            <div class="train-progress-msg" id="trainProgressMsg">Aguardando...</div>
         </div>
     </div>
 
@@ -1457,13 +1484,13 @@ try {
         const semanas = parseInt(document.getElementById('selectSemanas').value);
 
         if (modo === 'todos') {
-            if (!confirm('Isso irá treinar/retreinar TODOS os pontos com ' + semanas + ' semanas.\n\nO processo pode levar vários minutos. Deseja continuar?')) {
+            if (!confirm('Isso irá treinar/retreinar TODOS os pontos com ' + semanas + ' semanas.\n\nSe já houver um treino em execução, sua solicitação entrará na fila.\nO processo pode levar vários minutos. Deseja continuar?')) {
                 return;
             }
             fecharModalTreino();
             executarTreinoTodos(semanas, 'fixo');
         } else if (modo === 'otimizado') {
-            if (!confirm('Isso irá treinar/retreinar TODOS os pontos usando o período otimizado por melhor R² de cada um.\n\nO processo pode levar vários minutos. Deseja continuar?')) {
+            if (!confirm('Isso irá treinar/retreinar TODOS os pontos usando o período otimizado por melhor R² de cada um.\n\nSe já houver um treino em execução, sua solicitação entrará na fila.\nO processo pode levar vários minutos. Deseja continuar?')) {
                 return;
             }
             fecharModalTreino();
@@ -1488,9 +1515,12 @@ try {
     let _trainAllPolling = null;
     /** Timestamp de início para calcular tempo decorrido */
     let _trainAllInicio = null;
+    /** Job ID do treino do usuário atual (para rastrear na fila) */
+    let _meuJobId = null;
 
     /**
      * Dispara treino de todos os pontos em background.
+     * Se já houver treino em execução, o servidor enfileira e retorna a posição.
      * @param {number} semanas - Semanas de histórico (usado como fallback no modo otimizado)
      * @param {string} modo    - 'fixo' (período único) ou 'otimizado' (melhor R² por ponto)
      */
@@ -1499,7 +1529,7 @@ try {
         mostrarPainelProgresso('running', 'Iniciando treino de todos os pontos...', 0, 0, 0);
         _trainAllInicio = Date.now();
 
-        // Disparar treino (retorna imediato com job_id)
+        // Disparar treino (retorna imediato com job_id ou posição na fila)
         fetch('bd/operacoes/predicaoTensorFlow.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1512,6 +1542,15 @@ try {
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
+                    if (data.queued) {
+                        // Enfileirado — mostrar posição na fila
+                        _meuJobId = data.job_id;
+                        mostrarPainelFila(data.posicao_fila);
+                        showToast(`Treino adicionado na fila (posição ${data.posicao_fila})`, 'alerta');
+                    } else {
+                        // Iniciado imediatamente
+                        _meuJobId = data.job_id;
+                    }
                     // Iniciar polling de progresso a cada 5 segundos
                     iniciarPollingTreino();
                 } else {
@@ -1521,6 +1560,85 @@ try {
             .catch(err => {
                 mostrarPainelProgresso('error', 'Erro de conexão: ' + err.message, 0, 0, 0);
             });
+    }
+
+    /**
+     * Mostra o painel em modo "fila" — o treino está aguardando outro finalizar.
+     * Mostra também o progresso do treino atual (de outro usuário) para acompanhamento.
+     * @param {number} posicao       - Posição na fila (1, 2, 3...)
+     * @param {object} [progAtual]   - Dados do treino em execução (do polling)
+     */
+    function mostrarPainelFila(posicao, progAtual) {
+        const painel = document.getElementById('trainProgressPanel');
+        const icon = document.getElementById('trainProgressIcon');
+        const titulo = document.getElementById('trainProgressTitulo');
+        const btnFechar = document.getElementById('btnFecharProgresso');
+        const queueInfo = document.getElementById('trainQueueInfo');
+        const queueMsg = document.getElementById('trainQueueMsg');
+        const bar = document.getElementById('trainProgressBar');
+        const msgEl = document.getElementById('trainProgressMsg');
+
+        painel.style.display = '';
+        painel.className = 'train-progress-panel queued';
+
+        icon.setAttribute('name', 'hourglass-outline');
+        icon.classList.add('spin-icon');
+        titulo.textContent = 'Na fila de treinamento';
+        btnFechar.style.display = 'none';
+
+        // Mostrar info da fila
+        queueInfo.style.display = '';
+        queueMsg.textContent = `Você é o #${posicao} na fila. O treino começará automaticamente.`;
+
+        // Esconder progresso próprio enquanto na fila
+        document.getElementById('trainOwnProgress').style.display = 'none';
+
+        // Mostrar progresso do treino ATUAL (de outro usuário)
+        const currentPanel = document.getElementById('trainQueueCurrent');
+        if (progAtual && progAtual.status === 'running') {
+            currentPanel.style.display = '';
+
+            const sucesso = progAtual.sucesso || 0;
+            const falha = progAtual.falha || 0;
+            const total = progAtual.total || (sucesso + falha);
+            const processados = sucesso + falha;
+            const pct = total > 0 ? Math.min(100, Math.round((processados / total) * 100)) : 0;
+
+            // Título — tipo de treino
+            const tipoLabel = progAtual.tipo === 'train_single' ? 'Treino de ponto único em execução:' : 'Treino geral em execução:';
+            document.getElementById('trainQueueCurrentTitle').textContent = tipoLabel;
+
+            // Barra
+            document.getElementById('trainQueueCurrentBar').style.width = pct + '%';
+
+            // Contadores
+            document.getElementById('trainQueueCurrentSucesso').textContent = sucesso;
+            document.getElementById('trainQueueCurrentFalha').textContent = falha;
+            document.getElementById('trainQueueCurrentTotal').textContent = total;
+
+            // Tempo decorrido
+            const tempoEl = document.getElementById('trainQueueCurrentTempo');
+            if (progAtual.inicio) {
+                const inicio = new Date(progAtual.inicio).getTime();
+                const seg = Math.round((Date.now() - inicio) / 1000);
+                const min = Math.floor(seg / 60);
+                const s = seg % 60;
+                tempoEl.innerHTML = '<ion-icon name="time-outline"></ion-icon> ' +
+                    (min > 0 ? min + 'min ' : '') + s + 's';
+            }
+
+            // Mensagem do ponto atual
+            const msgAtual = progAtual.ponto_atual || progAtual.message || '';
+            document.getElementById('trainQueueCurrentMsg').textContent = msgAtual;
+        } else {
+            currentPanel.style.display = 'none';
+        }
+
+        // Scroll suave (só na primeira vez)
+        if (!painel.dataset.scrolled) {
+            painel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            painel.dataset.scrolled = '1';
+        }
     }
 
     /**
@@ -1539,9 +1657,14 @@ try {
         const btnFechar = document.getElementById('btnFecharProgresso');
         const msgEl = document.getElementById('trainProgressMsg');
         const tempoEl = document.getElementById('trainTempo');
+        const queueInfo = document.getElementById('trainQueueInfo');
 
         // Exibir painel
         painel.style.display = '';
+
+        // Esconder info da fila e mostrar progresso próprio
+        queueInfo.style.display = 'none';
+        document.getElementById('trainOwnProgress').style.display = '';
 
         // Classes de estado
         painel.className = 'train-progress-panel ' + status;
@@ -1596,12 +1719,16 @@ try {
      * Fecha o painel de progresso (só quando finalizado).
      */
     function fecharPainelProgresso() {
-        document.getElementById('trainProgressPanel').style.display = 'none';
+        const painel = document.getElementById('trainProgressPanel');
+        painel.style.display = 'none';
+        delete painel.dataset.scrolled;
+        _meuJobId = null;
     }
 
     /**
      * Polling: consulta progresso do treino a cada 5s.
      * Atualiza o painel de progresso com informações em tempo real.
+     * Detecta quando o treino do usuário sai da fila e começa a rodar.
      * Para automaticamente quando o treino finaliza.
      */
     function iniciarPollingTreino() {
@@ -1623,28 +1750,53 @@ try {
                     const falha = prog.falha || 0;
                     const total = prog.total || (sucesso + falha);
                     const msgDetalhe = prog.ponto_atual || prog.message || '';
+                    const fila = prog.fila || [];
+
+                    // Verificar se MEU job está na fila
+                    if (_meuJobId) {
+                        const meuIdx = fila.findIndex(item => item.job_id === _meuJobId);
+                        if (meuIdx >= 0) {
+                            // Ainda na fila — atualizar posição E mostrar progresso do treino atual
+                            mostrarPainelFila(meuIdx + 1, prog);
+                            return;
+                        }
+                        // Não está na fila → ou está rodando ou já finalizou
+                        if (status === 'running' && prog.job_id === _meuJobId) {
+                            // Meu treino começou! Resetar timestamp de início e limpar flag de scroll
+                            _trainAllInicio = prog.inicio ? new Date(prog.inicio).getTime() : Date.now();
+                            const painel = document.getElementById('trainProgressPanel');
+                            delete painel.dataset.scrolled;
+                        }
+                    }
 
                     if (status === 'running') {
                         mostrarPainelProgresso('running', msgDetalhe, sucesso, falha, total);
 
                     } else if (status === 'completed' || status === 'error') {
-                        // Treino finalizado — parar polling
-                        clearInterval(_trainAllPolling);
-                        _trainAllPolling = null;
+                        // Verificar se é MEU job que finalizou
+                        const ehMeuJob = !_meuJobId || prog.job_id === _meuJobId;
 
-                        mostrarPainelProgresso(status, prog.resumo || prog.message || '', sucesso, falha, total);
+                        if (ehMeuJob) {
+                            // Treino finalizado — parar polling
+                            clearInterval(_trainAllPolling);
+                            _trainAllPolling = null;
 
-                        if (status === 'completed') {
-                            showToast(
-                                `Treino finalizado! ✅ ${sucesso} sucesso, ❌ ${falha} falha`,
-                                falha > 0 ? 'alerta' : 'sucesso'
-                            );
-                        } else {
-                            showToast(prog.message || 'Treino encerrado com erros', 'erro');
+                            mostrarPainelProgresso(status, prog.resumo || prog.message || '', sucesso, falha, total);
+
+                            if (status === 'completed') {
+                                showToast(
+                                    `Treino finalizado! ${sucesso} sucesso, ${falha} falha`,
+                                    falha > 0 ? 'alerta' : 'sucesso'
+                                );
+                            } else {
+                                showToast(prog.message || 'Treino encerrado com erros', 'erro');
+                            }
+
+                            // Recarregar lista de modelos
+                            carregarModelos();
                         }
-
-                        // Recarregar lista de modelos
-                        carregarModelos();
+                        // Se não é meu job, continuar polling
+                        // (a fila vai processar automaticamente o próximo)
 
                     } else if (status === 'idle') {
                         clearInterval(_trainAllPolling);
@@ -1658,7 +1810,7 @@ try {
     }
 
     /**
-     * Ao carregar a página, verificar se há treino em andamento
+     * Ao carregar a página, verificar se há treino em andamento ou na fila
      * (caso o usuário tenha navegado e voltou).
      */
     (function verificarTreinoEmAndamento() {
@@ -1669,6 +1821,8 @@ try {
         })
             .then(r => r.json())
             .then(prog => {
+                const fila = prog.fila || [];
+
                 if (prog.status === 'running') {
                     // Treino em andamento — retomar polling
                     _trainAllInicio = prog.inicio ? new Date(prog.inicio).getTime() : Date.now();
@@ -1678,6 +1832,11 @@ try {
                     // Último treino finalizou — mostrar resultado
                     _trainAllInicio = prog.inicio ? new Date(prog.inicio).getTime() : Date.now();
                     mostrarPainelProgresso(prog.status, prog.resumo || prog.message || '', prog.sucesso || 0, prog.falha || 0, prog.total || 0);
+                }
+
+                // Se há itens na fila, informar
+                if (fila.length > 0 && prog.status === 'running') {
+                    // Há treinos aguardando — o polling já vai monitorar
                 }
             })
             .catch(() => { /* silencioso */ });
@@ -1723,17 +1882,17 @@ try {
 
     /**
      * Executa o treinamento chamando o endpoint predicaoTensorFlow.php.
+     * O treino agora é assíncrono: se houver outro em execução, entra na fila.
+     * O progresso é mostrado no painel não-bloqueante (mesmo painel do train_all).
      * @param {number} cdPonto - Código do ponto
      * @param {number} tipoMedidor - Tipo do medidor
      * @param {number} semanas - Semanas de histórico
      * @param {boolean} force - Forçar retreino
      */
     function executarTreino(cdPonto, tipoMedidor, semanas, force) {
-        // Mostrar loading
-        document.getElementById('loadingText').textContent = `Treinando modelo para ponto #${cdPonto}...`;
-        document.getElementById('loadingSub').textContent =
-            `${semanas} semanas de histórico | Isso pode levar alguns minutos`;
-        document.getElementById('loadingOverlay').classList.add('active');
+        // Mostrar painel de progresso (não bloqueante)
+        mostrarPainelProgresso('running', `Iniciando treino do ponto #${cdPonto}...`, 0, 0, 1);
+        _trainAllInicio = Date.now();
 
         fetch('bd/operacoes/predicaoTensorFlow.php', {
             method: 'POST',
@@ -1748,19 +1907,33 @@ try {
         })
             .then(r => r.json())
             .then(data => {
-                document.getElementById('loadingOverlay').classList.remove('active');
-
                 if (data.success) {
-                    showToast(data.message || `Modelo treinado com sucesso para ponto #${cdPonto}`, 'sucesso');
+                    if (data.job_id) {
+                        // Treino iniciado ou enfileirado
+                        _meuJobId = data.job_id;
 
-                    // Recarregar lista de modelos
-                    carregarModelos();
+                        if (data.queued) {
+                            // Enfileirado — mostrar posição na fila
+                            mostrarPainelFila(data.posicao_fila);
+                            showToast(`Treino do ponto #${cdPonto} adicionado na fila (posição ${data.posicao_fila})`, 'alerta');
+                        } else {
+                            showToast(data.message || `Treino iniciado para ponto #${cdPonto}`, 'sucesso');
+                        }
+
+                        // Iniciar polling de progresso
+                        iniciarPollingTreino();
+                    } else {
+                        // Modelo já existe (sem force) — esconder painel
+                        document.getElementById('trainProgressPanel').style.display = 'none';
+                        showToast(data.message || 'Modelo já existe', 'alerta');
+                    }
                 } else {
+                    mostrarPainelProgresso('error', data.error || 'Erro ao iniciar treino', 0, 0, 0);
                     showToast(data.error || 'Erro ao treinar modelo', 'erro');
                 }
             })
             .catch(err => {
-                document.getElementById('loadingOverlay').classList.remove('active');
+                mostrarPainelProgresso('error', 'Erro de conexão: ' + err.message, 0, 0, 0);
                 showToast('Erro de conexão: ' + err.message, 'erro');
             });
     }

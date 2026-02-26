@@ -254,6 +254,7 @@ try {
 
         // ----------------------------------------
         // TRAIN - Treinar modelo para um ponto
+        // (enfileira se já houver treino em execução)
         // ----------------------------------------
         case 'train':
             exigirPermissaoEscrita($TELAS_ESCRITA);
@@ -270,6 +271,8 @@ try {
                 ]);
             }
 
+            $nomeUsuario = $_SESSION['nm_usuario'] ?? $_SESSION['ds_login'] ?? 'Usuário';
+
             $resposta = chamarTensorFlow(
                 $tensorflowUrl . '/api/train',
                 'POST',
@@ -277,22 +280,23 @@ try {
                     'cd_ponto' => $cdPonto,
                     'semanas' => $semanas,
                     'tipo_medidor' => $tipoMedidor,
-                    'force' => $force
+                    'force' => $force,
+                    'usuario' => $nomeUsuario
                 ],
-                $timeoutTreino
+                15 // Timeout curto: agora é assíncrono (retorna imediato)
             );
 
             // Registrar log do treino
             try {
                 include_once __DIR__ . '/../conexao.php';
                 if (isset($pdoSIMP) && function_exists('registrarLog')) {
-                    $status = ($resposta['success'] ?? false) ? 'SUCESSO' : 'ERRO';
+                    $enfileirado = ($resposta['queued'] ?? false) ? 'ENFILEIRADO' : 'INICIADO';
                     registrarLog(
                         $pdoSIMP,
                         'TENSORFLOW',
                         'TREINO',
-                        "Ponto: $cdPonto, Semanas: $semanas",
-                        $status,
+                        "Ponto: $cdPonto, Semanas: $semanas ($enfileirado)",
+                        $enfileirado,
                         $_SESSION['cd_usuario'] ?? null
                     );
                 }
@@ -319,16 +323,22 @@ try {
 
         // ----------------------------------------
         // TRAIN_ALL - Treinar todos os pontos
+        // (enfileira se já houver treino em execução)
         // ----------------------------------------
         case 'train_all':
             exigirPermissaoEscrita($TELAS_ESCRITA);
             $semanas = intval($dados['semanas'] ?? 24);
+            $nomeUsuario = $_SESSION['nm_usuario'] ?? $_SESSION['ds_login'] ?? 'Usuário';
 
             // Dispara treino em background — retorna imediatamente com job_id
             $resposta = chamarTensorFlow(
                 $tensorflowUrl . '/api/train-all',
                 'POST',
-                ['semanas' => $semanas, 'modo' => $dados['modo'] ?? 'fixo'],
+                [
+                    'semanas' => $semanas,
+                    'modo' => $dados['modo'] ?? 'fixo',
+                    'usuario' => $nomeUsuario
+                ],
                 15 // Timeout curto: só precisa disparar, não esperar
             );
 
@@ -336,12 +346,26 @@ try {
             break;
 
         // ----------------------------------------
-        // TRAIN_ALL_STATUS - Progresso do treino em background
+        // TRAIN_ALL_STATUS - Progresso do treino em background + fila
         // ----------------------------------------
         case 'train_all_status':
             exigirPermissaoLeitura($TELAS_LEITURA);
             $resposta = chamarTensorFlow(
                 $tensorflowUrl . '/api/train-all/status',
+                'GET',
+                null,
+                5
+            );
+            retornarJSON_TF($resposta);
+            break;
+
+        // ----------------------------------------
+        // TRAIN_QUEUE - Status da fila de treinamento
+        // ----------------------------------------
+        case 'train_queue':
+            exigirPermissaoLeitura($TELAS_LEITURA);
+            $resposta = chamarTensorFlow(
+                $tensorflowUrl . '/api/train-queue',
                 'GET',
                 null,
                 5
