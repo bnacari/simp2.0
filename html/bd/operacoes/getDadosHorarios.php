@@ -50,12 +50,18 @@ try {
         // Para nível: usa MAX como valor principal, não faz média
         $sql = "SELECT 
                 DATEPART(HOUR, DT_LEITURA) AS HORA,
-                MIN(CASE WHEN ID_SITUACAO = 1 THEN {$coluna} END) AS VALOR_MIN,
-                MAX(CASE WHEN ID_SITUACAO = 1 THEN {$coluna} END) AS VALOR_MAX,
+                ROUND(MIN(CASE WHEN ID_SITUACAO = 1 THEN {$coluna} END), 0) AS VALOR_MIN,
+                ROUND(MAX(CASE WHEN ID_SITUACAO = 1 THEN {$coluna} END), 0) AS VALOR_MAX,
                 COUNT(CASE WHEN ID_SITUACAO = 1 THEN 1 END) AS QTD_REGISTROS,
                 COUNT(CASE WHEN ID_SITUACAO = 2 THEN 1 END) AS QTD_INATIVOS,
                 COUNT(CASE WHEN ID_SITUACAO = 1 AND ID_TIPO_REGISTRO = 2 AND ID_TIPO_MEDICAO = 2 THEN 1 END) AS QTD_TRATADOS,
-                SUM(CASE WHEN ID_SITUACAO = 1 THEN ISNULL(NR_EXTRAVASOU, 0) ELSE 0 END) AS SOMA_EXTRAVASOU,
+                SUM(CASE
+                    WHEN ID_SITUACAO = 1 AND ID_TIPO_REGISTRO = 2 AND ID_TIPO_MEDICAO = 2
+                        THEN ISNULL(NR_EXTRAVASOU, 0)
+                    WHEN ID_SITUACAO = 1
+                        THEN CASE WHEN ROUND({$coluna}, 0) >= 100 THEN 1 ELSE 0 END
+                    ELSE 0
+                END) AS SOMA_EXTRAVASOU,
                 -- Usuário que tratou (pega o mais recente da hora com ID_TIPO_REGISTRO = 2)
                 (SELECT TOP 1 U.DS_NOME
                  FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO R2

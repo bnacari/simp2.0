@@ -2125,6 +2125,7 @@ input[type="date"].form-control {
     padding: 8px;
     text-align: center;
     border: 1px solid #e2e8f0;
+    white-space: nowrap;
 }
 
 .validacao-tabela tr:hover {

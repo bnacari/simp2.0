@@ -83,6 +83,9 @@ try {
     $intervaloInicio = isset($input['intervaloInicio']) ? $input['intervaloInicio'] : null;
     $intervaloFim = isset($input['intervaloFim']) ? $input['intervaloFim'] : null;
 
+    // Campo para minutos por hora individuais (tipo 6 - modo manual com extravasamento)
+    $minutosPorHora = isset($input['minutosPorHora']) ? $input['minutosPorHora'] : null;
+
     debugLog('Parâmetros extraídos', [
         'cdPonto' => $cdPonto,
         'data' => $data,
@@ -95,7 +98,8 @@ try {
         'modoIntervalo' => $modoIntervalo,
         'minutosDistribuidos' => $minutosDistribuidos,
         'intervaloInicio' => $intervaloInicio,
-        'intervaloFim' => $intervaloFim
+        'intervaloFim' => $intervaloFim,
+        'minutosPorHora' => $minutosPorHora
     ]);
 
     // Compatibilidade: se receber 'hora' único, converter para array
@@ -224,6 +228,17 @@ try {
                     $minFim = (int)$dadosHora['minutoFim'];
                     $minutosComExtravasou = range($minInicio, $minFim);
                     debugLog("MODO INTERVALO - Hora {$hora}: min {$minInicio} a {$minFim} = " . count($minutosComExtravasou) . " min com NR_EXTRAVASOU=1", $minutosComExtravasou);
+                } elseif ($minutosPorHora !== null && isset($minutosPorHora[$hora])) {
+                    // ========================================
+                    // MODO MANUAL POR HORA: minutos individuais por hora
+                    // ========================================
+                    $minutosHora = min((int)$minutosPorHora[$hora], 60);
+                    if ($minutosHora > 0) {
+                        $todosMinutos = range(0, 59);
+                        shuffle($todosMinutos);
+                        $minutosComExtravasou = array_slice($todosMinutos, 0, $minutosHora);
+                    }
+                    debugLog("MODO MANUAL POR HORA - Hora {$hora}: {$minutosHora} min aleatórios com NR_EXTRAVASOU=1", $minutosComExtravasou);
                 } else {
                     // ========================================
                     // MODO MANUAL: distribuição aleatória (comportamento original)
@@ -323,6 +338,12 @@ try {
                     $totalMinIntervalo += (int)$d['minutos'];
                 }
                 $mensagem = "Validação por intervalo realizada! Período: {$intervaloInicio} às {$intervaloFim} ({$totalMinIntervalo} min). {$totalInativados} registros descartados e {$totalInseridos} novos criados em {$qtdHoras} hora(s). Evento: {$motivoTexto}.";
+            } elseif ($minutosPorHora !== null) {
+                $totalMinPorHora = 0;
+                foreach ($minutosPorHora as $m) {
+                    $totalMinPorHora += (int)$m;
+                }
+                $mensagem = "Dados de nível validados! {$totalInativados} registros descartados e {$totalInseridos} novos criados em {$qtdHoras} hora(s). Total Min >= 100: {$totalMinPorHora}. Evento: {$motivoTexto}.";
             } else {
                 $mensagem = "Dados de nível validados! {$totalInativados} registros descartados e {$totalInseridos} novos criados em {$qtdHoras} hora(s). Min >= 100: {$minutosExtravasou} por hora. Evento: {$motivoTexto}.";
             }

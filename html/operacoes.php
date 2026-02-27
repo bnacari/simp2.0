@@ -634,15 +634,22 @@ $letrasTipoMedidor = [
                                 <label>Horas Selecionadas</label>
                                 <input type="text" id="validacaoHoraSelecionadaNivel" disabled>
                             </div>
-                            <div class="validacao-form-group">
+                            <div class="validacao-form-group" id="grupoExtravasouAtual" style="display:none;">
                                 <label>Min >= 100 Atual</label>
                                 <input type="text" id="validacaoExtravasouAtual" disabled>
                             </div>
-                            <div class="validacao-form-group">
+                            <div class="validacao-form-group" id="grupoMinutosExtravasou" style="display:none;">
                                 <label>Minutos >= 100 *</label>
                                 <input type="number" id="validacaoMinutosExtravasou" min="0" max="60" step="1"
                                     placeholder="0 a 60" <?= !$podeEditar ? 'disabled' : '' ?>>
                             </div>
+                        </div>
+                        <!-- Lista de minutos por hora (visível quando Extravasamento) -->
+                        <div id="grupoMinutosPorHora" style="display:none; margin-top: 10px;">
+                            <label style="font-weight:600;font-size:12px;color:#64748b;margin-bottom:6px;display:block;">
+                                <ion-icon name="time-outline"></ion-icon> Minutos >= 100 por hora (editável):
+                            </label>
+                            <div id="listaMinutosPorHora" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;"></div>
                         </div>
                     </div>
 
@@ -680,11 +687,11 @@ $letrasTipoMedidor = [
                             <label>Evento *</label>
                             <div class="radio-group-validacao">
                                 <label class="radio-item-validacao">
-                                    <input type="radio" name="validacaoMotivo" value="1" <?= !$podeEditar ? 'disabled' : '' ?>>
+                                    <input type="radio" name="validacaoMotivo" value="1" checked onchange="toggleCamposMinutosNivel()" <?= !$podeEditar ? 'disabled' : '' ?>>
                                     <span class="radio-label">Falha</span>
                                 </label>
                                 <label class="radio-item-validacao">
-                                    <input type="radio" name="validacaoMotivo" value="2" <?= !$podeEditar ? 'disabled' : '' ?>>
+                                    <input type="radio" name="validacaoMotivo" value="2" onchange="toggleCamposMinutosNivel()" <?= !$podeEditar ? 'disabled' : '' ?>>
                                     <span class="radio-label">Extravasamento</span>
                                 </label>
                             </div>
@@ -3087,11 +3094,11 @@ $letrasTipoMedidor = [
                     resumoContainer.innerHTML = `
             <div class="resumo-item">
                 <span class="resumo-label">Mínima</span>
-                <span class="resumo-valor">${minGlobal !== null ? formatarNumero(minGlobal) + ' ' + unidade : '-'}</span>
+                <span class="resumo-valor">${minGlobal !== null ? formatarNumero(minGlobal, 0) + ' ' + unidade : '-'}</span>
             </div>
             <div class="resumo-item">
                 <span class="resumo-label">Máxima</span>
-                <span class="resumo-valor">${maxGlobal !== null ? formatarNumero(maxGlobal) + ' ' + unidade : '-'}</span>
+                <span class="resumo-valor">${maxGlobal !== null ? formatarNumero(maxGlobal, 0) + ' ' + unidade : '-'}</span>
             </div>
             <div class="resumo-item extravasou">
                 <span class="resumo-label">Total Min >= 100</span>
@@ -3136,24 +3143,24 @@ $letrasTipoMedidor = [
                     Hora
                 </label>
             </th>
-            <th>Mínimo</th>
-            <th>Máximo</th>
-            <th>Min >= 100</th>
-            <th>Registros</th>
-            <th>Evento</th>
-            <th>Causa</th>
-            <th>Tratado por</th>
+            <th style="width:70px;">Mínimo</th>
+            <th style="width:70px;">Máximo</th>
+            <th style="width:80px;">Min >= 100</th>
+            <th style="width:60px;">Registros</th>
+            <th style="width:100px;">Evento</th>
+            <th style="min-width:150px;">Causa</th>
+            <th style="width:110px;">Tratado por</th>
         `;
                 } else if (isTipoNivel && desabilitarCheckbox) {
                     thead.innerHTML = `
             <th style="width:100px;padding-left:12px;">Hora</th>
-            <th>Mínimo</th>
-            <th>Máximo</th>
-            <th>Min >= 100</th>
-            <th>Registros</th>
-            <th>Evento</th>
-            <th>Causa</th>
-            <th>Tratado por</th>
+            <th style="width:70px;">Mínimo</th>
+            <th style="width:70px;">Máximo</th>
+            <th style="width:80px;">Min >= 100</th>
+            <th style="width:60px;">Registros</th>
+            <th style="width:100px;">Evento</th>
+            <th style="min-width:150px;">Causa</th>
+            <th style="width:110px;">Tratado por</th>
         `;
                 } else if (desabilitarCheckbox) {
                     thead.innerHTML = `
@@ -3161,10 +3168,10 @@ $letrasTipoMedidor = [
             <th>Média</th>
             <th>Mínimo</th>
             <th>Máximo</th>
-            <th>Registros</th>
-            <th>Evento</th>
-            <th>Causa</th>
-            <th>Tratado por</th>
+            <th style="width:60px;">Registros</th>
+            <th style="width:100px;">Evento</th>
+            <th style="min-width:150px;">Causa</th>
+            <th style="width:110px;">Tratado por</th>
         `;
                 } else {
                     thead.innerHTML = `
@@ -3177,10 +3184,10 @@ $letrasTipoMedidor = [
             <th>Média</th>
             <th>Mínimo</th>
             <th>Máximo</th>
-            <th>Registros</th>
-            <th>Evento</th>
-            <th>Causa</th>
-            <th>Tratado por</th>
+            <th style="width:60px;">Registros</th>
+            <th style="width:100px;">Evento</th>
+            <th style="min-width:150px;">Causa</th>
+            <th style="width:110px;">Tratado por</th>
         `;
                 }
 
@@ -3221,12 +3228,12 @@ $letrasTipoMedidor = [
                         ${tratado ? '<span class="badge-tratado" title="Dados validados">✓</span>' : ''}
                     </label>
                 </td>
-                <td>${temDados ? formatarNumero(d.min) + ' ' + unidade : '<span style="color:#94a3b8">-</span>'}</td>
-                <td>${temDados ? formatarNumero(d.max) + ' ' + unidade : '<span style="color:#94a3b8">-</span>'}</td>
+                <td>${temDados ? formatarNumero(d.min, 0) + ' ' + unidade : '<span style="color:#94a3b8">-</span>'}</td>
+                <td>${temDados ? formatarNumero(d.max, 0) + ' ' + unidade : '<span style="color:#94a3b8">-</span>'}</td>
                 <td style="${d.soma_extravasou > 0 ? 'color:#dc2626;font-weight:600;' : ''}">${temDados ? (d.soma_extravasou || 0) + ' min' : '<span style="color:#94a3b8">0</span>'}</td>
                 <td>${d.qtd_registros > 0 ? d.qtd_registros : '<span style="color:#94a3b8">0</span>'}</td>
                 <td>${d.motivo_tratou ? (d.motivo_tratou === 1 ? '<span style="color:#f59e0b;font-weight:500;">Falha</span>' : '<span style="color:#dc2626;font-weight:500;">Extravasamento</span>') : '<span style="color:#94a3b8">-</span>'}</td>
-                <td title="${d.observacao_tratou || ''}">${d.observacao_tratou ? '<span style="color:#475569;font-size:11px;">' + (d.observacao_tratou.length > 30 ? d.observacao_tratou.substring(0, 30) + '...' : d.observacao_tratou) + '</span>' : '<span style="color:#94a3b8">-</span>'}</td>
+                <td style="text-align:left;white-space:normal;" title="${d.observacao_tratou || ''}">${d.observacao_tratou ? '<span style="color:#475569;font-size:11px;">' + d.observacao_tratou + '</span>' : '<span style="color:#94a3b8">-</span>'}</td>
                 <td>${d.usuario_tratou ? '<span style="color:#059669;font-weight:500;">' + d.usuario_tratou + '</span>' : '<span style="color:#94a3b8">-</span>'}</td>
             </tr>`;
                     } else {
@@ -3247,7 +3254,7 @@ $letrasTipoMedidor = [
                 <td>${temDados ? formatarNumero(d.max) + ' ' + unidade : '<span style="color:#94a3b8">-</span>'}</td>
                 <td>${d.qtd_registros > 0 ? d.qtd_registros : '<span style="color:#94a3b8">0</span>'}</td>
                 <td>${d.motivo_tratou ? (d.motivo_tratou === 1 ? '<span style="color:#f59e0b;font-weight:500;">Falha</span>' : '<span style="color:#dc2626;font-weight:500;">Extravasamento</span>') : '<span style="color:#94a3b8">-</span>'}</td>
-                <td title="${d.observacao_tratou || ''}">${d.observacao_tratou ? '<span style="color:#475569;font-size:11px;">' + (d.observacao_tratou.length > 30 ? d.observacao_tratou.substring(0, 30) + '...' : d.observacao_tratou) + '</span>' : '<span style="color:#94a3b8">-</span>'}</td>
+                <td style="text-align:left;white-space:normal;" title="${d.observacao_tratou || ''}">${d.observacao_tratou ? '<span style="color:#475569;font-size:11px;">' + d.observacao_tratou + '</span>' : '<span style="color:#94a3b8">-</span>'}</td>
                 <td>${d.usuario_tratou ? '<span style="color:#059669;font-weight:500;">' + d.usuario_tratou + '</span>' : '<span style="color:#94a3b8">-</span>'}</td>
             </tr>`;
                     }
@@ -3901,6 +3908,51 @@ $letrasTipoMedidor = [
                 validacaoGrafico.update();
             }
 
+            function toggleCamposMinutosNivel() {
+                const motivoEl = document.querySelector('input[name="validacaoMotivo"]:checked');
+                const isFalha = motivoEl && motivoEl.value === '1';
+                const grupoAtual = document.getElementById('grupoExtravasouAtual');
+                const grupoMinutos = document.getElementById('grupoMinutosExtravasou');
+                const grupoPorHora = document.getElementById('grupoMinutosPorHora');
+
+                // Sempre ocultar os campos antigos (single input)
+                if (grupoAtual) grupoAtual.style.display = 'none';
+                if (grupoMinutos) grupoMinutos.style.display = 'none';
+
+                if (isFalha) {
+                    // Falha: ocultar lista por hora
+                    if (grupoPorHora) grupoPorHora.style.display = 'none';
+                } else {
+                    // Extravasamento: mostrar lista de minutos por hora
+                    renderizarMinutosPorHora();
+                    if (grupoPorHora) grupoPorHora.style.display = '';
+                }
+
+                atualizarBotaoValidar();
+            }
+
+            function renderizarMinutosPorHora() {
+                const container = document.getElementById('listaMinutosPorHora');
+                if (!container || !validacaoDadosAtuais) return;
+
+                let html = '';
+                validacaoHorasSelecionadas.forEach(h => {
+                    const dadoHora = validacaoDadosAtuais.dados.find(d => d.hora === h);
+                    const minutosAtual = dadoHora ? (dadoHora.soma_extravasou || 0) : 0;
+                    const horaStr = String(h).padStart(2, '0') + ':00';
+                    html += `
+                        <div style="display:flex;align-items:center;gap:8px;background:#f1f5f9;padding:6px 10px;border-radius:6px;">
+                            <span style="font-weight:600;font-size:12px;color:#334155;min-width:45px;">${horaStr}</span>
+                            <input type="number" class="input-minutos-por-hora" data-hora="${h}"
+                                   min="0" max="60" step="1" value="${minutosAtual}"
+                                   style="width:60px;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:12px;text-align:center;"
+                                   oninput="atualizarBotaoValidar()">
+                            <span style="font-size:11px;color:#64748b;">min</span>
+                        </div>`;
+                });
+                container.innerHTML = html;
+            }
+
             function toggleHora(hora, valorAtual) {
                 const index = validacaoHorasSelecionadas.indexOf(hora);
                 if (index > -1) {
@@ -3924,8 +3976,14 @@ $letrasTipoMedidor = [
                 const isTipoNivel = validacaoTipoMedidorAtual === 6;
                 if (validacaoHorasSelecionadas.length > 0) {
                     if (isTipoNivel) {
+                        const formNivel = document.getElementById('validacaoFormNivel');
+                        const estavaSemForm = formNivel.style.display === 'none' || formNivel.style.display === '';
                         document.getElementById('validacaoForm').style.display = 'none';
-                        document.getElementById('validacaoFormNivel').style.display = 'block';
+                        formNivel.style.display = 'block';
+                        if (estavaSemForm) {
+                            const radioFalha = document.querySelector('input[name="validacaoMotivo"][value="1"]');
+                            if (radioFalha) radioFalha.checked = true;
+                        }
                     } else {
                         document.getElementById('validacaoForm').style.display = 'block';
                         document.getElementById('validacaoFormNivel').style.display = 'none';
@@ -3966,6 +4024,9 @@ $letrasTipoMedidor = [
                         document.getElementById('validacaoExtravasouAtual').value =
                             validacaoHorasSelecionadas.length > 1 ? 'Múltiplas horas' : '0 min';
                     }
+
+                    // Atualizar visibilidade dos campos de minutos conforme evento selecionado
+                    toggleCamposMinutosNivel();
                 } else {
                     // Formulário padrão
                     document.getElementById('validacaoHoraSelecionada').value = horasDisplay;
@@ -4017,8 +4078,14 @@ $letrasTipoMedidor = [
                 const isTipoNivel = validacaoTipoMedidorAtual === 6;
                 if (validacaoHorasSelecionadas.length > 0) {
                     if (isTipoNivel) {
+                        const formNivel = document.getElementById('validacaoFormNivel');
+                        const estavaSemForm = formNivel.style.display === 'none' || formNivel.style.display === '';
                         document.getElementById('validacaoForm').style.display = 'none';
-                        document.getElementById('validacaoFormNivel').style.display = 'block';
+                        formNivel.style.display = 'block';
+                        if (estavaSemForm) {
+                            const radioFalha = document.querySelector('input[name="validacaoMotivo"][value="1"]');
+                            if (radioFalha) radioFalha.checked = true;
+                        }
                     } else {
                         document.getElementById('validacaoForm').style.display = 'block';
                         document.getElementById('validacaoFormNivel').style.display = 'none';
@@ -4066,8 +4133,14 @@ $letrasTipoMedidor = [
                 const isTipoNivel = validacaoTipoMedidorAtual === 6;
                 if (validacaoHorasSelecionadas.length > 0) {
                     if (isTipoNivel) {
+                        const formNivel = document.getElementById('validacaoFormNivel');
+                        const estavaSemForm = formNivel.style.display === 'none' || formNivel.style.display === '';
                         document.getElementById('validacaoForm').style.display = 'none';
-                        document.getElementById('validacaoFormNivel').style.display = 'block';
+                        formNivel.style.display = 'block';
+                        if (estavaSemForm) {
+                            const radioFalha = document.querySelector('input[name="validacaoMotivo"][value="1"]');
+                            if (radioFalha) radioFalha.checked = true;
+                        }
                     } else {
                         document.getElementById('validacaoForm').style.display = 'block';
                         document.getElementById('validacaoFormNivel').style.display = 'none';
@@ -4953,15 +5026,25 @@ $letrasTipoMedidor = [
                         const horaInicio = document.getElementById('intervaloHoraInicio').value;
                         const horaFim = document.getElementById('intervaloHoraFim').value;
                         btn.disabled = !horaInicio || !horaFim || !motivo || !window.distribuicaoIntervalo || window.distribuicaoIntervalo.length === 0;
+                    } else if (motivo && motivo.value === '1') {
+                        // Falha: basta ter horas selecionadas e evento marcado
+                        btn.disabled = false;
+                    } else if (motivo && motivo.value === '2') {
+                        // Extravasamento: verificar inputs por hora
+                        const inputs = document.querySelectorAll('.input-minutos-por-hora');
+                        if (inputs.length === 0) {
+                            btn.disabled = true;
+                        } else {
+                            let allValid = true;
+                            inputs.forEach(inp => {
+                                const val = parseInt(inp.value);
+                                if (isNaN(val) || val < 0 || val > 60) allValid = false;
+                            });
+                            btn.disabled = !allValid;
+                        }
                     } else {
-                        // Modo Manual: lógica original
-                        const minutosExtravasou = document.getElementById('validacaoMinutosExtravasou').value;
-                        btn.disabled = validacaoHorasSelecionadas.length === 0 ||
-                            minutosExtravasou === '' ||
-                            isNaN(parseInt(minutosExtravasou)) ||
-                            parseInt(minutosExtravasou) < 0 ||
-                            parseInt(minutosExtravasou) > 60 ||
-                            !motivo;
+                        // Nenhum evento selecionado
+                        btn.disabled = true;
                     }
                 } else {
                     // Validação padrão
@@ -5054,19 +5137,45 @@ $letrasTipoMedidor = [
                             return;
                         }
                     } else {
-                        // Modo Manual: lógica original
-                        const minutosExtravasou = parseInt(document.getElementById('validacaoMinutosExtravasou').value);
-
-                        if (isNaN(minutosExtravasou) || minutosExtravasou < 0 || minutosExtravasou > 60) {
-                            showToast('Minutos >= 100 deve ser entre 0 e 60', 'erro');
-                            return;
-                        }
-
-                        payload.minutosExtravasou = minutosExtravasou;
-
+                        // Modo Manual
                         const totalNovosRegistros = validacaoHorasSelecionadas.length * 60;
-                        if (!confirm(`Confirma a validação?\n\nHoras: ${horasTexto}\nMinutos >= 100: ${minutosExtravasou} por hora\nEvento: ${motivoTexto}\n\nEsta ação irá:\n- Descartar registros existentes nas horas selecionadas\n- Criar ${totalNovosRegistros} novos registros (60 por hora) com Nível=100%\n- Distribuir NR_EXTRAVASOU=1 aleatoriamente em ${minutosExtravasou} registros por hora`)) {
-                            return;
+
+                        if (motivo === 1) {
+                            // Falha: 0 minutos de extravasamento
+                            payload.minutosExtravasou = 0;
+
+                            if (!confirm(`Confirma a validação?\n\nHoras: ${horasTexto}\nEvento: ${motivoTexto}\n\nEsta ação irá:\n- Descartar registros existentes nas horas selecionadas\n- Criar ${totalNovosRegistros} novos registros (60 por hora) com Nível=100%\n- Registrar evento como Falha (0 minutos de extravasamento)`)) {
+                                return;
+                            }
+                        } else {
+                            // Extravasamento: coletar minutos por hora
+                            const inputs = document.querySelectorAll('.input-minutos-por-hora');
+                            const minutosPorHora = {};
+                            let todosValidos = true;
+                            inputs.forEach(inp => {
+                                const h = parseInt(inp.dataset.hora);
+                                const val = parseInt(inp.value);
+                                if (isNaN(val) || val < 0 || val > 60) todosValidos = false;
+                                minutosPorHora[h] = val;
+                            });
+
+                            if (!todosValidos) {
+                                showToast('Minutos >= 100 deve ser entre 0 e 60 em cada hora', 'erro');
+                                return;
+                            }
+
+                            payload.minutosPorHora = minutosPorHora;
+
+                            // Montar texto de confirmação com detalhes por hora
+                            const detalhes = Object.entries(minutosPorHora)
+                                .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+                                .map(([h, m]) => `  ${String(h).padStart(2, '0')}:00 → ${m} min`)
+                                .join('\n');
+                            const totalMin = Object.values(minutosPorHora).reduce((a, b) => a + b, 0);
+
+                            if (!confirm(`Confirma a validação?\n\nHoras: ${horasTexto}\nEvento: ${motivoTexto}\n\nMinutos >= 100 por hora:\n${detalhes}\nTotal: ${totalMin} min\n\nEsta ação irá:\n- Descartar registros existentes nas horas selecionadas\n- Criar ${totalNovosRegistros} novos registros (60 por hora) com Nível=100%\n- Distribuir NR_EXTRAVASOU=1 conforme os minutos informados`)) {
+                                return;
+                            }
                         }
                     }
                 } else {
@@ -6162,11 +6271,12 @@ $letrasTipoMedidor = [
                 iaChatHistorico = []; // Limpar histórico de conversa
             }
 
-            function formatarNumero(valor) {
+            function formatarNumero(valor, casasDecimais) {
                 if (valor === null || valor === undefined) return '-';
+                const decimais = casasDecimais !== undefined ? casasDecimais : 2;
                 return parseFloat(valor).toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
+                    minimumFractionDigits: decimais,
+                    maximumFractionDigits: decimais
                 });
             }
 
