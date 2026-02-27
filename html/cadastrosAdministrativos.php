@@ -1982,13 +1982,26 @@ $gruposUsuario = $sqlGrupos->fetchAll(PDO::FETCH_ASSOC);
     // ============================================
     // Navegação de Abas
     // ============================================
+    function ativarAba(nomeAba) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+        const btn = document.querySelector(`.tab-btn[data-tab="${nomeAba}"]`);
+        if (btn) {
+            btn.classList.add('active');
+            document.getElementById('tab-' + nomeAba).classList.add('active');
+        }
+    }
+
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
-            this.classList.add('active');
-            document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+            const tab = this.dataset.tab;
+            ativarAba(tab);
+
+            // Atualizar URL sem recarregar a página
+            const url = new URL(window.location);
+            url.searchParams.set('aba', tab);
+            history.replaceState(null, '', url);
         });
     });
 
@@ -2130,6 +2143,9 @@ $gruposUsuario = $sqlGrupos->fetchAll(PDO::FETCH_ASSOC);
                                 <td class="name">${item.DS_NOME || ''}</td>
                                 <td>
                                     <div class="table-actions">
+                                        <button type="button" class="btn-action" onclick="verGruposDaFuncionalidade('${(item.DS_NOME || '').replace(/'/g, "\\'")}')" title="Ver grupos com acesso">
+                                            <ion-icon name="people-outline"></ion-icon>
+                                        </button>
                                         ${podeEditar ? `
                                         <button type="button" class="btn-action" onclick="editarFuncionalidade(${item.CD_FUNCIONALIDADE})" title="Editar">
                                             <ion-icon name="create-outline"></ion-icon>
@@ -2160,6 +2176,16 @@ $gruposUsuario = $sqlGrupos->fetchAll(PDO::FETCH_ASSOC);
             loading.classList.remove('active');
             showToast('Erro ao buscar funcionalidades', 'erro');
         });
+    }
+
+    function verGruposDaFuncionalidade(nomeFuncionalidade) {
+        ativarAba('grupoUsuario');
+        const url = new URL(window.location);
+        url.searchParams.set('aba', 'grupoUsuario');
+        history.replaceState(null, '', url);
+        document.getElementById('filtroGrupoUsuario').value = nomeFuncionalidade;
+        abasCarregadas['grupoUsuario'] = true;
+        buscarGruposUsuario(1);
     }
 
     function abrirModalFuncionalidade() {
@@ -2260,7 +2286,7 @@ $gruposUsuario = $sqlGrupos->fetchAll(PDO::FETCH_ASSOC);
                             <tr>
                                 <td class="code">${item.CD_GRUPO_USUARIO}</td>
                                 <td class="name">${item.DS_NOME || ''}</td>
-                                <td><span class="badge badge-info">${item.QTD_USUARIOS || 0}</span></td>
+                                <td><span class="badge badge-info badge-clickable" onclick="navegarParaUsuariosDoGrupo(${item.CD_GRUPO_USUARIO})" title="Ver usuários deste grupo"><ion-icon name="people-outline"></ion-icon> ${item.QTD_USUARIOS || 0}</span></td>
                                 <td>
                                     <span class="badge badge-success badge-clickable" onclick="abrirModalPermissoes(${item.CD_GRUPO_USUARIO}, '${(item.DS_NOME || '').replace(/'/g, "\\'")}')">
                                         <ion-icon name="key-outline"></ion-icon>
@@ -2302,6 +2328,28 @@ $gruposUsuario = $sqlGrupos->fetchAll(PDO::FETCH_ASSOC);
             loading.classList.remove('active');
             showToast('Erro ao buscar grupos de usuário', 'erro');
         });
+    }
+
+    function navegarParaUsuariosDoGrupo(cdGrupo) {
+        // Ativar a aba Usuários
+        ativarAba('usuarios');
+
+        // Atualizar URL
+        const url = new URL(window.location);
+        url.searchParams.set('aba', 'usuarios');
+        history.replaceState(null, '', url);
+
+        // Setar o filtro de grupo
+        document.getElementById('filtroUsuarioGrupo').value = cdGrupo;
+
+        // Limpar outros filtros
+        document.getElementById('filtroUsuario').value = '';
+        const radioTodos = document.querySelector('input[name="filtroUsuarioStatus"][value=""]');
+        if (radioTodos) radioTodos.checked = true;
+
+        // Marcar aba como carregada e buscar usuários filtrados
+        abasCarregadas['usuarios'] = true;
+        buscarUsuarios(1);
     }
 
     function abrirModalGrupoUsuario() {
@@ -2679,22 +2727,39 @@ $gruposUsuario = $sqlGrupos->fetchAll(PDO::FETCH_ASSOC);
     // ============================================
     // Carregar dados ao iniciar
     // ============================================
+    function carregarDadosAba(nomeAba) {
+        if (!abasCarregadas[nomeAba]) {
+            abasCarregadas[nomeAba] = true;
+            switch(nomeAba) {
+                case 'funcionalidades': buscarFuncionalidades(1); break;
+                case 'grupoUsuario': buscarGruposUsuario(1); break;
+                case 'usuarios': buscarUsuarios(1); break;
+            }
+        }
+    }
+
+    let abasCarregadas = {};
+
     document.addEventListener('DOMContentLoaded', function() {
-        buscarFuncionalidades(1);
+        const urlParams = new URLSearchParams(window.location.search);
+        const abaParam = urlParams.get('aba');
+
+        if (abaParam && document.querySelector(`.tab-btn[data-tab="${abaParam}"]`)) {
+            ativarAba(abaParam);
+            // Carregar a aba padrão (funcionalidades) em segundo plano + a aba solicitada
+            abasCarregadas['funcionalidades'] = true;
+            buscarFuncionalidades(1);
+            carregarDadosAba(abaParam);
+        } else {
+            abasCarregadas['funcionalidades'] = true;
+            buscarFuncionalidades(1);
+        }
     });
 
     // Carregar dados ao trocar de aba (apenas se não carregou ainda)
-    let abasCarregadas = { funcionalidades: true };
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            const tab = this.dataset.tab;
-            if (!abasCarregadas[tab]) {
-                abasCarregadas[tab] = true;
-                switch(tab) {
-                    case 'grupoUsuario': buscarGruposUsuario(1); break;
-                    case 'usuarios': buscarUsuarios(1); break;
-                }
-            }
+            carregarDadosAba(this.dataset.tab);
         });
     });
 

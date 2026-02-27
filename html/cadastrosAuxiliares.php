@@ -1089,13 +1089,26 @@ $tiposCalculo = [
     // ============================================
     // Navegação de Abas
     // ============================================
+    function ativarAba(nomeAba) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+        const btn = document.querySelector(`.tab-btn[data-tab="${nomeAba}"]`);
+        if (btn) {
+            btn.classList.add('active');
+            document.getElementById('tab-' + nomeAba).classList.add('active');
+        }
+    }
+
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', function () {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const tab = this.dataset.tab;
+            ativarAba(tab);
 
-            this.classList.add('active');
-            document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+            // Atualizar URL sem recarregar a página
+            const url = new URL(window.location);
+            url.searchParams.set('aba', tab);
+            history.replaceState(null, '', url);
         });
     });
 
@@ -3050,76 +3063,59 @@ $tiposCalculo = [
     // ============================================
     // Carregar dados ao iniciar
     // ============================================
-    document.addEventListener('DOMContentLoaded', function () {
-        buscarTiposMedidor(1);
+    function carregarDadosAba(nomeAba) {
+        if (!abasCarregadas[nomeAba]) {
+            abasCarregadas[nomeAba] = true;
+            switch (nomeAba) {
+                case 'tipoMedidor': buscarTiposMedidor(1); break;
+                case 'tipoReservatorio': buscarTiposReservatorio(1); break;
+                case 'areaInfluencia': buscarAreasInfluencia(1); break;
+                case 'unidade': buscarUnidades(1); break;
+                case 'localidade': buscarLocalidades(1); break;
+                case 'sistemaAgua': buscarSistemasAgua(1); break;
+                case 'instrumentos': buscarInstrumentos(1); break;
+                case 'eta': buscarEtas(1); break;
+            }
+        }
+    }
 
-        // ============================================
-        // Abertura automática via URL params
-        // Ex: ?tab=instrumentos&tipo=1&editar=809
-        // ============================================
+    let abasCarregadas = {};
+
+    document.addEventListener('DOMContentLoaded', function () {
         const urlParams = new URLSearchParams(window.location.search);
-        const tabParam = urlParams.get('tab');
+        // Suporta tanto ?aba= quanto ?tab= (compatibilidade)
+        const abaParam = urlParams.get('aba') || urlParams.get('tab');
         const tipoParam = urlParams.get('tipo');
         const editarParam = urlParams.get('editar');
 
-        if (tabParam) {
-            // Ativa a aba solicitada
-            const tabBtn = document.querySelector(`.tab-btn[data-tab="${tabParam}"]`);
-            if (tabBtn) {
-                tabBtn.click();
+        // Sempre carregar a aba padrão
+        abasCarregadas['tipoMedidor'] = true;
+        buscarTiposMedidor(1);
 
-                // Se é aba instrumentos com parâmetros de edição
-                if (tabParam === 'instrumentos' && tipoParam) {
-                    // Aguarda a aba carregar, define o tipo e busca
-                    setTimeout(function () {
-                        document.getElementById('filtroInstrumentoTipo').value = tipoParam;
-                        buscarInstrumentos(1);
+        if (abaParam && document.querySelector(`.tab-btn[data-tab="${abaParam}"]`)) {
+            ativarAba(abaParam);
+            carregarDadosAba(abaParam);
 
-                        // Se tem CD para editar, aguarda busca e abre modal
-                        if (editarParam) {
-                            setTimeout(function () {
-                                editarInstrumento(parseInt(editarParam), parseInt(tipoParam));
-                            }, 600);
-                        }
-                    }, 200);
-                }
+            // Se é aba instrumentos com parâmetros de edição
+            if (abaParam === 'instrumentos' && tipoParam) {
+                setTimeout(function () {
+                    document.getElementById('filtroInstrumentoTipo').value = tipoParam;
+                    buscarInstrumentos(1);
+
+                    if (editarParam) {
+                        setTimeout(function () {
+                            editarInstrumento(parseInt(editarParam), parseInt(tipoParam));
+                        }, 600);
+                    }
+                }, 200);
             }
         }
     });
 
     // Carregar dados ao trocar de aba (apenas se não carregou ainda)
-    let abasCarregadas = {
-        tipoMedidor: true
-    };
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', function () {
-            const tab = this.dataset.tab;
-            if (!abasCarregadas[tab]) {
-                abasCarregadas[tab] = true;
-                switch (tab) {
-                    case 'tipoReservatorio':
-                        buscarTiposReservatorio(1);
-                        break;
-                    case 'areaInfluencia':
-                        buscarAreasInfluencia(1);
-                        break;
-                    case 'unidade':
-                        buscarUnidades(1);
-                        break;
-                    case 'localidade':
-                        buscarLocalidades(1);
-                        break;
-                    case 'sistemaAgua':
-                        buscarSistemasAgua(1);
-                        break;
-                    case 'instrumentos':
-                        buscarInstrumentos(1);
-                        break;
-                    case 'eta':
-                        buscarEtas(1);
-                        break;
-                }
-            }
+            carregarDadosAba(this.dataset.tab);
         });
     });
 </script>

@@ -229,13 +229,21 @@ if (isset($_SESSION['msg'])) {
         line-height: 1;
     }
 
-    .modern-header-title .system-version {
-        font-size: 9px;
+    .sidebar-version-footer {
+        flex-shrink: 0;
+        padding: 10px 16px;
+        text-align: center;
+        font-size: 10px;
         font-weight: 500;
-        color: rgba(255, 255, 255, 0.3);
+        color: #94a3b8;
         letter-spacing: 0.03em;
-        line-height: 1;
         cursor: default;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .modern-sidebar.collapsed .sidebar-version-footer {
+        font-size: 8px;
+        padding: 8px 4px;
     }
 
     .ambiente-badge {
@@ -327,28 +335,36 @@ if (isset($_SESSION['msg'])) {
         height: calc(100vh - 60px);
         background: #ffffff;
         border-right: 1px solid #e2e8f0;
-        padding: 16px 0;
+        padding: 0;
         z-index: 999;
-        overflow-y: auto;
-        overflow-x: hidden;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
         transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
+    }
+
+    .sidebar-content {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 16px 0;
     }
 
     .modern-sidebar.collapsed {
         width: 70px;
     }
 
-    .modern-sidebar::-webkit-scrollbar {
+    .sidebar-content::-webkit-scrollbar {
         width: 4px;
     }
 
-    .modern-sidebar::-webkit-scrollbar-thumb {
+    .sidebar-content::-webkit-scrollbar-thumb {
         background: #cbd5e1;
         border-radius: 4px;
     }
 
-    .modern-sidebar::-webkit-scrollbar-thumb:hover {
+    .sidebar-content::-webkit-scrollbar-thumb:hover {
         background: #94a3b8;
     }
 
@@ -1237,7 +1253,6 @@ if (isset($_SESSION['msg'])) {
                     <?php endif; ?>
                 </span>
                 <span class="system-fullname">Sistema Integrado de Macromedição e Pitometria</span>
-                <span class="system-version" title="<?= $simpVersion['hash'] ? 'Build ' . $simpVersion['hash'] . ' - ' . $simpVersion['date'] : '' ?>"><?= $simpVersion['display'] ?></span>
             </div>
         </a>
 
@@ -1361,6 +1376,16 @@ if (isset($_SESSION['msg'])) {
                             </button>
                         </div>
                         <?php endif; ?>
+
+                        <?php if (temPermissaoTela('Desenvolvedor')): ?>
+                        <div class="user-detail-item" style="border-top: 1px solid #e2e8f0; padding-top: 12px;">
+                            <button onclick="abrirModalIntegracaoCCO()" class="btn-simular-grupo">
+                                <ion-icon name="sync-outline"></ion-icon>
+                                Integração CCO por PM
+                            </button>
+                        </div>
+                        <?php endif; ?>
+
                     </div>
 
                     <div class="user-dropdown-divider"></div>
@@ -1412,10 +1437,11 @@ $secaoVisivel = [
     'cadastros'         => $menuPermissoes['ponto_medicao'] || $menuPermissoes['motor_bomba'] || $menuPermissoes['reg_vazao_pressao'] || $menuPermissoes['entidade'],
     'operacao'          => $menuPermissoes['validacoes'],
     'calculos'          => $menuPermissoes['calculo_kpc'],
-    'administracao'     => $menuPermissoes['cadastros_adm'] || $menuPermissoes['flowchart'] || $menuPermissoes['modelos_ml'] || $menuPermissoes['tratamento_lote'] || $menuPermissoes['treinamento_ia'] || $menuPermissoes['consulta_log'] || $menuPermissoes['integracao_cco'],
+    'administracao'     => $menuPermissoes['cadastros_adm'] || $menuPermissoes['flowchart'] || $menuPermissoes['modelos_ml'] || $menuPermissoes['tratamento_lote'] || $menuPermissoes['treinamento_ia'] || $menuPermissoes['consulta_log'],
 ];
 ?>
 <aside class="modern-sidebar" id="modernSidebar">
+    <div class="sidebar-content">
 
     <?php if ($secaoVisivel['cadastros_basicos']): ?>
     <!-- Seção: Cadastros Básicos -->
@@ -1660,18 +1686,15 @@ $secaoVisivel = [
                     </a>
                 </li>
                 <?php endif; ?>
-                <?php if ($menuPermissoes['integracao_cco']): ?>
-                <li class="sidebar-item">
-                    <a href="#" class="sidebar-link" data-title="Integração CCO" onclick="abrirModalIntegracaoCCO(); return false;">
-                        <ion-icon name="sync-outline"></ion-icon>
-                        <span class="sidebar-link-text">Integração CCO por PM</span>
-                    </a>
-                </li>
-                <?php endif; ?>
             </ul>
         </div>
     </div>
     <?php endif; ?>
+    </div>
+
+    <div class="sidebar-version-footer" title="<?= $simpVersion['hash'] ? 'Build ' . $simpVersion['hash'] . ' - ' . $simpVersion['date'] : '' ?>">
+        <?= $simpVersion['display'] ?>
+    </div>
 
 </aside>
 
