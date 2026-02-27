@@ -1,17 +1,17 @@
 <?php
 /**
  * SIMP - API para Salvar Regras da IA
- * Salva ou atualiza o conteúdo único de instruções
- * 
+ * Sempre cria nova versão (INSERT) e mantém no máximo 50 versões
+ *
  * @author Bruno
- * @version 2.1 - Com registro de log de atividades
+ * @version 3.0 - Versionamento de instruções
  */
 
 header('Content-Type: application/json; charset=utf-8');
 
 try {
     include_once '../conexao.php';
-    
+
     // Iniciar sessão para pegar usuário logado
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
@@ -38,93 +38,49 @@ try {
     // Usuário logado
     $cdUsuario = isset($_SESSION['cd_usuario']) ? (int)$_SESSION['cd_usuario'] : null;
 
-    // Verificar se já existe registro
-    $sqlCheck = "SELECT TOP 1 CD_CHAVE, CAST(DS_CONTEUDO AS VARCHAR(MAX)) AS DS_CONTEUDO 
-                 FROM SIMP.dbo.IA_REGRAS ORDER BY CD_CHAVE DESC";
-    $stmtCheck = $pdoSIMP->query($sqlCheck);
-    $registro = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+    // INSERT - Sempre criar nova versão
+    $sql = "INSERT INTO SIMP.dbo.IA_REGRAS
+            (DS_CONTEUDO, CD_USUARIO_CRIACAO, DT_CRIACAO)
+            VALUES
+            (:conteudo, :usuario, GETDATE())";
 
-    if ($registro) {
-        // UPDATE - Atualizar registro existente
-        $sql = "UPDATE SIMP.dbo.IA_REGRAS SET
-                    DS_CONTEUDO = :conteudo,
-                    CD_USUARIO_ATUALIZACAO = :usuario,
-                    DT_ATUALIZACAO = GETDATE()
-                WHERE CD_CHAVE = :cdChave";
+    $stmt = $pdoSIMP->prepare($sql);
+    $stmt->execute([
+        ':conteudo' => $conteudo,
+        ':usuario' => $cdUsuario
+    ]);
 
-        $stmt = $pdoSIMP->prepare($sql);
-        $stmt->execute([
-            ':conteudo' => $conteudo,
-            ':usuario' => $cdUsuario,
-            ':cdChave' => $registro['CD_CHAVE']
-        ]);
+    // Pegar ID gerado
+    $cdChave = $pdoSIMP->query("SELECT SCOPE_IDENTITY() AS id")->fetch(PDO::FETCH_ASSOC)['id'];
 
-        // Log de UPDATE (isolado)
-        try {
-            @include_once '../logHelper.php';
-            if (function_exists('registrarLogUpdate')) {
-                $caracteresAnteriores = strlen($registro['DS_CONTEUDO'] ?? '');
-                $caracteresNovos = strlen($conteudo);
-                registrarLogUpdate(
-                    'Treinamento IA',
-                    'Instruções da IA',
-                    $registro['CD_CHAVE'],
-                    'Regras de comportamento',
-                    [
-                        'caracteres_anteriores' => $caracteresAnteriores,
-                        'caracteres_novos' => $caracteresNovos,
-                        'diferenca' => $caracteresNovos - $caracteresAnteriores
-                    ]
-                );
-            }
-        } catch (Exception $logEx) {
-            error_log('Erro ao registrar log de UPDATE em IA_REGRAS: ' . $logEx->getMessage());
+    // Limpar versões antigas, mantendo apenas as 50 mais recentes
+    $sqlClean = "DELETE FROM SIMP.dbo.IA_REGRAS
+                 WHERE CD_CHAVE NOT IN (
+                     SELECT TOP 50 CD_CHAVE FROM SIMP.dbo.IA_REGRAS ORDER BY CD_CHAVE DESC
+                 )";
+    $pdoSIMP->exec($sqlClean);
+
+    // Log de INSERT (isolado)
+    try {
+        @include_once '../logHelper.php';
+        if (function_exists('registrarLogInsert')) {
+            registrarLogInsert(
+                'Treinamento IA',
+                'Instruções da IA',
+                $cdChave,
+                'Regras de comportamento',
+                ['caracteres' => strlen($conteudo)]
+            );
         }
-
-        echo json_encode([
-            'success' => true,
-            'message' => 'Instruções atualizadas com sucesso!',
-            'cdChave' => $registro['CD_CHAVE']
-        ], JSON_UNESCAPED_UNICODE);
-
-    } else {
-        // INSERT - Criar novo registro
-        $sql = "INSERT INTO SIMP.dbo.IA_REGRAS 
-                (DS_CONTEUDO, CD_USUARIO_CRIACAO, DT_CRIACAO)
-                VALUES 
-                (:conteudo, :usuario, GETDATE())";
-
-        $stmt = $pdoSIMP->prepare($sql);
-        $stmt->execute([
-            ':conteudo' => $conteudo,
-            ':usuario' => $cdUsuario
-        ]);
-
-        // Pegar ID gerado
-        $cdChave = $pdoSIMP->query("SELECT SCOPE_IDENTITY() AS id")->fetch(PDO::FETCH_ASSOC)['id'];
-
-        // Log de INSERT (isolado)
-        try {
-            @include_once '../logHelper.php';
-            if (function_exists('registrarLogInsert')) {
-                registrarLogInsert(
-                    'Treinamento IA',
-                    'Instruções da IA',
-                    $cdChave,
-                    'Regras de comportamento',
-                    ['caracteres' => strlen($conteudo)]
-                );
-            }
-        } catch (Exception $logEx) {
-            error_log('Erro ao registrar log de INSERT em IA_REGRAS: ' . $logEx->getMessage());
-        }
-
-        echo json_encode([
-            'success' => true,
-            'message' => 'Instruções salvas com sucesso!',
-            'cdChave' => $cdChave
-        ], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $logEx) {
+        error_log('Erro ao registrar log de INSERT em IA_REGRAS: ' . $logEx->getMessage());
     }
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Instruções salvas com sucesso!',
+        'cdChave' => $cdChave
+    ], JSON_UNESCAPED_UNICODE);
 
 } catch (PDOException $e) {
     // Verificar se é erro de tabela inexistente

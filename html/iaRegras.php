@@ -215,6 +215,7 @@ $providerAtual = $configIA['provider'] ?? 'deepseek';
         background: #f8fafc;
         resize: vertical;
         transition: all 0.2s;
+        box-sizing: border-box;
     }
 
     .regras-textarea:focus {
@@ -410,6 +411,194 @@ $providerAtual = $configIA['provider'] ?? 'deepseek';
     }
 
     /* ============================================
+       Modal Histórico
+       ============================================ */
+    .historico-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 23, 42, 0.6);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 20px;
+        backdrop-filter: blur(4px);
+    }
+
+    .historico-modal-overlay.active {
+        display: flex;
+    }
+
+    .historico-modal {
+        background: white;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 900px;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+        animation: modalIn 0.2s ease;
+    }
+
+    @keyframes modalIn {
+        from { opacity: 0; transform: scale(0.95) translateY(-10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .historico-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 24px;
+        background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+        border-radius: 16px 16px 0 0;
+        color: white;
+    }
+
+    .historico-modal-header h3 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .historico-modal-header h3 ion-icon {
+        font-size: 22px;
+    }
+
+    .historico-modal-close {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 20px;
+        transition: background 0.2s;
+    }
+
+    .historico-modal-close:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .historico-modal-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .historico-lista {
+        max-height: 280px;
+        overflow-y: auto;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .historico-tabela {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .historico-tabela thead {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    .historico-tabela th {
+        padding: 10px 16px;
+        background: #f1f5f9;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .historico-tabela td {
+        padding: 10px 16px;
+        font-size: 13px;
+        color: #334155;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .historico-tabela tr {
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+
+    .historico-tabela tbody tr:hover {
+        background: #eff6ff;
+    }
+
+    .historico-tabela tbody tr.ativo {
+        background: #dbeafe;
+    }
+
+    .historico-tabela tbody tr.versao-atual td:first-child::after {
+        content: 'atual';
+        display: inline-block;
+        margin-left: 8px;
+        padding: 1px 8px;
+        background: #16a34a;
+        color: white;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .historico-preview {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .historico-preview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+    }
+
+    .historico-preview-texto {
+        flex: 1;
+        width: 100%;
+        min-height: 200px;
+        padding: 16px;
+        border: none;
+        font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+        font-size: 12px;
+        line-height: 1.6;
+        color: #334155;
+        background: #fafafa;
+        resize: none;
+        border-radius: 0 0 16px 16px;
+    }
+
+    .btn-sm {
+        padding: 6px 14px;
+        font-size: 13px;
+    }
+
+    /* ============================================
        Responsivo
        ============================================ */
     @media (max-width: 768px) {
@@ -442,6 +631,15 @@ $providerAtual = $configIA['provider'] ?? 'deepseek';
 
         .regras-textarea {
             min-height: 400px;
+        }
+
+        .historico-modal {
+            max-width: 100%;
+            max-height: 95vh;
+        }
+
+        .historico-lista {
+            max-height: 200px;
         }
     }
 </style>
@@ -515,8 +713,12 @@ $providerAtual = $configIA['provider'] ?? 'deepseek';
                 </span>
             </div>
             
-            <?php if ($podeEditar): ?>
             <div class="regras-actions">
+                <button type="button" class="btn btn-secondary" onclick="abrirHistorico()">
+                    <ion-icon name="time-outline"></ion-icon>
+                    Histórico
+                </button>
+                <?php if ($podeEditar): ?>
                 <button type="button" class="btn btn-secondary" onclick="restaurarPadrao()">
                     <ion-icon name="refresh-outline"></ion-icon>
                     Restaurar Padrão
@@ -525,8 +727,45 @@ $providerAtual = $configIA['provider'] ?? 'deepseek';
                     <ion-icon name="save-outline"></ion-icon>
                     Salvar Alterações
                 </button>
+                <?php endif; ?>
             </div>
-            <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Histórico de Versões -->
+<div class="historico-modal-overlay" id="modalHistorico" onclick="if(event.target===this) fecharHistorico()">
+    <div class="historico-modal">
+        <div class="historico-modal-header">
+            <h3>
+                <ion-icon name="time-outline"></ion-icon>
+                Histórico de Versões
+            </h3>
+            <button class="historico-modal-close" onclick="fecharHistorico()">
+                <ion-icon name="close-outline"></ion-icon>
+            </button>
+        </div>
+        <div class="historico-modal-body">
+            <!-- Lista de versões -->
+            <div class="historico-lista" id="historicoLista">
+                <div style="text-align:center;padding:40px;color:#94a3b8;">
+                    <ion-icon name="hourglass-outline" style="font-size:32px;"></ion-icon>
+                    <p>Carregando versões...</p>
+                </div>
+            </div>
+            <!-- Preview do conteúdo -->
+            <div class="historico-preview" id="historicoPreview" style="display:none;">
+                <div class="historico-preview-header">
+                    <span id="historicoPreviewTitulo">Preview da versão</span>
+                    <?php if ($podeEditar): ?>
+                    <button type="button" class="btn btn-primary btn-sm" id="btnRestaurar" onclick="restaurarVersao()">
+                        <ion-icon name="arrow-undo-outline"></ion-icon>
+                        Restaurar
+                    </button>
+                    <?php endif; ?>
+                </div>
+                <textarea class="historico-preview-texto" id="historicoPreviewTexto" readonly></textarea>
+            </div>
         </div>
     </div>
 </div>
@@ -548,6 +787,7 @@ $providerAtual = $configIA['provider'] ?? 'deepseek';
     const contadorLinhas = document.getElementById('contadorLinhas');
     const regrasMeta = document.getElementById('regrasMeta');
     const podeEditar = <?= $podeEditar ? 'true' : 'false' ?>;
+    let conteudoOriginal = '';
 
     // ============================================
     // Inicialização
@@ -571,6 +811,7 @@ $providerAtual = $configIA['provider'] ?? 'deepseek';
             .then(data => {
                 if (data.success && data.regra) {
                     textarea.value = data.regra.conteudo || '';
+                    conteudoOriginal = textarea.value;
                     atualizarContadores();
                     
                     // Atualizar meta informações
@@ -635,8 +876,9 @@ $providerAtual = $configIA['provider'] ?? 'deepseek';
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                conteudoOriginal = conteudo;
                 showToast('Instruções salvas com sucesso!', 'sucesso');
-                
+
                 // Atualizar meta
                 const agora = new Date();
                 regrasMeta.innerHTML = `
@@ -664,30 +906,18 @@ $providerAtual = $configIA['provider'] ?? 'deepseek';
     // Restaurar padrão
     // ============================================
     function restaurarPadrao() {
-        if (!confirm('Deseja restaurar as instruções para o padrão original?\n\nIsso substituirá todo o conteúdo atual.')) {
+        if (textarea.value === conteudoOriginal) {
+            showToast('O texto já é o original — nenhuma alteração para desfazer', 'aviso');
             return;
         }
 
-        mostrarLoading(true);
+        if (!confirm('Deseja descartar as alterações e voltar ao texto original?')) {
+            return;
+        }
 
-        fetch('bd/ia/getRegrasPadrao.php')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.conteudo) {
-                    textarea.value = data.conteudo;
-                    atualizarContadores();
-                    showToast('Instruções padrão restauradas. Clique em Salvar para confirmar.', 'aviso');
-                } else {
-                    showToast('Não foi possível carregar as instruções padrão', 'erro');
-                }
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                showToast('Erro ao carregar instruções padrão', 'erro');
-            })
-            .finally(() => {
-                mostrarLoading(false);
-            });
+        textarea.value = conteudoOriginal;
+        atualizarContadores();
+        showToast('Texto restaurado para a versão salva', 'sucesso');
     }
 
     // ============================================
@@ -695,6 +925,130 @@ $providerAtual = $configIA['provider'] ?? 'deepseek';
     // ============================================
     function mostrarLoading(show) {
         document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+    }
+
+    // ============================================
+    // Histórico de Versões
+    // ============================================
+    let versaoSelecionadaConteudo = null;
+
+    function abrirHistorico() {
+        const modal = document.getElementById('modalHistorico');
+        modal.classList.add('active');
+        document.getElementById('historicoPreview').style.display = 'none';
+        versaoSelecionadaConteudo = null;
+        carregarHistorico();
+    }
+
+    function fecharHistorico() {
+        document.getElementById('modalHistorico').classList.remove('active');
+    }
+
+    function carregarHistorico() {
+        const lista = document.getElementById('historicoLista');
+        lista.innerHTML = `
+            <div style="text-align:center;padding:40px;color:#94a3b8;">
+                <ion-icon name="hourglass-outline" style="font-size:32px;"></ion-icon>
+                <p>Carregando versões...</p>
+            </div>
+        `;
+
+        fetch('bd/ia/listarHistorico.php')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.versoes && data.versoes.length > 0) {
+                    let html = `<table class="historico-tabela">
+                        <thead>
+                            <tr>
+                                <th>Versão</th>
+                                <th>Data</th>
+                                <th>Usuário</th>
+                                <th>Caracteres</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                    const total = data.versoes.length;
+                    data.versoes.forEach((v, i) => {
+                        const num = total - i;
+                        const dt = new Date(v.dtCriacao);
+                        const dataFormatada = dt.toLocaleDateString('pt-BR') + ' ' +
+                            dt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
+                        const isAtual = i === 0;
+                        html += `<tr class="${isAtual ? 'versao-atual' : ''}"
+                                     onclick="visualizarVersao(${v.cdChave}, this)"
+                                     data-id="${v.cdChave}">
+                            <td>#${num}</td>
+                            <td>${dataFormatada}</td>
+                            <td>${v.usuario}</td>
+                            <td>${v.caracteres.toLocaleString('pt-BR')}</td>
+                        </tr>`;
+                    });
+
+                    html += '</tbody></table>';
+                    lista.innerHTML = html;
+                } else {
+                    lista.innerHTML = `
+                        <div style="text-align:center;padding:40px;color:#94a3b8;">
+                            <ion-icon name="document-outline" style="font-size:32px;"></ion-icon>
+                            <p>Nenhuma versão encontrada</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(() => {
+                lista.innerHTML = `
+                    <div style="text-align:center;padding:40px;color:#ef4444;">
+                        <ion-icon name="alert-circle-outline" style="font-size:32px;"></ion-icon>
+                        <p>Erro ao carregar histórico</p>
+                    </div>
+                `;
+            });
+    }
+
+    function visualizarVersao(id, row) {
+        // Destacar linha selecionada
+        document.querySelectorAll('.historico-tabela tbody tr').forEach(tr => tr.classList.remove('ativo'));
+        if (row) row.classList.add('ativo');
+
+        const preview = document.getElementById('historicoPreview');
+        const previewTexto = document.getElementById('historicoPreviewTexto');
+        const previewTitulo = document.getElementById('historicoPreviewTitulo');
+
+        previewTexto.value = 'Carregando...';
+        preview.style.display = 'flex';
+
+        fetch('bd/ia/getVersao.php?id=' + id)
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.versao) {
+                    const dt = new Date(data.versao.dtCriacao);
+                    const dataFormatada = dt.toLocaleDateString('pt-BR') + ' ' +
+                        dt.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
+                    previewTitulo.textContent = `Versão de ${dataFormatada} — ${data.versao.usuario}`;
+                    previewTexto.value = data.versao.conteudo;
+                    versaoSelecionadaConteudo = data.versao.conteudo;
+                } else {
+                    previewTexto.value = 'Erro ao carregar versão';
+                    versaoSelecionadaConteudo = null;
+                }
+            })
+            .catch(() => {
+                previewTexto.value = 'Erro de comunicação';
+                versaoSelecionadaConteudo = null;
+            });
+    }
+
+    function restaurarVersao() {
+        if (!versaoSelecionadaConteudo) {
+            showToast('Selecione uma versão para restaurar', 'aviso');
+            return;
+        }
+
+        textarea.value = versaoSelecionadaConteudo;
+        atualizarContadores();
+        fecharHistorico();
+        showToast('Versão carregada no editor. Revise e clique em Salvar para confirmar.', 'aviso');
     }
 
     // ============================================
