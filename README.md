@@ -1,7 +1,8 @@
 # simp20-php
 ## Build / Deploy
 
-PARA PUBLICAR EM LOCALHOST (VDESK)
+
+PARA PUBLICAR EM LOCALHOST (VDESK) TESTE
 
 é necessário preencher corretamente o arquivo "docker/.env"
 ```
