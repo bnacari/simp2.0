@@ -1,6 +1,11 @@
 # simp20-php
 ## Build / Deploy
 
+AGORA O DEPLOY É EXECUTADO VIA COMANDO
+```
+git-deploy-prd "descrição"
+```
+os comandos estão na pasta scripts do projeto
 
 PARA PUBLICAR EM LOCALHOST (VDESK) TESTE
 
