@@ -1978,3 +1978,296 @@
             justify-content: center;
         }
     }
+
+
+/* ============================================
+   BATCH PROGRESS PANEL
+   Painel de progresso do motor batch em tempo real.
+   Reutiliza estrutura CSS do modelosML.css
+   ============================================ */
+.batch-progress-panel {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s ease;
+}
+
+.batch-progress-panel.running {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.batch-progress-panel.completed {
+    border-color: #10b981;
+    background: #f0fdf4;
+}
+
+.batch-progress-panel.error {
+    border-color: #ef4444;
+    background: #fef2f2;
+}
+
+.batch-progress-panel .train-progress-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.batch-progress-panel .train-progress-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #1e293b;
+}
+
+.batch-progress-panel .train-progress-title ion-icon {
+    font-size: 18px;
+}
+
+.batch-progress-panel .train-progress-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    font-size: 18px;
+    padding: 4px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+}
+
+.batch-progress-panel .train-progress-close:hover {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.batch-progress-panel .train-progress-bar-wrapper {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.batch-progress-panel .train-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #2563eb);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.batch-progress-panel.completed .train-progress-bar {
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.batch-progress-panel.error .train-progress-bar {
+    background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.batch-progress-panel .train-progress-stats {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.batch-progress-panel .tps-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.batch-progress-panel .tps-item.sucesso {
+    color: #059669;
+}
+
+.batch-progress-panel .tps-item.falha {
+    color: #dc2626;
+}
+
+.batch-progress-panel .tps-item.tempo {
+    color: #64748b;
+    margin-left: auto;
+}
+
+.batch-progress-panel .tps-item ion-icon {
+    font-size: 14px;
+}
+
+.batch-progress-panel .train-progress-msg {
+    font-size: 11px;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.batch-progress-panel .spin-icon {
+    animation: batchSpin 1s linear infinite;
+}
+
+@keyframes batchSpin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+
+/* ============================================
+   ANALISE IA DO PONTO (modal de detalhe)
+   ============================================ */
+
+.ia-analise-section {
+    background: #f0f7ff;
+    border-left: 4px solid #3b82f6;
+    border-radius: 0 8px 8px 0;
+    padding: 14px 16px;
+    margin-top: 16px;
+}
+
+.ia-analise-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.ia-analise-refresh-btn {
+    background: none;
+    border: 1px solid #93c5fd;
+    border-radius: 6px;
+    color: #3b82f6;
+    cursor: pointer;
+    padding: 4px 6px;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.ia-analise-refresh-btn:hover {
+    background: #dbeafe;
+    border-color: #3b82f6;
+}
+
+.ia-analise-refresh-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ia-analise-refresh-btn ion-icon {
+    font-size: 16px;
+}
+
+.ia-analise-body {
+    min-height: 40px;
+}
+
+.ia-analise-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #64748b;
+    padding: 8px 0;
+}
+
+.ia-analise-loading ion-icon {
+    font-size: 16px;
+    color: #3b82f6;
+}
+
+.ia-analise-loading .spin-icon {
+    animation: batchSpin 1s linear infinite;
+}
+
+.ia-analise-empty {
+    font-size: 12px;
+    color: #94a3b8;
+    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ia-analise-empty ion-icon {
+    font-size: 14px;
+}
+
+.ia-analise-texto {
+    font-size: 13px;
+    color: #1e293b;
+    line-height: 1.5;
+    font-style: italic;
+    margin-bottom: 8px;
+}
+
+.ia-analise-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: #64748b;
+}
+
+.ia-analise-meta span {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.ia-analise-periodo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #bfdbfe;
+    flex-wrap: wrap;
+}
+
+.ia-analise-periodo input[type="date"] {
+    font-size: 11px;
+    padding: 4px 6px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    color: #334155;
+    background: #fff;
+}
+
+.ia-analise-btn {
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.ia-analise-btn:hover {
+    background: #2563eb;
+}
+
+/* Responsivo: em telas pequenas empilhar meta e periodo */
+@media (max-width: 600px) {
+    .ia-analise-meta {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .ia-analise-periodo {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+}

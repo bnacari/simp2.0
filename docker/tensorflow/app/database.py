@@ -101,17 +101,20 @@ class DatabaseManager:
                 datetime.strptime(data_base, '%Y-%m-%d') - timedelta(weeks=semanas)
             ).strftime('%Y-%m-%d')
 
+            # Para reservatório (tipo 6): MAX como valor principal (compatível com operacoes.php)
+            funcao_agregacao = 'MAX' if tipo_medidor == 6 else 'AVG'
+
             sql = f"""
-                SELECT 
+                SELECT
                     CAST(DT_LEITURA AS DATE) AS data,
                     DATEPART(HOUR, DT_LEITURA) AS hora,
-                    AVG(CASE WHEN ID_SITUACAO = 1 THEN {campo_valor} ELSE NULL END) AS valor,
+                    {funcao_agregacao}(CASE WHEN ID_SITUACAO = 1 THEN {campo_valor} ELSE NULL END) AS valor,
                     COUNT(CASE WHEN ID_SITUACAO = 1 THEN 1 END) AS qtd_registros,
                     DATEPART(WEEKDAY, DT_LEITURA) AS dia_semana
                 FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO
                 WHERE CD_PONTO_MEDICAO = ?
                   AND CAST(DT_LEITURA AS DATE) BETWEEN ? AND ?
-                GROUP BY CAST(DT_LEITURA AS DATE), DATEPART(HOUR, DT_LEITURA), 
+                GROUP BY CAST(DT_LEITURA AS DATE), DATEPART(HOUR, DT_LEITURA),
                          DATEPART(WEEKDAY, DT_LEITURA)
                 ORDER BY data, hora
             """
@@ -150,30 +153,57 @@ class DatabaseManager:
         """
         Busca dados horários de um dia específico.
 
+        Para tipo_medidor=6 (Nível Reservatório), usa MAX como valor
+        principal (não AVG) e conta minutos com leitura >= 100%,
+        compatível com a lógica de getDadosHorarios.php / operacoes.php.
+
         Args:
             cd_ponto: Código do ponto
             data: Data no formato YYYY-MM-DD
             tipo_medidor: Tipo de medidor
 
         Returns:
-            DataFrame com 24 linhas (uma por hora) ou None
+            DataFrame com até 24 linhas (uma por hora) ou None
         """
         try:
             campo_valor = self._get_campo_valor(tipo_medidor)
 
-            sql = f"""
-                SELECT 
-                    DATEPART(HOUR, DT_LEITURA) AS hora,
-                    AVG(CASE WHEN ID_SITUACAO = 1 THEN {campo_valor} ELSE NULL END) AS valor,
-                    COUNT(CASE WHEN ID_SITUACAO = 1 THEN 1 END) AS qtd_registros,
-                    MIN(CASE WHEN ID_SITUACAO = 1 THEN {campo_valor} ELSE NULL END) AS valor_min,
-                    MAX(CASE WHEN ID_SITUACAO = 1 THEN {campo_valor} ELSE NULL END) AS valor_max
-                FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO
-                WHERE CD_PONTO_MEDICAO = ?
-                  AND CAST(DT_LEITURA AS DATE) = ?
-                GROUP BY DATEPART(HOUR, DT_LEITURA)
-                ORDER BY hora
-            """
+            if tipo_medidor == 6:
+                # Reservatório: MAX como valor principal + contagem de minutos >= 100
+                sql = f"""
+                    SELECT
+                        DATEPART(HOUR, DT_LEITURA) AS hora,
+                        MAX(CASE WHEN ID_SITUACAO = 1 THEN {campo_valor} ELSE NULL END) AS valor,
+                        COUNT(CASE WHEN ID_SITUACAO = 1 THEN 1 END) AS qtd_registros,
+                        MIN(CASE WHEN ID_SITUACAO = 1 THEN {campo_valor} ELSE NULL END) AS valor_min,
+                        MAX(CASE WHEN ID_SITUACAO = 1 THEN {campo_valor} ELSE NULL END) AS valor_max,
+                        SUM(CASE
+                            WHEN ID_SITUACAO = 1 AND ID_TIPO_REGISTRO = 2 AND ID_TIPO_MEDICAO = 2
+                                THEN ISNULL(NR_EXTRAVASOU, 0)
+                            WHEN ID_SITUACAO = 1
+                                THEN CASE WHEN ROUND({campo_valor}, 0) >= 100 THEN 1 ELSE 0 END
+                            ELSE 0
+                        END) AS minutos_extravasou
+                    FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO
+                    WHERE CD_PONTO_MEDICAO = ?
+                      AND CAST(DT_LEITURA AS DATE) = ?
+                    GROUP BY DATEPART(HOUR, DT_LEITURA)
+                    ORDER BY hora
+                """
+            else:
+                sql = f"""
+                    SELECT
+                        DATEPART(HOUR, DT_LEITURA) AS hora,
+                        AVG(CASE WHEN ID_SITUACAO = 1 THEN {campo_valor} ELSE NULL END) AS valor,
+                        COUNT(CASE WHEN ID_SITUACAO = 1 THEN 1 END) AS qtd_registros,
+                        MIN(CASE WHEN ID_SITUACAO = 1 THEN {campo_valor} ELSE NULL END) AS valor_min,
+                        MAX(CASE WHEN ID_SITUACAO = 1 THEN {campo_valor} ELSE NULL END) AS valor_max
+                    FROM SIMP.dbo.REGISTRO_VAZAO_PRESSAO
+                    WHERE CD_PONTO_MEDICAO = ?
+                      AND CAST(DT_LEITURA AS DATE) = ?
+                    GROUP BY DATEPART(HOUR, DT_LEITURA)
+                    ORDER BY hora
+                """
 
             conn = self._get_connection()
             df = pd.read_sql(sql, conn, params=[cd_ponto, data])

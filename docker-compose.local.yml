@@ -1,0 +1,43 @@
+version: '3.7'
+
+services:
+  simp20-php:
+    image: "registry.cesan.com.br/cesan/simp20-php:0.0.1"
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - TENSORFLOW_URL=http://simp20-tensorflow:5000
+      - no_proxy=localhost,127.0.0.1,simp20-tensorflow
+      - NO_PROXY=localhost,127.0.0.1,simp20-tensorflow
+    volumes:
+      - ./html:/var/www/html
+    networks:
+      - cntlm
+    ports:
+      - 9461:80
+
+  simp20-tensorflow:
+    image: "registry.cesan.com.br/cesan/simp20-tensorflow:latest"
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - PORT=5000
+      - FLASK_ENV=development
+      - MODELS_DIR=/app/models
+      - no_proxy=localhost,127.0.0.1
+      - NO_PROXY=localhost,127.0.0.1
+    volumes:
+      - ./modelos_treinados:/app/models
+    networks:
+      - cntlm
+    ports:
+      - 5000:5000
+
+networks:
+  cntlm:
+    name: backing-services_cntlm
+    external: true

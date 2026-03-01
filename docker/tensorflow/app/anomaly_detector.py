@@ -15,6 +15,7 @@ import logging
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Any
+from sklearn.preprocessing import MinMaxScaler
 try:
     import tensorflow as tf
     from tensorflow.keras.models import Sequential, load_model, Model
@@ -212,18 +213,37 @@ class AnomalyDetector:
                 })
 
             # Nível acima de 100% (tipo 6 = Nível Reservatório)
-            if tipo_medidor == 6 and valor >= 100:
-                anomalias.append({
-                    'hora': hora,
-                    'hora_formatada': f"{hora:02d}:00",
-                    'valor_real': round(valor, 2),
-                    'valor_esperado': 100,
-                    'score': 0.95 if valor > 105 else 0.85,
-                    'severidade': 'critica' if valor > 105 else 'alta',
-                    'tipo': 'fora_faixa',
-                    'descricao': f'Nível em {valor:.1f}% (>= 100%) - risco de extravasamento',
-                    'metodo': 'regras'
-                })
+            # Usa contagem de minutos >= 100 (compatível com operacoes.php)
+            if tipo_medidor == 6:
+                minutos_extrav = int(row.get('minutos_extravasou', 0) or 0)
+                valor_max = float(row.get('valor_max', 0) or 0)
+
+                if minutos_extrav > 0:
+                    # Severidade proporcional ao tempo de extravasamento
+                    if minutos_extrav > 30:
+                        severidade = 'critica'
+                        score = 0.95
+                    elif minutos_extrav > 10:
+                        severidade = 'alta'
+                        score = 0.85
+                    else:
+                        severidade = 'media'
+                        score = 0.70
+
+                    anomalias.append({
+                        'hora': hora,
+                        'hora_formatada': f"{hora:02d}:00",
+                        'valor_real': round(valor_max, 2),
+                        'valor_esperado': 100,
+                        'score': score,
+                        'severidade': severidade,
+                        'tipo': 'fora_faixa',
+                        'descricao': (
+                            f'{minutos_extrav} min >= 100% na hora {hora:02d}:00 '
+                            f'(máx {valor_max:.0f}%) - risco de extravasamento'
+                        ),
+                        'metodo': 'regras'
+                    })
 
             # Registros incompletos (< 50 de 60 esperados)
             if qtd > 0 and qtd < 50:

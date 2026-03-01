@@ -42,7 +42,7 @@ try {
 <!-- Select2 CSS -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
-<link rel="stylesheet" href="/style/css/treinamentoLote.css" />
+<link rel="stylesheet" href="/style/css/tratamentoLote.css" />
 
 <div class="page-container">
 
@@ -83,6 +83,43 @@ try {
                     Atualizar
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         PAINEL DE PROGRESSO DO BATCH
+         ============================================ -->
+    <div class="batch-progress-panel" id="batchProgressPanel" style="display:none;">
+        <div class="train-progress-header">
+            <div class="train-progress-title">
+                <ion-icon name="sync-outline" class="spin-icon" id="batchProgressIcon"></ion-icon>
+                <strong id="batchProgressTitulo">Batch em andamento...</strong>
+            </div>
+            <button class="train-progress-close" id="btnFecharProgressoBatch"
+                onclick="fecharPainelProgressoBatch()" title="Fechar" style="display:none;">
+                <ion-icon name="close-outline"></ion-icon>
+            </button>
+        </div>
+        <div class="train-progress-body">
+            <div class="train-progress-bar-wrapper">
+                <div class="train-progress-bar" id="batchProgressBar" style="width:0%"></div>
+            </div>
+            <div class="train-progress-stats">
+                <span class="tps-item sucesso">
+                    <ion-icon name="checkmark-circle-outline"></ion-icon>
+                    <span id="batchProcessados">0</span> processados
+                </span>
+                <span class="tps-item falha">
+                    <ion-icon name="warning-outline"></ion-icon>
+                    <span id="batchAnomalias">0</span> anomalias
+                </span>
+                <span class="tps-item total">
+                    <ion-icon name="layers-outline"></ion-icon>
+                    <span id="batchTotal">0</span> total
+                </span>
+                <span class="tps-item tempo" id="batchTempo"></span>
+            </div>
+            <div class="train-progress-msg" id="batchProgressMsg">Aguardando...</div>
         </div>
     </div>
 
@@ -1358,6 +1395,11 @@ try {
     /** Modo massa: 'individual' ou 'massa' */
     let modoIgnorar = 'individual';
 
+    /** Timer do polling de progresso do batch */
+    let _batchPolling = null;
+    /** Timestamp de inicio do batch (para tempo decorrido no frontend) */
+    let _batchInicio = null;
+
     // ============================================
     // Inicializacao
     // ============================================
@@ -2204,6 +2246,32 @@ try {
             html += '</div></div>';
         }
 
+        // ------ Secao 5: Analise IA do Ponto ------
+        html += '<div class="ia-analise-section" id="iaAnaliseSection" style="border-top:1px solid #e2e8f0;padding-top:16px;margin-top:16px;">';
+        html += '<div class="ia-analise-header">';
+        html += '<h4 style="font-size:13px;font-weight:700;color:#1e293b;margin:0;display:flex;align-items:center;gap:6px;">'
+            + '<ion-icon name="sparkles-outline" style="font-size:16px;color:#3b82f6;"></ion-icon>'
+            + 'An\u00e1lise IA do Ponto</h4>';
+        html += '<button type="button" class="ia-analise-refresh-btn" id="btnRefreshAnaliseIA" onclick="gerarAnaliseIA(' + p.CD_PONTO_MEDICAO + ')" title="Gerar/Atualizar an\u00e1lise">'
+            + '<ion-icon name="refresh-outline"></ion-icon></button>';
+        html += '</div>';
+
+        // Corpo da analise (preenchido via AJAX)
+        html += '<div class="ia-analise-body" id="iaAnaliseBody">';
+        html += '<div class="ia-analise-loading"><ion-icon name="hourglass-outline"></ion-icon> Consultando an\u00e1lise...</div>';
+        html += '</div>';
+
+        // Periodo customizado + botao analisar
+        html += '<div class="ia-analise-periodo" id="iaAnalisePeriodo" style="display:none;">';
+        html += '<label style="font-size:11px;color:#64748b;">Per\u00edodo:</label>';
+        html += '<input type="date" id="iaAnaliseInicio" style="font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;" />';
+        html += '<span style="font-size:11px;color:#94a3b8;">a</span>';
+        html += '<input type="date" id="iaAnaliseFim" style="font-size:11px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;" />';
+        html += '<button type="button" class="ia-analise-btn" onclick="gerarAnaliseIACustom(' + p.CD_PONTO_MEDICAO + ')">Analisar</button>';
+        html += '</div>';
+
+        html += '</div>';
+
         // Reserva GNN
         html += '<div class="gnn-placeholder" style="margin-top:16px;">'
             + '<ion-icon name="git-network-outline"></ion-icon>'
@@ -2216,6 +2284,9 @@ try {
         setTimeout(function () {
             initSelectMetodos(p);
         }, 100);
+
+        // Carregar analise IA salva (se existir)
+        consultarAnaliseIA(p.CD_PONTO_MEDICAO);
     }
 
     /**
@@ -2650,39 +2721,422 @@ try {
 
 
     // ============================================
-    // Executar Batch
+    // Analise IA do Ponto (modal de detalhe)
+    // ============================================
+
+    /**
+     * Consulta analise IA salva no banco para o ponto.
+     * Chamada automaticamente ao abrir o modal de detalhe.
+     * @param {number} cdPonto - Codigo do ponto de medicao
+     */
+    function consultarAnaliseIA(cdPonto) {
+        var body = document.getElementById('iaAnaliseBody');
+        var periodo = document.getElementById('iaAnalisePeriodo');
+        if (!body) return;
+
+        body.innerHTML = '<div class="ia-analise-loading"><ion-icon name="hourglass-outline"></ion-icon> Consultando an\u00e1lise...</div>';
+
+        fetch('bd/operacoes/analiseIAPonto.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ acao: 'consultar_analise', cd_ponto_medicao: cdPonto })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.success) {
+                body.innerHTML = '<div class="ia-analise-empty">Erro ao consultar: ' + (data.error || 'desconhecido') + '</div>';
+                if (periodo) periodo.style.display = 'flex';
+                return;
+            }
+
+            if (!data.analise) {
+                // Nenhuma analise disponivel
+                body.innerHTML = '<div class="ia-analise-empty">Nenhuma an\u00e1lise dispon\u00edvel. Clique em <ion-icon name="refresh-outline"></ion-icon> para gerar.</div>';
+                if (periodo) periodo.style.display = 'flex';
+
+                // Preencher datas default (ultimos 30 dias)
+                preencherDatasDefault();
+                return;
+            }
+
+            renderizarAnaliseIA(data.analise);
+        })
+        .catch(function(err) {
+            body.innerHTML = '<div class="ia-analise-empty">Erro de conex\u00e3o: ' + err.message + '</div>';
+            if (periodo) periodo.style.display = 'flex';
+        });
+    }
+
+    /**
+     * Gera (ou regenera) a analise IA para o ponto com periodo padrao (30 dias).
+     * @param {number} cdPonto - Codigo do ponto
+     */
+    function gerarAnaliseIA(cdPonto) {
+        var body = document.getElementById('iaAnaliseBody');
+        var btnRefresh = document.getElementById('btnRefreshAnaliseIA');
+        if (!body) return;
+
+        // Loading
+        body.innerHTML = '<div class="ia-analise-loading"><ion-icon name="sync-outline" class="spin-icon"></ion-icon> Gerando an\u00e1lise com IA...</div>';
+        if (btnRefresh) btnRefresh.disabled = true;
+
+        fetch('bd/operacoes/analiseIAPonto.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ acao: 'analisar_ponto', cd_ponto_medicao: cdPonto })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (btnRefresh) btnRefresh.disabled = false;
+
+            if (!data.success) {
+                body.innerHTML = '<div class="ia-analise-empty">Erro: ' + (data.error || 'desconhecido') + '</div>';
+                return;
+            }
+
+            renderizarAnaliseIA({
+                ds_analise: data.ds_analise,
+                dt_geracao: data.dt_geracao,
+                provider: data.provider,
+                qtd_observacoes: data.qtd_observacoes,
+                qtd_vizinhos_anomalos: data.qtd_vizinhos_anomalos,
+                dt_periodo_inicio: data.dt_periodo_inicio,
+                dt_periodo_fim: data.dt_periodo_fim
+            });
+
+            toast('An\u00e1lise IA gerada com sucesso', 'ok');
+        })
+        .catch(function(err) {
+            if (btnRefresh) btnRefresh.disabled = false;
+            body.innerHTML = '<div class="ia-analise-empty">Erro de conex\u00e3o: ' + err.message + '</div>';
+        });
+    }
+
+    /**
+     * Gera analise IA com periodo customizado (inputs de data).
+     * @param {number} cdPonto - Codigo do ponto
+     */
+    function gerarAnaliseIACustom(cdPonto) {
+        var dtInicio = document.getElementById('iaAnaliseInicio').value;
+        var dtFim = document.getElementById('iaAnaliseFim').value;
+
+        if (!dtInicio || !dtFim) {
+            toast('Informe o per\u00edodo para an\u00e1lise', 'err');
+            return;
+        }
+
+        var body = document.getElementById('iaAnaliseBody');
+        var btnRefresh = document.getElementById('btnRefreshAnaliseIA');
+        if (!body) return;
+
+        body.innerHTML = '<div class="ia-analise-loading"><ion-icon name="sync-outline" class="spin-icon"></ion-icon> Gerando an\u00e1lise com IA...</div>';
+        if (btnRefresh) btnRefresh.disabled = true;
+
+        fetch('bd/operacoes/analiseIAPonto.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                acao: 'analisar_ponto',
+                cd_ponto_medicao: cdPonto,
+                dt_inicio: dtInicio,
+                dt_fim: dtFim
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (btnRefresh) btnRefresh.disabled = false;
+
+            if (!data.success) {
+                body.innerHTML = '<div class="ia-analise-empty">Erro: ' + (data.error || 'desconhecido') + '</div>';
+                return;
+            }
+
+            renderizarAnaliseIA({
+                ds_analise: data.ds_analise,
+                dt_geracao: data.dt_geracao,
+                provider: data.provider,
+                qtd_observacoes: data.qtd_observacoes,
+                qtd_vizinhos_anomalos: data.qtd_vizinhos_anomalos,
+                dt_periodo_inicio: data.dt_periodo_inicio,
+                dt_periodo_fim: data.dt_periodo_fim
+            });
+
+            toast('An\u00e1lise IA gerada com sucesso', 'ok');
+        })
+        .catch(function(err) {
+            if (btnRefresh) btnRefresh.disabled = false;
+            body.innerHTML = '<div class="ia-analise-empty">Erro de conex\u00e3o: ' + err.message + '</div>';
+        });
+    }
+
+    /**
+     * Renderiza o conteudo da analise IA no painel do modal.
+     * @param {object} analise - Dados da analise { ds_analise, dt_geracao, provider, ... }
+     */
+    function renderizarAnaliseIA(analise) {
+        var body = document.getElementById('iaAnaliseBody');
+        var periodo = document.getElementById('iaAnalisePeriodo');
+        if (!body) return;
+
+        var dtGeracao = analise.dt_geracao ? formatarDataHora(analise.dt_geracao) : '-';
+        var provider = (analise.provider || '-').charAt(0).toUpperCase() + (analise.provider || '-').slice(1);
+
+        var h = '';
+        h += '<div class="ia-analise-texto">"' + escapeHtml(analise.ds_analise) + '"</div>';
+        h += '<div class="ia-analise-meta">';
+        h += '<span>Gerado em: ' + dtGeracao + ' | ' + provider + '</span>';
+        h += '<span>Obs analisadas: ' + (analise.qtd_observacoes || 0) + '</span>';
+        h += '<span>Vizinhos an\u00f4malos: ' + (analise.qtd_vizinhos_anomalos || 0) + '</span>';
+        h += '</div>';
+
+        body.innerHTML = h;
+
+        // Mostrar periodo e preencher com valores da analise
+        if (periodo) {
+            periodo.style.display = 'flex';
+            if (analise.dt_periodo_inicio) {
+                document.getElementById('iaAnaliseInicio').value = analise.dt_periodo_inicio.substring(0, 10);
+            }
+            if (analise.dt_periodo_fim) {
+                document.getElementById('iaAnaliseFim').value = analise.dt_periodo_fim.substring(0, 10);
+            }
+        }
+    }
+
+    /**
+     * Preenche os inputs de data com valores default (ultimos 30 dias).
+     */
+    function preencherDatasDefault() {
+        var hoje = new Date();
+        var inicio = new Date();
+        inicio.setDate(inicio.getDate() - 30);
+
+        var fmtDate = function(d) {
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        };
+
+        var elInicio = document.getElementById('iaAnaliseInicio');
+        var elFim = document.getElementById('iaAnaliseFim');
+        if (elInicio) elInicio.value = fmtDate(inicio);
+        if (elFim) elFim.value = fmtDate(hoje);
+    }
+
+    /**
+     * Formata datetime (YYYY-MM-DD HH:MM:SS) para DD/MM/YYYY HH:MM
+     */
+    function formatarDataHora(dt) {
+        if (!dt) return '-';
+        var partes = dt.split(/[T\s]/);
+        var data = partes[0] || '';
+        var hora = partes[1] || '';
+        var dParts = data.split('-');
+        if (dParts.length === 3) {
+            data = dParts[2] + '/' + dParts[1] + '/' + dParts[0];
+        }
+        if (hora) {
+            data += ' ' + hora.substring(0, 5);
+        }
+        return data;
+    }
+
+    // ============================================
+    // Executar Batch (com acompanhamento em tempo real)
     // ============================================
 
     function executarBatch() {
         if (!confirm('Executar motor de analise batch?\nIsso pode levar alguns minutos.')) return;
 
-        const btn = document.getElementById('btnExecutarBatch');
-        const textoOriginal = btn.innerHTML;
+        var btn = document.getElementById('btnExecutarBatch');
+        var textoOriginal = btn.innerHTML;
         btn.innerHTML = '<div class="loading-spinner" style="width:14px;height:14px;border-width:2px;"></div> Processando...';
         btn.disabled = true;
 
+        // Mostrar painel de progresso imediatamente
+        mostrarPainelProgressoBatch('running', 'Iniciando batch...', 0, 0, 0, 0);
+        _batchInicio = Date.now();
+
+        // Disparar batch (a promise fica pendente ate o batch terminar)
         fetch('bd/operacoes/motorBatchTratamento.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ acao: 'executar_batch' })
         })
-            .then(r => r.json())
-            .then(data => {
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
                 btn.innerHTML = textoOriginal;
                 btn.disabled = false;
 
                 if (data.success) {
-                    toast(`Batch concluido: ${data.processados} pontos, ${data.pendencias_geradas} pendencias, ${data.tempo_segundos}s`, 'ok');
+                    mostrarPainelProgressoBatch(
+                        'completed',
+                        'Batch concluido com sucesso!',
+                        data.processados || 0,
+                        data.com_anomalia || 0,
+                        data.total_pontos || 0,
+                        data.erros || 0
+                    );
+                    toast('Batch concluido: ' + data.processados + ' pontos, ' +
+                          data.pendencias_geradas + ' pendencias, ' + data.tempo_segundos + 's', 'ok');
                     carregarEstatisticas();
+                    carregarPendencias();
                 } else {
+                    mostrarPainelProgressoBatch('error', data.error || 'Erro no batch', 0, 0, 0, 0);
                     toast(data.error || 'Erro no batch', 'err');
                 }
+
+                // Parar polling (batch ja terminou)
+                pararPollingBatch();
             })
-            .catch(err => {
+            .catch(function(err) {
                 btn.innerHTML = textoOriginal;
                 btn.disabled = false;
+                mostrarPainelProgressoBatch('error', 'Erro de conexao: ' + err.message, 0, 0, 0, 0);
                 toast('Erro de conexao: ' + err.message, 'err');
+                pararPollingBatch();
             });
+
+        // Iniciar polling 2s apos disparar (dar tempo do batch comecar)
+        setTimeout(function() {
+            iniciarPollingBatch();
+        }, 2000);
+    }
+
+    /**
+     * Inicia polling de progresso do batch a cada 5 segundos.
+     */
+    function iniciarPollingBatch() {
+        if (_batchPolling) clearInterval(_batchPolling);
+
+        _batchPolling = setInterval(function() {
+            fetch('bd/operacoes/motorBatchTratamento.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ acao: 'progresso_batch' })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(prog) {
+                if (!prog.success) return;
+
+                var status = prog.status;
+                if (status === 'idle') return;
+
+                var processados = prog.processados || 0;
+                var anomalias = prog.com_anomalia || 0;
+                var total = prog.total || 0;
+                var erros = prog.erros || 0;
+                var pontoAtual = prog.ponto_atual || '';
+
+                if (status === 'running') {
+                    mostrarPainelProgressoBatch('running', pontoAtual, processados, anomalias, total, erros);
+                } else if (status === 'completed' || status === 'error') {
+                    mostrarPainelProgressoBatch(status,
+                        status === 'completed' ? 'Batch concluido!' : 'Batch encerrado com erros',
+                        processados, anomalias, total, erros);
+                    pararPollingBatch();
+                }
+            })
+            .catch(function() {
+                // Erro de rede temporario — manter polling
+            });
+        }, 5000);
+    }
+
+    /**
+     * Para o polling de progresso do batch.
+     */
+    function pararPollingBatch() {
+        if (_batchPolling) {
+            clearInterval(_batchPolling);
+            _batchPolling = null;
+        }
+    }
+
+    /**
+     * Mostra/atualiza o painel de progresso do batch.
+     * @param {string} status      - 'running', 'completed', 'error'
+     * @param {string} msg         - Mensagem (ponto atual ou resumo)
+     * @param {number} processados - Qtd de pontos processados
+     * @param {number} anomalias   - Qtd com anomalia detectada
+     * @param {number} total       - Total de pontos
+     * @param {number} erros       - Qtd com erro
+     */
+    function mostrarPainelProgressoBatch(status, msg, processados, anomalias, total, erros) {
+        var painel = document.getElementById('batchProgressPanel');
+        var icon = document.getElementById('batchProgressIcon');
+        var titulo = document.getElementById('batchProgressTitulo');
+        var bar = document.getElementById('batchProgressBar');
+        var btnFechar = document.getElementById('btnFecharProgressoBatch');
+        var msgEl = document.getElementById('batchProgressMsg');
+        var tempoEl = document.getElementById('batchTempo');
+
+        // Mostrar painel
+        painel.style.display = '';
+
+        // Estado CSS
+        painel.className = 'batch-progress-panel ' + status;
+
+        // Icone e titulo
+        if (status === 'running') {
+            icon.setAttribute('name', 'sync-outline');
+            icon.classList.add('spin-icon');
+            titulo.textContent = 'Batch em andamento...';
+            btnFechar.style.display = 'none';
+        } else if (status === 'completed') {
+            icon.setAttribute('name', 'checkmark-circle-outline');
+            icon.classList.remove('spin-icon');
+            titulo.textContent = 'Batch finalizado!';
+            btnFechar.style.display = 'flex';
+        } else {
+            icon.setAttribute('name', 'alert-circle-outline');
+            icon.classList.remove('spin-icon');
+            titulo.textContent = 'Batch encerrado com erros';
+            btnFechar.style.display = 'flex';
+        }
+
+        // Contadores
+        document.getElementById('batchProcessados').textContent = processados;
+        document.getElementById('batchAnomalias').textContent = anomalias;
+        document.getElementById('batchTotal').textContent = total;
+
+        // Barra de progresso
+        var pct = total > 0 ? Math.min(100, Math.round((processados / total) * 100)) : 0;
+        bar.style.width = (status === 'completed' ? 100 : pct) + '%';
+
+        // Mensagem
+        if (msgEl) {
+            if (status === 'running' && msg) {
+                msgEl.textContent = 'Processando: ' + msg;
+            } else if (msg) {
+                msgEl.textContent = msg;
+            }
+        }
+
+        // Contagem de erros na mensagem
+        if (erros > 0 && msgEl) {
+            msgEl.textContent += ' | ' + erros + ' erro(s)';
+        }
+
+        // Tempo decorrido
+        if (_batchInicio && tempoEl) {
+            var seg = Math.round((Date.now() - _batchInicio) / 1000);
+            var min = Math.floor(seg / 60);
+            var s = seg % 60;
+            tempoEl.innerHTML = '<ion-icon name="time-outline"></ion-icon> ' +
+                (min > 0 ? min + 'min ' : '') + s + 's';
+        }
+
+        // Scroll suave (primeira vez)
+        if (status === 'running' && processados === 0) {
+            painel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    /**
+     * Fecha o painel de progresso do batch (so quando finalizado).
+     */
+    function fecharPainelProgressoBatch() {
+        document.getElementById('batchProgressPanel').style.display = 'none';
+        _batchInicio = null;
     }
 
     /** Abre modal de regras */
@@ -3427,6 +3881,44 @@ try {
         const pane = document.getElementById('pane' + tab.charAt(0).toUpperCase() + tab.slice(1));
         if (pane) { pane.classList.add('active'); pane.style.display = 'block'; }
     }
+
+    // ============================================
+    // Verificar batch em andamento ao carregar a pagina
+    // ============================================
+    (function verificarBatchEmAndamento() {
+        fetch('bd/operacoes/motorBatchTratamento.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ acao: 'progresso_batch' })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(prog) {
+            if (!prog.success || prog.status === 'idle') return;
+
+            if (prog.status === 'running') {
+                // Batch em andamento — mostrar painel e iniciar polling
+                _batchInicio = prog.inicio ? new Date(prog.inicio).getTime() : Date.now();
+                mostrarPainelProgressoBatch('running', prog.ponto_atual || 'Processando...',
+                    prog.processados || 0, prog.com_anomalia || 0,
+                    prog.total || 0, prog.erros || 0);
+                iniciarPollingBatch();
+                // Desabilitar botao
+                var btn = document.getElementById('btnExecutarBatch');
+                if (btn) {
+                    btn.innerHTML = '<div class="loading-spinner" style="width:14px;height:14px;border-width:2px;"></div> Processando...';
+                    btn.disabled = true;
+                }
+            } else if (prog.status === 'completed' || prog.status === 'error') {
+                // Ultimo batch finalizado recentemente — mostrar resultado
+                _batchInicio = prog.inicio ? new Date(prog.inicio).getTime() : Date.now();
+                mostrarPainelProgressoBatch(prog.status,
+                    prog.status === 'completed' ? 'Batch concluido!' : 'Batch encerrado com erros',
+                    prog.processados || 0, prog.com_anomalia || 0,
+                    prog.total || 0, prog.erros || 0);
+            }
+        })
+        .catch(function() { /* silencioso */ });
+    })();
 </script>
 
 <?php include_once 'includes/footer.inc.php'; ?>

@@ -80,8 +80,15 @@ try {
     if (empty($acao)) {
         retornarJSON_Batch([
             'success' => false,
-            'error'   => 'Parametro "acao" obrigatorio. Valores: executar_batch, status_batch, reprocessar_ponto'
+            'error'   => 'Parametro "acao" obrigatorio. Valores: executar_batch, status_batch, reprocessar_ponto, progresso_batch'
         ]);
+    }
+
+    // Para polling de progresso, liberar session lock imediatamente
+    if ($acao === 'progresso_batch') {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
     }
 
     // ========================================
@@ -111,6 +118,11 @@ try {
             retornarJSON_Batch(['success' => true, 'ponto' => $resultado]);
             break;
 
+        case 'progresso_batch':
+            $resultado = progressoBatch();
+            retornarJSON_Batch($resultado);
+            break;
+
         default:
             retornarJSON_Batch(['success' => false, 'error' => "Acao '$acao' nao reconhecida"]);
     }
@@ -136,6 +148,14 @@ function executarBatch(PDO $pdo, string $tfUrl, string $data): array
 {
     $inicio = microtime(true);
 
+    // Liberar session lock para permitir polling simultaneo
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+
+    // Arquivo de progresso do batch (JSON temporario)
+    $progressFile = sys_get_temp_dir() . '/simp_batch_progress.json';
+
     // 1. Buscar pontos ativos com integracao
     $pontos = buscarPontosAtivos($pdo);
 
@@ -155,8 +175,29 @@ function executarBatch(PDO $pdo, string $tfUrl, string $data): array
     // 3. Buscar versao topologia atual
     $versaoTopologia = buscarVersaoTopologiaAtual($pdo);
 
+    // Gravar progresso inicial
+    $progressData = [
+        'status'             => 'running',
+        'data'               => $data,
+        'total'              => count($pontos),
+        'processados'        => 0,
+        'com_anomalia'       => 0,
+        'pendencias_geradas' => 0,
+        'erros'              => 0,
+        'ponto_atual'        => null,
+        'inicio'             => date('c'),
+        'fim'                => null,
+        'tempo_decorrido'    => 0
+    ];
+    @file_put_contents($progressFile, json_encode($progressData, JSON_UNESCAPED_UNICODE));
+
     // 4. Processar cada ponto
     foreach ($pontos as $ponto) {
+        // Atualizar progresso com ponto atual
+        $progressData['ponto_atual'] = $ponto['DS_NOME'] ?? ('Ponto #' . $ponto['CD_PONTO_MEDICAO']);
+        $progressData['tempo_decorrido'] = round(microtime(true) - $inicio, 1);
+        @file_put_contents($progressFile, json_encode($progressData, JSON_UNESCAPED_UNICODE));
+
         try {
             $resPonto = processarPonto($pdo, $tfUrl, $ponto['CD_PONTO_MEDICAO'], $data, $ponto, $mapaVizinhos, $versaoTopologia);
 
@@ -167,8 +208,14 @@ function executarBatch(PDO $pdo, string $tfUrl, string $data): array
             $resultados['pendencias_geradas'] += $resPonto['pendencias_gravadas'];
             $resultados['detalhes'][] = $resPonto;
 
+            // Atualizar contadores no progresso
+            $progressData['processados'] = $resultados['processados'];
+            $progressData['com_anomalia'] = $resultados['com_anomalia'];
+            $progressData['pendencias_geradas'] = $resultados['pendencias_geradas'];
+
         } catch (Exception $e) {
             $resultados['erros']++;
+            $progressData['erros'] = $resultados['erros'];
             $resultados['detalhes'][] = [
                 'cd_ponto'  => $ponto['CD_PONTO_MEDICAO'],
                 'ds_nome'   => $ponto['DS_NOME'],
@@ -176,6 +223,17 @@ function executarBatch(PDO $pdo, string $tfUrl, string $data): array
             ];
         }
     }
+
+    // Gravar progresso final
+    $progressData['status'] = $resultados['erros'] > 0 ? 'error' : 'completed';
+    $progressData['processados'] = $resultados['processados'];
+    $progressData['com_anomalia'] = $resultados['com_anomalia'];
+    $progressData['pendencias_geradas'] = $resultados['pendencias_geradas'];
+    $progressData['erros'] = $resultados['erros'];
+    $progressData['ponto_atual'] = null;
+    $progressData['fim'] = date('c');
+    $progressData['tempo_decorrido'] = round(microtime(true) - $inicio, 1);
+    @file_put_contents($progressFile, json_encode($progressData, JSON_UNESCAPED_UNICODE));
 
     $resultados['tempo_segundos'] = round(microtime(true) - $inicio, 2);
 
@@ -948,6 +1006,47 @@ function gravarPendencia(PDO $pdo, array $dados): bool
         }
         throw $e;
     }
+}
+
+
+// ============================================================
+// PROGRESSO DO BATCH EM TEMPO REAL
+// ============================================================
+
+/**
+ * Retorna o progresso atual do batch em execucao.
+ * Le o arquivo JSON de progresso escrito pela funcao executarBatch.
+ *
+ * @return array Dados de progresso ou status idle
+ */
+function progressoBatch(): array
+{
+    $progressFile = sys_get_temp_dir() . '/simp_batch_progress.json';
+
+    if (!file_exists($progressFile)) {
+        return ['success' => true, 'status' => 'idle'];
+    }
+
+    $conteudo = @file_get_contents($progressFile);
+    if ($conteudo === false) {
+        return ['success' => true, 'status' => 'idle'];
+    }
+
+    $dados = json_decode($conteudo, true);
+    if (!$dados) {
+        return ['success' => true, 'status' => 'idle'];
+    }
+
+    // Limpar arquivo se batch concluiu ha mais de 5 minutos
+    if (in_array($dados['status'] ?? '', ['completed', 'error'])) {
+        $fim = strtotime($dados['fim'] ?? 'now');
+        if ((time() - $fim) > 300) {
+            @unlink($progressFile);
+            return ['success' => true, 'status' => 'idle'];
+        }
+    }
+
+    return ['success' => true] + $dados;
 }
 
 
